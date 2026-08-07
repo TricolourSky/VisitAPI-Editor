@@ -44,15 +44,16 @@ public static class Program
     }
 
     /// <summary>
-    /// 这个 exe 是什么时候构建的。
-    /// 加它是因为踩过一次：exe 被拷到 D:\EFT 之后就不会自动更新，跑着旧版本却以为是新功能坏了，
-    /// 白查了一轮。现在控制台和界面都会显示，一眼能看出版本对不对。
+    /// 版本 + 构建时间，形如 <c>0.1.0+b260808-0030</c>（UTC）。
+    ///
+    /// 加它是因为踩过一次：exe 拷到别处之后不会自动更新，跑着旧版本却以为是新功能坏了，白查一轮。
+    /// **值来自编译期写进程序集的 InformationalVersion，不是文件修改时间** ——
+    /// 后者在用户从 Release 下载后会变成下载时间，显示出来是假的。
     /// </summary>
-    public static string BuildStamp()
-    {
-        try { return new FileInfo(Environment.ProcessPath!).LastWriteTime.ToString("MM-dd HH:mm"); }
-        catch { return "?"; }
-    }
+    public static string BuildStamp() =>
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "?";
 
     /// <summary>问系统要一个当前空闲的端口：绑 :0 让系统分配，记下号再放掉。</summary>
     static int FreePort()

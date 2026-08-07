@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>VisitAPI.Editor</AssemblyName>
     <RootNamespace>VisitAPI.Server</RootNamespace>
+    <Version>0.1.0</Version>
+    <!-- 构建时间写进程序集版本号（会拼成 0.1.0+b260808-0030）。
+         不能靠读 exe 的文件修改时间——用户从 Release 下载后那个时间会变成下载时间，
+         显示的版本就是假的，等于白做。 -->
+    <SourceRevisionId>b$([System.DateTime]::UtcNow.ToString("yyMMdd-HHmm"))</SourceRevisionId>
     <!-- 分发形态：单文件 exe。framework-dependent（不自带运行时）——
          装了 SPT 的人本来就有 .NET 10 + ASP.NET Core（SPT.Server.runtimeconfig.json 写死的），
          所以不打包运行时，体积能小两个数量级。 -->
