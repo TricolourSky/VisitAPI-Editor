@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>VisitAPI.Editor</AssemblyName>
+    <RootNamespace>VisitAPI.Server</RootNamespace>
+    <!-- 分发形态：单文件 exe。framework-dependent（不自带运行时）——
+         装了 SPT 的人本来就有 .NET 10 + ASP.NET Core（SPT.Server.runtimeconfig.json 写死的），
+         所以不打包运行时，体积能小两个数量级。 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisitAPI.Dlg\VisitAPI.Dlg.csproj" />
+  </ItemGroup>
+
+  <!-- 界面整包嵌进 exe：单文件分发时 wwwroot 不会自动跟着走，嵌成资源最稳 -->
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\**\*" LogicalName="ui/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Remove="wwwroot\**\*" />
+  </ItemGroup>
+
+</Project>

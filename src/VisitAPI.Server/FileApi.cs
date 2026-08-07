@@ -1,0 +1,109 @@
+namespace VisitAPI.Server;
+
+/// <summary>文件相关的接口。全部要求带令牌，全部走 Workspace 的路径牢笼。</summary>
+public static class FileApi
+{
+    public static void Map(WebApplication app, Workspace ws)
+    {
+        // 令牌闸门：/api/* 一律先验令牌（/api/ping 除外——它不碰文件，只用来判断页面还开着）
+        app.Use(async (ctx, next) =>
+        {
+            var p = ctx.Request.Path.Value ?? "";
+            if (p.StartsWith("/api/") && p != "/api/ping" &&
+                ctx.Request.Headers["X-Token"] != ws.Token)
+            {
+                ctx.Response.StatusCode = 403;
+                await ctx.Response.WriteAsync("bad token");
+                return;
+            }
+            await next();
+        });
+
+        app.MapGet("/api/workspace", () => Results.Json(new
+        {
+            root = ws.Root,
+            ok = ws.HasRoot,
+            build = Program.BuildStamp(),
+            // 界面用这两个解释"为什么没素材"：是工作区没指对，还是目录真的空
+            hasBg = ws.HasRoot && Directory.Exists(ws.Resolve("backgrounds")!),
+            hasAudio = ws.HasRoot && Directory.Exists(ws.Resolve("audio")!),
+        }));
+
+        app.MapPost("/api/workspace", (RootReq r) =>
+            ws.SetRoot(r.Path) ? Results.Json(new { root = ws.Root, ok = true })
+                               : Results.BadRequest(new { error = "目录不存在: " + r.Path }));
+
+        // 列目录：只回子目录和剧本文件，别的不关我们的事也没必要暴露。
+        // `.dlg.demo` 也列出来——插件带的示例就是这个后缀，不列的话用户会以为目录是空的。
+        app.MapGet("/api/list", (string? dir) =>
+        {
+            var full = ws.Resolve(dir ?? "");
+            if (full == null || !Directory.Exists(full)) return Results.BadRequest(new { error = "路径无效" });
+            var rel = Path.GetRelativePath(ws.Root, full);
+            return Results.Json(new
+            {
+                dir = rel == "." ? "" : rel.Replace('\\', '/'),
+                dirs = Directory.GetDirectories(full).Select(Path.GetFileName).OrderBy(x => x),
+                files = Directory.GetFiles(full)
+                        .Where(f => f.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase)
+                                 || f.EndsWith(".dlg.demo", StringComparison.OrdinalIgnoreCase))
+                        .Select(f => new FileInfo(f)).OrderBy(f => f.Name)
+                        .Select(f => new
+                        {
+                            name = f.Name,
+                            size = f.Length,
+                            mtime = f.LastWriteTimeUtc,
+                            demo = f.Name.EndsWith(".demo", StringComparison.OrdinalIgnoreCase),
+                        }),
+            });
+        });
+
+        // 素材清单：背景在 <工作区>\backgrounds、音频在 <工作区>\audio —— 和插件读的是同两个目录，
+        // 所以编辑器里能选的，游戏里就一定找得到。
+        app.MapGet("/api/assets", () => Results.Json(new
+        {
+            bg = Scan("backgrounds", f => Media.IsMedia(f) && !Media.IsAudio(f)),
+            audio = Scan("audio", Media.IsAudio),
+        }));
+
+        object[] Scan(string sub, Func<string, bool> keep)
+        {
+            var dir = ws.Resolve(sub);
+            if (dir == null || !Directory.Exists(dir)) return Array.Empty<object>();
+            return Directory.GetFiles(dir).Where(keep).Select(f => new FileInfo(f)).OrderBy(f => f.Name)
+                .Select(object (f) => new { name = f.Name, size = f.Length, video = Media.IsVideo(f.Name) })
+                .ToArray();
+        }
+
+        // 素材本体。<img>/<video> 的 src 没法带自定义头，所以令牌走查询串。
+        // enableRangeProcessing 必须开——不支持 Range 请求，浏览器就不给你播 mp4。
+        app.MapGet("/media", (string path, string t) =>
+        {
+            if (t != ws.Token) return Results.StatusCode(403);
+            var full = ws.Resolve(path);
+            if (full == null || !File.Exists(full) || !Media.IsMedia(full)) return Results.NotFound();
+            return Results.File(full, Media.Mime(full), enableRangeProcessing: true);
+        });
+
+        app.MapGet("/api/dlg", (string path) =>
+        {
+            var full = ws.Resolve(path);
+            if (full == null || !File.Exists(full)) return Results.NotFound(new { error = "文件不存在" });
+            return Results.Json(new { path, text = File.ReadAllText(full) });
+        });
+
+        app.MapPost("/api/dlg", async (string path, HttpRequest req) =>
+        {
+            var full = ws.Resolve(path);
+            if (full == null) return Results.BadRequest(new { error = "路径越界" });
+            using var r = new StreamReader(req.Body);
+            var text = await r.ReadToEndAsync();
+            // 覆盖前先留一份 .bak：这是别人几十小时写的剧本，存错一次就毁了
+            if (File.Exists(full)) File.Copy(full, full + ".bak", true);
+            File.WriteAllText(full, text);
+            return Results.Json(new { ok = true, bytes = text.Length });
+        });
+    }
+
+    public record RootReq(string Path);
+}

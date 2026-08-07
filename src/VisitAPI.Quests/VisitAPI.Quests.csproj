@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- SPT 任务模型 + 校验规则。只给编辑器用，不需要兼容插件，所以直接 net10.0。 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>VisitAPI.Quests</AssemblyName>
+    <RootNamespace>VisitAPI.Quests</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VisitAPI.Dlg/VisitAPI.Dlg.csproj" />
+    <Project Path="src/VisitAPI.Quests/VisitAPI.Quests.csproj" />
+    <Project Path="src/VisitAPI.Server/VisitAPI.Server.csproj" />
+  </Folder>
+</Solution>
