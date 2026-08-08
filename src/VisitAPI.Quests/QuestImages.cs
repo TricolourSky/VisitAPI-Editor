@@ -22,9 +22,25 @@ public static class QuestImages
     public static string ModDir(string questDb) => questDb.Length == 0 ? ""
         : Path.Combine(Directory.GetParent(questDb)?.FullName ?? "", "images", "quest", "icon");
 
-    /// <summary>模组目录名，界面拿它判断是不是 VisitAPI-Server（只有它会替你注册图片）。</summary>
+    /// <summary>模组目录名，界面上用来称呼它（"图片放在 &lt;这个模组&gt; 下面"）。</summary>
     public static string ModName(string questDb) => questDb.Length == 0 ? ""
         : Directory.GetParent(questDb)?.Name ?? "";
+
+    /// <summary>
+    /// 这个模组会不会替作者把图注册上去（目前只有 VisitAPI-Server 会）。
+    ///
+    /// **认 DLL 不认目录名。** 为了排加载顺序把目录改成 <c>z_VisitAPI-Server</c> 这类是常见做法，
+    /// 硬比目录名的话，那种情况下会平白冒出一句"你的图不会生效"——一句吓人的假警报。
+    /// DLL 就在 <c>db</c> 旁边（服务端模组自己也是靠这个位置找 <c>db\quests</c> 的）。
+    /// </summary>
+    public static bool Registers(string questDb)
+    {
+        var mod = questDb.Length == 0 ? null : Directory.GetParent(questDb);
+        if (mod == null) return false;
+        // DLL 优先（目录改名了也认得出），名字兜底（模组还没编译出来、只有 db 的时候）
+        return File.Exists(Path.Combine(mod.FullName, "VisitAPI-Server.dll"))
+            || mod.Name.IndexOf("VisitAPI-Server", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
 
     public static List<string> List(string dir)
     {

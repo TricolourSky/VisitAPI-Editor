@@ -63,13 +63,26 @@ public sealed class QuestStore
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>写回一个文件。覆盖前留 .bak —— 和 .dlg 那边同一条规矩。</summary>
+    /// <summary>
+    /// 写回一个文件。覆盖前留 .bak —— 和 .dlg 那边同一条规矩。
+    ///
+    /// **空对象 = 把这份文件删掉。** 界面把"这个文件里的任务被删光了"表达成一个 <c>{}</c>，
+    /// 服务端不能照着写下去：那样 <c>db\quests</c> 里会攒一堆空文件，SPT 的加载器还得每个都读一遍。
+    /// 删之前照样留 .bak，删错了能捡回来。
+    /// </summary>
     public void SaveFile(string name)
     {
         if (!Files.TryGetValue(name, out var obj)) return;
         Directory.CreateDirectory(Dir);
         var path = Path.Combine(Dir, name);
         if (File.Exists(path)) File.Copy(path, path + ".bak", true);
+        if (obj.Count == 0)
+        {
+            if (File.Exists(path)) File.Delete(path);
+            Files.Remove(name);
+            foreach (var id in Owner.Where(kv => kv.Value == name).Select(kv => kv.Key).ToList()) Owner.Remove(id);
+            return;
+        }
         File.WriteAllText(path, obj.ToJsonString(Pretty));
     }
 }

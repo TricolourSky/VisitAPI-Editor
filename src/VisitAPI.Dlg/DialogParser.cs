@@ -22,7 +22,14 @@ public static class DialogParser
         {
             ln++;
             var line = raw.Trim();
-            if (line.Length == 0) continue;
+            // 文件头里的空行要留住 —— 作者拿它分段（触发器一段、when 一段），
+            // 丢掉的话"打开→保存"就会把他排好的版面压扁。
+            // 节点体里的空行不用记：回写时每个节点前面本来就会空一行。
+            if (line.Length == 0)
+            {
+                if (n == null) t.HeadRaw.Add(new HeadLine { Kind = "raw", Raw = "" });
+                continue;
+            }
             if (line[0] == '#' || line.StartsWith("//"))
             {
                 if (n == null) t.HeadRaw.Add(new HeadLine { Kind = "raw", Raw = line });

@@ -23,6 +23,23 @@ public static class Program
     static readonly TimeSpan ByeGrace = TimeSpan.FromSeconds(10);
 
     /// <summary>
+    /// 还开着的 <c>/live</c> 长连接数量。**这才是最可靠的那个信号。**
+    ///
+    /// 之前只靠两样东西判断"页面还在不在"：定时报到（浏览器会把后台标签页的定时器掐到每分钟一次）
+    /// 和 <c>pagehide</c> 时发的那一发告别（页面卸载途中发出去，浏览器不保证一定送到，
+    /// 关掉整个窗口时尤其容易丢）。两样都是"请页面帮个忙"，帮不上就只能干等 3 分钟超时——
+    /// 线上反馈的"关了标签页程序还赖着"就是这么来的。
+    ///
+    /// 长连接不一样：**标签页一没，socket 就断，是操作系统告诉我们的，不用页面配合。**
+    /// 服务端每 20 秒往里写一个注释帧保活，页面被冻结也不影响连接本身。
+    /// </summary>
+    static int _clients;
+    /// <summary>连接数掉到 0 的时刻。0 表示"现在有人连着"。</summary>
+    static long _zeroAt;
+    /// <summary>至少成功连上过一次。没有的话（浏览器太老 / EventSource 被拦）就退回旧的超时逻辑。</summary>
+    static bool _everLive;
+
+    /// <summary>
     /// 多久没报到就认为页面没了。
     ///
     /// **这个值不能按"心跳间隔的几倍"来拍。** 浏览器会掐后台标签页的定时器：
@@ -43,13 +60,24 @@ public static class Program
         ws.LoadRemembered();
         // 工作区（.dlg）来源优先级：命令行 > 记住的 > 自动探测（exe 往上找 BepInEx）
         var argRoot = args.FirstOrDefault(a => a.StartsWith("--root="))?.Substring(7);
-        if (argRoot != null) ws.SetRoot(argRoot);
-        else if (!ws.HasRoot) ws.AutoDetect(AppContext.BaseDirectory);
-        else ws.AutoDetect(ws.Root);          // 只为把 EftRoot 认出来
+        // 指了个不存在的目录时**必须吭声**。不吭声就会悄悄回退到"上次记住的那个"，
+        // 人看着命令行以为在改 A，其实在改 B —— 自动化测试里踩过一次，查了半天才发现。
+        var rootOk = argRoot != null && ws.SetRoot(argRoot);
+        if (argRoot != null && !rootOk)
+            Console.WriteLine($"--root 目录不存在，已忽略 / no such folder, ignored: {argRoot}");
+        if (!rootOk)
+        {
+            if (!ws.HasRoot) ws.AutoDetect(AppContext.BaseDirectory);
+            else ws.AutoDetect(ws.Root);      // 只为把 EftRoot 认出来
+        }
         // 任务库是**独立**的一条线：没装 VisitAPI 的人照样要能编任务。
         // 命令行 > 记住的 > 自动挑一个（优先已经有 quests 的那个 mod）
         var argQ = args.FirstOrDefault(a => a.StartsWith("--quests="))?.Substring(9);
-        if (argQ != null) ws.SetQuestDb(argQ);
+        if (argQ != null)
+        {
+            if (!ws.SetQuestDb(argQ))
+                Console.WriteLine($"--quests 目录用不了，已忽略 / unusable folder, ignored: {argQ}");
+        }
         else if (!ws.HasQuestDb)
         {
             var pick = ws.ScanQuestRoots().FirstOrDefault(x => x.HasQuests);
@@ -75,6 +103,37 @@ public static class Program
             Volatile.Write(ref _byeAt, 0);
             return Results.Ok();
         });
+
+        // 页面在不在，看这条长连接还通不通（见 _clients 上的注释）。
+        // **挂在 /api 外面**：EventSource 发不了自定义头，令牌只能走查询串，和 /media、/qimg 同一套。
+        app.MapGet("/live", async (HttpContext ctx, string? t) =>
+        {
+            if (t != ws.Token) { ctx.Response.StatusCode = 403; return; }
+            Interlocked.Increment(ref _clients);
+            Volatile.Write(ref _zeroAt, 0);
+            Volatile.Write(ref _byeAt, 0);          // 连上了就说明刚才那声告别是刷新
+            Volatile.Write(ref _lastPing, DateTime.UtcNow.Ticks);
+            _everLive = true;
+            ctx.Response.Headers["Cache-Control"] = "no-store";
+            ctx.Response.Headers["X-Accel-Buffering"] = "no";
+            ctx.Response.ContentType = "text/event-stream";
+            try
+            {
+                while (!ctx.RequestAborted.IsCancellationRequested)
+                {
+                    // 冒号开头是 SSE 的注释帧，客户端不会当成消息，纯粹用来保活
+                    await ctx.Response.WriteAsync(": hi\n\n", ctx.RequestAborted);
+                    await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+                    await Task.Delay(TimeSpan.FromSeconds(20), ctx.RequestAborted);
+                }
+            }
+            catch (OperationCanceledException) { /* 页面走了，正常路径 */ }
+            finally
+            {
+                if (Interlocked.Decrement(ref _clients) == 0)
+                    Volatile.Write(ref _zeroAt, DateTime.UtcNow.Ticks);
+            }
+        });
         // 页面卸载时发这一发（关标签页/关窗口/刷新都会发）。真关还是刷新，交给宽限期去分辨。
         app.MapPost("/api/bye", () => { Volatile.Write(ref _byeAt, DateTime.UtcNow.Ticks); return Results.Ok(); });
         app.MapPost("/api/quit", (IHostApplicationLifetime life) => { life.StopApplication(); return Results.Ok(); });
@@ -91,9 +150,11 @@ public static class Program
         Console.WriteLine(ws.HasRoot
             ? $"工作区 / Workspace : {ws.Root}"
             : "工作区未设置，界面里会让你指一次 / Workspace not set — the page will ask once.");
+        // 找不到任务库不是"缺了 VisitAPI"——任务编辑早就和 VisitAPI 解绑了，
+        // 界面会把这台机器上能放任务的地方列出来让人挑，所以这里别再报某个具体路径。
         Console.WriteLine(ws.HasQuestDb
             ? $"任务库 / Quests    : {ws.QuestDb}"
-            : "没找到任务库（缺 SPT_Runtime\\user\\mods\\VisitAPI-Server\\db）/ Quest DB not found.");
+            : "没找到任务库，界面里会让你挑一个 / Quest DB not found — the page will let you pick one.");
         Console.WriteLine("关掉浏览器标签页会自动退出。/ Closing the browser tab shuts this down.");
         app.Run();
     }
@@ -160,11 +221,18 @@ public static class Program
         {
             // 各读一次存进局部变量：读两遍的话，中间来一发 ping 就能读出自相矛盾的组合
             var now = DateTime.UtcNow.Ticks;
+            if (Volatile.Read(ref _clients) > 0) return;      // 有连接＝页面确实还开着，别的信号都不用看
+
+            var zeroAt = Volatile.Read(ref _zeroAt);
             var byeAt = Volatile.Read(ref _byeAt);
-            var bye = byeAt != 0 && now - byeAt > ByeGrace.Ticks;
-            if (!bye && now - Volatile.Read(ref _lastPing) <= Idle.Ticks) return;
-            Console.WriteLine(bye ? "页面已关闭，退出。/ Page closed, shutting down."
-                                  : "页面长时间没有响应，退出。/ Page went silent, shutting down.");
+            // 长连接断了，或者页面说了声"我要走了"——两条都只是**开始计时**，宽限期是为了分辨 F5
+            var closed = (zeroAt != 0 && now - zeroAt > ByeGrace.Ticks)
+                      || (byeAt != 0 && now - byeAt > ByeGrace.Ticks);
+            // 从来没连上过长连接（浏览器不支持 / 被拦），那就只能退回旧的静默超时
+            var silent = !_everLive && now - Volatile.Read(ref _lastPing) > Idle.Ticks;
+            if (!closed && !silent) return;
+            Console.WriteLine(closed ? "页面已关闭，退出。/ Page closed, shutting down."
+                                     : "页面长时间没有响应，退出。/ Page went silent, shutting down.");
             life.StopApplication();
         }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(3));
         life.ApplicationStopping.Register(() => t.Dispose());

@@ -100,6 +100,11 @@ public static class FileApi
         {
             var full = ws.Resolve(path);
             if (full == null) return Results.BadRequest(new { error = "bad_path" });
+            // 路径牢笼只管"别写出工作区"，管不了"别写坏工作区里别的文件"。
+            // 这条闸门顺带也挡住了 `.dlg.demo`（插件带的示例，游戏根本不读它）——
+            // 前端那句 confirm 只是提醒，真正的门必须在服务端，兄弟接口都是这么做的。
+            if (!path.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "bad_name", name = path });
             var text = DialogWriter.Write(DlgJson.ToTree(doc));
             // 覆盖前先留一份 .bak：这是别人几十小时写的剧本，存错一次就毁了
             if (File.Exists(full)) File.Copy(full, full + ".bak", true);

@@ -1,0 +1,59 @@
+﻿# 任务编辑器界面的端到端测试。
+# 探针必须跑在**服务端发出来的那张页面**上（同源才调得到 /api 和 /ui），
+# 所以临时往 wwwroot 里放一份 index.html + 探针的副本，跑完删掉再重编。
+$ErrorActionPreference = "Stop"
+. "$PSScriptRoot\_env.ps1"
+Ensure-SptData
+$sp   = $PSScriptRoot
+$www  = "$Root\src\VisitAPI.Server\wwwroot"
+$proj = "$Root\src\VisitAPI.Server\VisitAPI.Server.csproj"
+$exe  = "$Root\src\VisitAPI.Server\bin\Debug\net10.0\win-x64\VisitAPI.Editor.exe"
+$edge = $Edge
+$T    = "$sp\FakeEFT"
+$db   = "$T\SPT_Runtime\user\mods\VisitAPI-Server\db"
+$u8   = [Text.UTF8Encoding]::new($false)
+
+# 每轮都从快照重置，免得测的是上一轮改脏的数据
+Remove-Item $db -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item "$sp\dbsnap" $db -Recurse -Force
+
+$test = "$www\_test.html"
+try {
+  [IO.File]::WriteAllText($test,
+    [IO.File]::ReadAllText("$www\index.html",$u8) + [IO.File]::ReadAllText("$sp\probe-quest.js",$u8), $u8)
+  dotnet build $proj -v q --nologo | Out-Null
+
+  $srv = Start-Process $exe -ArgumentList '--no-browser',"--root=`"$T\BepInEx\config\VisitAPI`"" `
+          -RedirectStandardOutput "$sp\srvui.log" -PassThru -WindowStyle Hidden
+  try {
+    $url = $null
+    foreach ($i in 1..40) {
+      Start-Sleep -Milliseconds 250
+      $log = if (Test-Path "$sp\srvui.log") { Get-Content "$sp\srvui.log" -Raw } else { $null }
+      if ($log) { $m=[regex]::Match($log,'http://127\.0\.0\.1:\d+'); if($m.Success){$url=$m.Value;break} }
+    }
+    if (-not $url) { throw "服务没起来" }
+
+    # 探针把结果塞进一个节点的 tail，服务端用 DialogWriter 写成 .dlg，一行一条
+    $out = "$T\BepInEx\config\VisitAPI\_probe.dlg"
+    Remove-Item $out -Force -ErrorAction SilentlyContinue
+    # 不用 --dump-dom：它会在探针跑完之前就把浏览器收掉。让浏览器活着，轮询探针回写的文件。
+    $br = Start-Process $edge -ArgumentList '--headless=new','--disable-gpu','--window-size=1680,1000',
+            "$url/ui/_test.html" -PassThru -WindowStyle Hidden
+    try {
+      foreach ($i in 1..120) { Start-Sleep -Milliseconds 250; if (Test-Path $out) { break } }
+    } finally { if ($br -and -not $br.HasExited) { $br | Stop-Process -Force } }
+
+    if (-not (Test-Path $out)) { "探针没回写结果 —— 页面脚本可能整个炸了"; exit 1 }
+    $rows = @([IO.File]::ReadAllText($out,$u8) -split "`n" |
+              Where-Object { $_ -match '^(PASS|FAIL|EXCEPTION|WINDOW-ERROR|REJECT)' })
+    $rows
+    $bad = @($rows | Where-Object { $_ -match 'FAIL|EXCEPTION' })
+    ""
+    "合计 $($rows.Count) 项，通过 $($rows.Count - $bad.Count)，失败 $($bad.Count)"
+  } finally { if ($srv -and -not $srv.HasExited) { $srv | Stop-Process -Force } }
+}
+finally {
+  Remove-Item $test -Force -ErrorAction SilentlyContinue
+  dotnet build $proj -v q --nologo | Out-Null      # 把测试副本从 exe 里清掉
+}

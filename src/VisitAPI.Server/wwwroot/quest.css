@@ -339,6 +339,17 @@
 .kindmenu button:hover{background:var(--y);color:var(--y-ink)}
 .kindmenu button[aria-pressed="true"]{box-shadow:inset 0 0 0 1px var(--y);color:var(--y)}
 .kindmenu button[aria-pressed="true"]:hover{color:var(--y-ink)}
+/* 高级参数：一行一个字段，左边名字右边控件。窄一点无所谓，值都是数字或短字符串 */
+.advrow{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:.28rem 0}
+.advrow i{font-style:normal;font-size:11.5px;color:var(--ink-2)}
+.advrow button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:pointer;
+  font:11px var(--mono);padding:.22rem .5rem;min-width:52px}
+.advrow button[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700}
+.advrow input{width:88px;box-sizing:border-box;padding:.22rem .4rem;background:var(--panel);
+  border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11px var(--mono)}
+.advrow input:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
+.advnote{margin-top:.5rem;font-size:10.5px;line-height:1.6;color:var(--ink-3)}
+
 .kindmenu.col{flex-direction:column}
 .kindmenu.col button{text-align:left;width:100%}
 .kindmenu button em{font-style:normal;font:8.5px/1 var(--mono);letter-spacing:.08em;

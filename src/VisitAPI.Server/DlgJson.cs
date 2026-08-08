@@ -30,6 +30,7 @@ public static class DlgJson
         string? Jump, List<Narr>? Narr, List<Opt>? Opts,
         List<string>? Lead, List<string>? NpcLead, List<string>? JumpLead, List<string>? Tail);
     public sealed record Doc(string? Trader, string? Name, string? Start, string? First,
+        string? Actor, string? Scene,
         string? Tab, List<int>? TabS, List<Head>? HeadRaw, List<When>? When, List<string>? Triggers,
         Dictionary<string, string>? Alias, List<string>? AliasOrder, List<Node>? Nodes);
 
@@ -39,6 +40,8 @@ public static class DlgJson
         {
             TraderId = d.Trader, DisplayName = d.Name ?? "",
             Start = d.Start ?? "root", First = d.First, TabQuestId = d.Tab,
+            // 空串要当成"没有"：写手看的是 null，不然会吐出一行光秃秃的 `scene: `
+            Actor = Nz(d.Actor), Scene = Nz(d.Scene),
         };
         if (d.TabS != null) t.TabStatuses.AddRange(d.TabS);
         if (d.Alias != null) foreach (var kv in d.Alias) t.QuestAliases[kv.Key] = kv.Value;

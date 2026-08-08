@@ -55,7 +55,12 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 - **端口**：绑 `:0` 让系统分配，记下号再放掉
 - **只绑 `127.0.0.1`**。绝不能绑 `0.0.0.0` —— 那等于把"随便读写你硬盘"开放给整个局域网
-- **心跳**：两条路子一起用，谁先满足算谁的
+- **心跳**：真正说了算的是**一条长连接** `GET /live`（SSE）。标签页一没，socket 就断，
+  `RequestAborted` 当场触发——**是操作系统告诉我们的，不用页面配合**。最后一条连接断掉约 10 秒后退出，
+  这段宽限期用来分辨"关闭"和"F5"。反过来也靠它：后台没了，页面这边 `onerror` 立刻响，
+  不用等下一次轮询（后台标签页还可能被压到一分钟一次）。
+
+  下面两条退化成兜底，留给 `EventSource` 压根连不上的浏览器：
   - 界面每 10 秒 `/api/ping`，**3 分钟**没动静就自杀。这个超时不能按"心跳间隔的几倍"来拍：
     Chromium 系在标签页隐藏满 5 分钟后进入 intensive throttling，把定时器压到**每分钟最多一次**。
     早先这里是 40 秒，于是切去别的标签页十几分钟回来，服务端已经自己退了、页面还开着
@@ -80,18 +85,19 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 | 接口 | 说明 |
 |---|---|
 | `GET /` | 界面（会把令牌注入成 `<meta name="tok">`） |
-| `GET /api/ping` | 心跳，唯一不验令牌的接口 |
+| `GET /live` | 判断页面在不在的长连接（SSE）。**挂在 `/api` 外面**：`EventSource` 发不了自定义头，令牌走查询串 |
+| `GET /api/ping` | 兜底心跳，`/api` 里唯一不验令牌的接口 |
 | `POST /api/bye` | 「页面要走了」。开始 10 秒倒计时，期间任何一发 ping 都会撤销它 |
 | `POST /api/quit` | 退出 |
 | `GET/POST /api/workspace` | 读/设工作区，顺带回构建时间与素材目录是否存在 |
 | `GET /api/list?dir=` | 列子目录与剧本文件（`.dlg` 与 `.dlg.demo`） |
 | `GET /api/dlg?path=` | 读剧本原文 |
-| `POST /api/dlg?path=` | 写剧本。**收的是模型不是文本**，文本由 `DialogWriter` 生成；写前留 `.bak` |
+| `POST /api/dlg?path=` | 写剧本。**收的是模型不是文本**，文本由 `DialogWriter` 生成；**只收 `.dlg`**（免得一个 bug 就把 `.dlg.demo` 或工作区里别的文件覆盖掉）；写前留 `.bak` |
 | `POST /api/dlg/render` | 只渲染不落盘（界面「查看 .dlg」用，看到的就是将要写进文件的那份） |
 | `GET /api/assets` | `{bg:[], audio:[]}` 两个素材目录的清单 |
 | `GET /media?path=&t=` | 素材本体。**开了 Range 处理**，否则浏览器不给播 mp4 |
 | `GET /api/quests` | 任务 + 文案 + 商人 + 地图 + 校验 + 指纹 |
-| `POST /api/quests` | 按文件写回。带指纹做乐观锁，对不上返回 409 |
+| `POST /api/quests` | 按文件写回；**送一个空对象＝这份文件空了，删掉它**（照样先留 `.bak`）。带指纹做乐观锁，对不上返回 409 |
 | `GET /api/quests/items` | 物品表（4288 件，单独一条，用到才拉） |
 | `GET/POST /api/quests/roots` `/root` | 列出/指定任务库位置 |
 | `GET /api/quests/links` | 扫全部 `.dlg`，读出任务↔选项的挂接与触发点 |

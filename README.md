@@ -30,7 +30,7 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
 - **Chapter rail** — one tick per independent story thread, click to jump
 - **Beat editing** — multiple narration beats per node, each with its own background and voice
 - **Audio** — music (per node) and voice (per beat), with preview
-- **Faithful round-trip** — saving does not reformat your file or eat your comments (see below)
+- **Faithful round-trip** — saving does not reformat your file, eat your comments, or flatten your blank lines (see below)
 
 **Quests**
 
@@ -45,6 +45,8 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
   to create a prerequisite**; loops, self-links and duplicates are refused
 - **Dialogue hooks** — see which option hands the quest out or takes it in; two clicks to attach; click to jump
 - **You choose where they go** — no VisitAPI required; quests can live in any mod's `db` folder
+- **Advanced objective fields** — found-in-raid, durability range, one-raid-only, time limit, zone id, plant time,
+  kill distance and time of day — the fields stock quests actually use, surveyed from all 1000+ of their conditions
 - **Validation** — no objectives, empty completion mail, missing prerequisite, duplicate id, unknown trader… 13 rules
 
 There is also an **About page** (the first item in the sidebar, and where the editor opens): what each
@@ -110,7 +112,7 @@ in it can never resolve; the picker flags those.
 
 Saving does not rewrite your file:
 
-- The header is replayed in its original order, **comments copied verbatim**
+- The header is replayed in its original order, **comments and blank lines copied verbatim** (the blank lines are how you paragraph a header)
 - Comments inside a node attach to the element that follows them — nothing is lost
 - Trigger lines are **kept as written** (coordinates are `float`; re-formatting would turn a hand-typed `0.09` into `0.090000003576`)
 - Quest aliases are mapped back to their names instead of bare IDs
@@ -152,6 +154,14 @@ cd "VisitAPI Editor"
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Output is a single-file,
 framework-dependent executable.
 
+Tests live in [tests/](tests/) — PowerShell plus a headless browser, no framework to install:
+
+```powershell
+.\tests\run-all.ps1      # 404 checks
+```
+
+They need a real SPT install for its item/map/trader tables; see [tests/README.md](tests/README.md).
+
 ### Layout
 
 ```
@@ -159,6 +169,7 @@ src/
 ├─ VisitAPI.Dlg/      .dlg parsing and writing (netstandard2.0) — shared with the plugin
 ├─ VisitAPI.Quests/   quests / locales / validation / read-only SPT_Data / quest↔dialogue hooks
 └─ VisitAPI.Server/   self-hosted server + UI (index.html + quest.css/js, embedded in the exe)
+tests/                regression suite (PowerShell + headless Edge) and its fixtures
 ```
 
 `VisitAPI.Dlg` is **shared with the game plugin**. The plugin (net472, running under Unity's Mono)
@@ -177,7 +188,7 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - [x] Quest card art, picked from SPT's own icons or your mod's folder
 - [ ] Bot outfit swapping
 - [ ] Chapter/campaign authoring
-- [ ] `scene:` / `actor:` controls in the dialogue editor
+- [x] `scene:` / `actor:` controls in the dialogue editor
 - [ ] Restore from the `.bak` copies the editor leaves behind
 - [ ] A step-by-step guide inside the app
 

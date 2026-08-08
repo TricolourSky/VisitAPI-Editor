@@ -94,8 +94,7 @@ public static class QuestApi
                     name = QuestImages.ModName(ws.QuestDb),
                     files = QuestImages.List(modDir),
                     // VisitAPI-Server 会替作者注册；别的模组得自己调 AddRoute，界面据此提示
-                    registers = QuestImages.ModName(ws.QuestDb)
-                        .Equals("VisitAPI-Server", StringComparison.OrdinalIgnoreCase),
+                    registers = QuestImages.Registers(ws.QuestDb),
                 },
             });
         });
@@ -268,13 +267,20 @@ public static class QuestApi
             if (LocaleStore.Known.Contains(lang)) loc.Langs[lang] = content;
 
         // 只写这次送来的文件。盘上有、但请求里没有的文件不动 ——
-        // 删任务得走明确的删除操作，不能靠"没发过来"来推断。
+        // 删任务不能靠"没发过来"来推断，界面要**明确送一个空对象**表示"这份文件空了"（见 SaveFile）。
         foreach (var name in (r.Files ?? []).Keys) quests.SaveFile(name);
         if (r.Locales is { Count: > 0 }) loc.SaveAll(r.Locales.Keys);   // 只写送来的语言，别给没动的也刷一份 .bak
 
         var (fresh, freshLoc) = Load(ws);
         var (_, known) = AllTraders(ws, Spt(ws), fresh);
-        return Results.Json(new { ok = true, stamp = Stamp(ws), issues = QuestValidator.Run(fresh, freshLoc, known) });
+        return Results.Json(new
+        {
+            ok = true,
+            stamp = Stamp(ws),
+            // 文件可能刚被删掉一份，界面得跟着更新，否则下次保存还会给它送空对象
+            files = fresh.Files.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+            issues = QuestValidator.Run(fresh, freshLoc, known),
+        });
     }
 
     public sealed record SaveReq(

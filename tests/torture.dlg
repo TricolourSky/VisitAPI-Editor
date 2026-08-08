@@ -1,0 +1,32 @@
+# 文件头注释：这一条以前就留得住
+trader: 90726f6a656374536f726132 "SORA"
+quest sora1 = 5043a1ce90726f6a536f7261
+quest sora2 = 5043a1ce90726f6a536f7271
+start: root
+first: opening
+# 触发点的坐标是手填的，回写不许被浮点格式化改样子
+trigger: raid Sandbox_high (143.7, 18.45, -14.26) "拜访 SORA"
+trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node root dist 3.5 if sora1=Started "拜访 SORA"
+tab: if sora2=Success
+when: level>=4 -> root
+when: level>=2 standing>=0.5 -> opening
+
+# 节点前的注释（第一个节点之前 → 算它的头）
+<opening> bg: Contact.png | anim: wave | bgm: theme.ogg
+# 旁白前的注释
+> 一段旁白 | bg: A.png | anim: nod | audio: nar1.ogg
+> 第二段旁白 | anim: shrug
+# NPC 台词前的注释
+你好啊。 | audio: hello.ogg
+# 选项前的注释
+- 普通选项 -> root
+- 带一堆指令的选项 -> root | setstatus: sora1=Success, accept: sora2, if: sora1=Started/AvailableForFinish, ifnot: sora2=Success, standing: 5ac3b934156ae10c4430e83c=+0.05, once
+- 上交带标签 | handover: sora2 建筑材料, always
+# 这几行在节点末尾
+
+<root> bg: SORA.mp4
+说点什么。
+- 走了。 -> @close
+# 自动跳转前的注释
+-> opening
+# 文件最末尾的注释

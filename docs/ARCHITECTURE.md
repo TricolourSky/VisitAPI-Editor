@@ -46,7 +46,13 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 - **Per-run random token**, injected into the page as `<meta name="tok">` and required by every
   `/api/*` call. Other sites can't read our page cross-origin, so they can't obtain it.
 - **Path jail.** Every path must resolve inside the workspace (or the quest DB); `..` is rejected.
-- **Heartbeat.** Two independent ways to notice nobody is watching:
+- **Heartbeat.** The one that actually decides is an **open connection**, `GET /live` (SSE). The tab
+  goes away, the socket drops, `RequestAborted` fires — the operating system tells us, the page does
+  not have to cooperate. The server exits ~10s after the last connection closes; the grace period is
+  what separates a close from an F5. The same connection makes the reverse instant: if the backend
+  dies, the page's `onerror` fires immediately instead of waiting for the next poll.
+
+  Everything below is fallback, kept for browsers where `EventSource` never connects:
   - The page pings every 10s and the server exits after **3 minutes** of silence. That timeout is
     deliberately not "a few times the ping interval": Chromium **throttles background tabs to at most
     one timer wake per minute** once a tab has been hidden for five minutes. With the old 40s timeout,
@@ -66,18 +72,19 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 |---|---|
 | `GET /` | The UI (token injected as `<meta name="tok">`) |
 | `GET /ui/{name}` | The rest of the embedded UI assets |
-| `GET /api/ping` | Heartbeat — the only endpoint that skips the token |
+| `GET /live` | The liveness connection (SSE). Outside `/api` because `EventSource` cannot send headers — token goes in the query string |
+| `GET /api/ping` | Fallback heartbeat — the only `/api` endpoint that skips the token |
 | `POST /api/bye` | "The page is going away." Starts a 10s countdown any ping cancels |
 | `POST /api/quit` | Shut down |
 | `GET/POST /api/workspace` | Read/set the `.dlg` workspace; also reports the build stamp |
 | `GET /api/list?dir=` | List folders and script files (`.dlg` and `.dlg.demo`) |
 | `GET /api/dlg?path=` | Read a script verbatim |
-| `POST /api/dlg?path=` | Write a script. **Takes a model, not text** — see below. Writes a `.bak` first |
+| `POST /api/dlg?path=` | Write a script. **Takes a model, not text** — see below. `.dlg` only (so a bug can't overwrite `.dlg.demo` or anything else in the workspace). Writes a `.bak` first |
 | `POST /api/dlg/render` | Render without saving (what "View .dlg" shows) |
 | `GET /api/assets` | `{bg:[], audio:[]}` |
 | `GET /media?path=&t=` | Media bytes. **Range processing is on**, or browsers refuse to play mp4 |
 | `GET /api/quests` | Quests + locales + traders + maps + validation + a stamp |
-| `POST /api/quests` | Write back per file. The stamp acts as an optimistic lock (409 on mismatch) |
+| `POST /api/quests` | Write back per file; **an empty object means "this file is empty now, delete it"** (with a `.bak`). The stamp acts as an optimistic lock (409 on mismatch) |
 | `GET /api/quests/items` | Item table (4288 rows; separate call, fetched on demand) |
 | `GET/POST /api/quests/roots` `/root` | List / choose where quests are stored |
 | `GET /api/quests/links` | Scan every `.dlg` for quest↔option hooks and triggers |

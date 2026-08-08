@@ -1,3 +1,8 @@
+# ⚠️ .gitignore 里 `#` 只有在**行首**才是注释。写成 `foo/   # 说明` 的话，
+# 整行会被当成一个叫 "foo/   # 说明" 的模式，那条规则等于没写 —— 之前
+# visitapi-editor.txt 和 *.bak 两条就是这么失效的（根目录那份根本没被忽略）。
+# 所以下面每条说明都单独占一行。
+
 # ── 构建产物 ──
 bin/
 obj/
@@ -8,8 +13,10 @@ dist/
 .idea/
 
 # ── 运行时产生的本地文件 ──
-visitapi-editor.txt      # 每台机器记住的工作区路径，因人而异
-*.bak                    # 编辑器覆盖 .dlg 前留的备份
+# 每台机器记住的工作区路径，因人而异
+visitapi-editor.txt
+# 编辑器覆盖 .dlg 前留的备份
+*.bak
 
 # ── 内部工作记录 ──
 # Memory.MD 是开发过程的流水账，含本机绝对路径与大量内部推理，不适合公开。
@@ -20,6 +27,19 @@ Memory.MD
 # 程序里用的是 wwwroot/author.jpg（320px，33KB，随源码发布）。
 # 根目录这张是它的 992KB 原图，构建用不到，不进仓库。
 SORA.png
+
+# ── 测试跑出来的东西 ──
+# tests/ 里只该有脚本和那份很小的 FakeEFT / dbsnap / dlgsnap 夹具，跑一次生成的都不进仓库。
+# test-noplugin 每次从零搭的"裸机"
+tests/BareEFT/
+# 指向真 SPT 数据库的目录联接（几百 MB，git 会跟着联接爬进去）
+tests/FakeEFT/SPT_Runtime/SPT_Data/database/
+# 探针写回结果用的文件
+tests/FakeEFT/BepInEx/config/VisitAPI/_probe.dlg
+# test-ack 会把编译好的编辑器拷进假游戏目录，测"exe 自己找得到游戏根"
+tests/FakeEFT/editor/
+tests/*.log
+tests/*.png
 
 # ── 界面原型留档 ──
 # mockups/ 里的 *.built.html 每个约 5MB，内嵌了游戏截图与角色美术；

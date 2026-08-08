@@ -107,6 +107,14 @@ function rewText(r){
   return{tag:"?",label:r.type||T("q_r_unknown"),v:r.value??""};
 }
 
+/* ── 孤儿文案 ──
+   任务自己的文案是 `<任务id> name` 这种，删任务时按前缀就能扫掉；
+   **但目标行的文案是拿条件自己的 id 当 key 存的**（见 qsetLoc(c.id, …)），没有任务 id 前缀。
+   不显式清的话，删掉的目标会永远留在 locales 里，越攒越多。 */
+const condKeys=conds=>conds.flatMap(c=>[c.id,...(c.counter?.conditions||[]).map(x=>x.id)]).filter(Boolean);
+const allConds=q=>["AvailableForStart","AvailableForFinish","Fail"].flatMap(g=>q.conditions?.[g]||[]);
+const dropLoc=keys=>{for(const L of Object.values(QD.locales))for(const k of keys)delete L[k];};
+
 /* ── 信赖等级：文件里不是一个字段，而是 AvailableForStart 里的一条 TraderLoyalty ── */
 const gates=q=>(q.conditions?.AvailableForStart||[]).filter(c=>c.conditionType!=="TraderLoyalty");
 const loyaltyOf=q=>{
@@ -582,6 +590,59 @@ const qMapMenu=b=>qPickMenu(b,"q_m_map",(QD.maps||[]).map(m=>({a:m.id,n:lang==="
 const qLlMenu=b=>qPickMenu(b,"q_m_ll",[0,1,2,3,4].map(n=>({a:String(n),n:n?TF("q_lv",ROMAN[n]):T("q_ll_no")})),
   String(loyaltyOf(qq())),v=>setLoyalty(qq(),+v));
 
+/* ══ 目标的高级参数 ══
+   字段不是照着文档猜的：把原版 1000+ 条条件按类型全扫了一遍，看哪些字段真有人填、
+   填的是什么形状（`distance` 是 {compareMethod,value} 这种嵌套，所以路径要支持点号）。
+   **只放标量字段**：武器型号 / 命中部位 / 敌人装备那些是数组，
+   做成半吊子的列表编辑器还不如先不做，免得作者以为填了就生效。 */
+const ADV={
+  CounterCreator:[["oneSessionOnly","bool","q_adv_once"],["completeInSeconds","num","q_adv_secs"]],
+  HandoverItem:[["onlyFoundInRaid","bool","q_adv_fir"],["dogtagLevel","num","q_adv_dogtag"],
+                ["minDurability","num","q_adv_dmin"],["maxDurability","num","q_adv_dmax"]],
+  FindItem:[["onlyFoundInRaid","bool","q_adv_fir"],["countInRaid","bool","q_adv_cir"],
+            ["minDurability","num","q_adv_dmin"],["maxDurability","num","q_adv_dmax"]],
+  LeaveItemAtLocation:[["zoneId","text","q_adv_zone"],["plantTime","num","q_adv_plant"],
+                       ["onlyFoundInRaid","bool","q_adv_fir"]],
+  PlaceBeacon:[["zoneId","text","q_adv_zone"],["plantTime","num","q_adv_plant"]],
+  Kills:[["distance.compareMethod","cmp","q_adv_distcmp"],["distance.value","num","q_adv_dist"],
+         ["daytime.from","num","q_adv_from"],["daytime.to","num","q_adv_to"]],
+  Quest:[["availableAfter","num","q_adv_after"]],
+};
+const dig=(o,p)=>p.split(".").reduce((x,k)=>x==null?x:x[k],o);
+function put(o,p,v){const k=p.split("."),last=k.pop();for(const x of k)o=(o[x] ??= {});o[last]=v;}
+
+/* rows：[[要改的对象, 字段表], …]。CounterCreator 那种是"外层管次数、内层管条件"，
+   两层的参数得摆在同一个面板里，作者不该被迫理解这个嵌套。 */
+function advMenu(btn,rows){
+  const p=$("pop");
+  const one=(o,[f,kind,key])=>{
+    const v=dig(o,f);
+    const ctl=kind==="bool"
+      ? `<button data-b="${f}" aria-pressed="${!!v}">${v?T("q_adv_yes"):T("q_adv_no")}</button>`
+      : kind==="cmp"
+      ? `<button data-c="${f}">${esc(v||">=")}</button>`
+      : `<input data-v="${f}" data-n="${kind==="num"?1:0}" type="${kind==="num"?"number":"text"}"
+           value="${esc(v??"")}">`;
+    return `<label class="advrow"><i>${T(key)}</i>${ctl}</label>`;
+  };
+  p.innerHTML=`<h4>${T("q_m_adv")}</h4>`+rows.map(([o,fs])=>fs.map(f=>one(o,f)).join("")).join("")
+    +`<div class="advnote">${T("q_adv_note")}</div>`;
+  p.classList.add("on");
+  p.style.left="-9999px";p.style.top="0";
+  const r=btn.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight,m=8;
+  p.style.left=Math.max(m,Math.min(r.right-w<m?r.left:r.right-w,innerWidth-w-m))+"px";
+  p.style.top=Math.max(m,r.bottom+4+h>innerHeight-m?r.top-h-4:r.bottom+4)+"px";
+  const own=f=>rows.find(([,fs])=>fs.some(x=>x[0]===f))[0];
+  p.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{
+    const f=b.dataset.b; put(own(f),f,!dig(own(f),f)); qtouch(); advMenu(btn,rows);});
+  p.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{
+    const f=b.dataset.c; put(own(f),f,dig(own(f),f)==="<="?">=":"<="); qtouch(); advMenu(btn,rows);});
+  p.querySelectorAll("[data-v]").forEach(i=>i.onchange=()=>{
+    const f=i.dataset.v;
+    put(own(f),f,+i.dataset.n?(+i.value||0):i.value.trim());
+    qtouch(); render();});
+}
+
 const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","Skill","Quest"];
 const REW_KINDS=["Experience","Money","Item","TraderStanding","AssortmentUnlock"];
 const GATE_KINDS=["Quest","Level","Skill","TraderStanding"];
@@ -671,6 +732,11 @@ function addFailRew(k){
   qtouch();render();
 }
 
+/* 这一行有哪些高级参数可调：外层（CounterCreator 管次数）和内层（真正的条件）各算一份 */
+const advOf=(row,inner)=>[[row,ADV[row.conditionType]],
+                          inner&&inner!==row?[inner,ADV[inner.conditionType]]:null]
+  .filter(x=>x&&x[1]);
+
 /* 行菜单：点 ⋮ 弹出来，动作写全，不用猜哪个图标是什么意思 */
 function qRowMenu(kind,i,btn){
   const q=qq();
@@ -687,6 +753,7 @@ function qRowMenu(kind,i,btn){
       items.push({a:"item",n:T("q_a_item")});
     if(inner&&inner.conditionType==="Quest")items.push({a:"quest",n:T("q_a_quest")});
     items.push({a:"num",n:T("q_a_num")});
+    if(advOf(row,inner).length)items.push({a:"adv",n:T("q_a_adv")});
     if(kind==="obj"&&i>0)items.push({a:"up",n:T("q_a_up")});
   }
   items.push({a:"del",n:T("q_a_del")});
@@ -700,6 +767,7 @@ function qRowMenu(kind,i,btn){
     if(a==="quest"){hide();qMenu(btn,"q_m_prereq",
       Object.keys(QD.quests).filter(x=>x!==qcur).map(x=>({a:x,n:qname(QD.quests[x])})),
       inner.target,v=>{inner.target=v;hide();qtouch();render();});return;}
+    if(a==="adv"){advMenu(btn,advOf(row,inner));return;}
     if(a==="num"){const v=prompt(T("q_ask_num"),row.value??1);if(v!=null)row.value=+v||1;}
     if(a==="val"){const v=prompt(T("q_ask_val"),row.value??1);
       if(v!=null){row.value=String(v);
@@ -709,6 +777,7 @@ function qRowMenu(kind,i,btn){
       /* gates() 把信赖等级过滤掉了，所以这里的下标要换算回真实数组 */
       if(kind==="gate")q.conditions.AvailableForStart.splice(q.conditions.AvailableForStart.indexOf(row),1);
       else L.splice(i,1);
+      if(kind!=="rew")dropLoc(condKeys([row]));      /* 连它那行文案一起清掉 */
     }
     hide();qtouch();render();});
 }
@@ -765,8 +834,13 @@ function drawItems(){
 /* ══════════════ 保存 ══════════════ */
 function questSave(force){
   const s=$("qsaved"); if(s)s.textContent=T("q_saving");
-  /* 只发这次载入时就存在的文件；每个文件带上属于它的全部任务 */
+  /* 载入时有哪些文件，就发哪些文件；每个文件带上属于它的全部任务。
+     ⚠️ 先把每个文件铺成空对象这一步不能省：删掉某文件的最后一个任务后，
+     它的 owner 也没了，光按剩余任务组装的话这份文件根本不出现在请求里，
+     而服务端"只写送来的文件" —— 等于白删，重新载入任务又回来了。
+     空对象在服务端就是"这份文件空了，删掉它"（见 QuestStore.SaveFile）。 */
   const files={};
+  for(const f of (QD.files||[]))files[f]={};
   for(const [id,q] of Object.entries(QD.quests)){
     const f=QD.owner[id]; if(!f)continue;
     (files[f] ??= {})[id]=q;
@@ -775,6 +849,7 @@ function questSave(force){
     body:JSON.stringify({stamp:QD.stamp,force:!!force,files,locales:QD.locales})})
     .then(d=>{
       QD.stamp=d.stamp; QD.issues=d.issues||[];
+      if(d.files)QD.files=d.files;          /* 空掉的文件已经被服务端删了，别再往里发 */
       qBase=qsnap();
       render();
       const e=$("qsaved"); if(e)e.textContent=T("q_saved");
@@ -1112,6 +1187,7 @@ function delQuest(){
   }
   for(const L of Object.values(QD.locales))
     for(const k of Object.keys(L))if(k.startsWith(qcur+" ")||k===qcur)delete L[k];
+  dropLoc(condKeys(allConds(q)));          /* 目标行的文案不带任务 id 前缀，得按条件 id 单独清 */
   delete QD.quests[qcur]; delete QD.owner[qcur];
   qcur=Object.keys(QD.quests)[0]||null; qfitted=false;
   qtouch();render();

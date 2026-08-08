@@ -18,7 +18,10 @@ public static class DialogWriter
     {
         var sb = new StringBuilder();
         Head(t, sb);
-        foreach (var n in t.Nodes.Values) Node(t, n, sb);
+        // 第一个节点前面不补空行：文件头自己的空行已经原样吐回来了（见 DialogParser），
+        // 再补一个就会比原文多出一行。节点之间那一个照旧由这里统一生成。
+        var first = true;
+        foreach (var n in t.Nodes.Values) { Node(t, n, sb, first); first = false; }
         return sb.ToString();
     }
 
@@ -80,9 +83,9 @@ public static class DialogWriter
         return sb.ToString();
     }
 
-    static void Node(DialogTree t, DialogNode n, StringBuilder sb)
+    static void Node(DialogTree t, DialogNode n, StringBuilder sb, bool first = false)
     {
-        sb.Append('\n');
+        if (!first) sb.Append('\n');
         foreach (var c in n.Lead) sb.Append(c).Append('\n');
         sb.Append('<').Append(n.Name).Append('>');
         var kv = Kv(("bg", n.Bg), ("anim", n.Anim), ("bgm", n.Bgm));

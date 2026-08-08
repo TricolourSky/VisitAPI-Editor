@@ -130,6 +130,15 @@ svg{display:block}
 .cart div{display:flex;flex-direction:column;gap:1px}
 .cart k{font:8.5px/1 var(--mono);letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase}
 .cart v{font:11.5px/1.25 var(--mono);color:var(--ink)}
+.cart div.edit{cursor:pointer}
+.cart div.edit:hover v,.cart div.edit:hover k{color:var(--y)}
+.pop .fld{display:block;margin-bottom:.5rem}
+.pop .fld i{display:block;font:8.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:.25rem;font-style:normal}
+.pop .fld input{width:100%;box-sizing:border-box;padding:.3rem .45rem;background:var(--panel);
+  border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11.5px var(--mono)}
+.pop .fld input:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
+.pop .hint{font-size:10.5px;line-height:1.6;color:var(--ink-3)}
 .hdr .sp{flex:1 1 auto}
 #bars{align-self:center;display:flex;align-items:flex-end;gap:2px;height:22px;padding:0 1.1rem}
 #bars i{display:block;width:1px;height:100%;background:var(--ink-3)}
@@ -632,6 +641,8 @@ const I18N={zh:{
   tip_voice:"当前这一拍的语音",tip_try:"试听",
   m_root:"选择工作区",root_ok:"确定",
   root_hint:"没自动找到 EFT。填 .dlg 所在的目录（一般是 <EFT>\\BepInEx\\config\\VisitAPI），填一次就会记住。",
+  tip_head:"点这里改文件头的 scene: / actor:",m_head:"这份剧本的场景与演员",
+  m_head_d:"写进文件头的 scene: / actor:。留空就不写这一行。能填什么取决于游戏里有哪些原生房间与角色，还在摸底，所以这里不给下拉。",
   no_file:"（未打开文件）",unsaved:"有未保存改动",saved_ok:"已保存",
   save_nofile:"还没打开文件，先点「打开」",save_fail:"保存失败:",confirm_discard:"当前改动还没保存，确定丢弃吗？",
 tip_save:"导出为 .dlg 文件（Ctrl+S）",
@@ -821,6 +832,13 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   q_k_MinusStanding:"扣商人好感",q_k_MinusExp:"扣经验",
   q_a_item:"换物品",q_a_num:"改数量",q_a_val:"改数值",q_a_up:"上移",q_a_del:"删除",
   q_a_quest:"换任务",q_ask_num:"需要多少个？",q_ask_val:"数值",
+  q_a_adv:"高级设置",q_m_adv:"高级参数",q_adv_yes:"要求",q_adv_no:"不要求",
+  q_adv_note:"这些是原版任务真在用的参数。武器型号、命中部位那类是列表，暂时没做入口。",
+  q_adv_once:"必须一局内完成",q_adv_secs:"限时（秒，0=不限）",q_adv_fir:"必须战局中找到（FiR）",
+  q_adv_cir:"必须本局带出",q_adv_dogtag:"狗牌等级下限",q_adv_dmin:"耐久下限 %",q_adv_dmax:"耐久上限 %",
+  q_adv_zone:"区域 ID（zoneId）",q_adv_plant:"放置耗时（秒）",q_adv_distcmp:"距离比较",
+  q_adv_dist:"距离（米）",q_adv_from:"时段起点（时）",q_adv_to:"时段终点（时）",
+  q_adv_after:"前置完成后延迟（小时）",
   q_c_VisitPlace:"到达 / 触发「{0}」",q_c_Kills:"击杀 {0} 个{1}",q_c_savage:"野人",q_c_target:"目标",
   q_c_at:"（{0}）",q_c_HandoverItem:"上交 {0} 件指定物品（{1} 种可选）",
   q_c_FindItem:"在战局中找到 {0} 件指定物品（{1} 种可选）",
@@ -883,6 +901,8 @@ en:{
   tip_voice:"Voice for the current beat",tip_try:"Preview",
   m_root:"Choose workspace",root_ok:"OK",
   root_hint:"Couldn't find EFT automatically. Enter the folder holding your .dlg files (usually <EFT>\\BepInEx\\config\\VisitAPI). It will be remembered.",
+  tip_head:"Edit the scene: / actor: header lines",m_head:"Scene and actor for this script",
+  m_head_d:"Written to the file header as scene: / actor:. Leave empty to omit the line. What you can put here depends on which built-in rooms and characters the game has — still being mapped out, so no dropdown yet.",
   no_file:"(no file open)",unsaved:"Unsaved changes",saved_ok:"Saved",
   save_nofile:"No file open — click Open first",save_fail:"Save failed:",confirm_discard:"You have unsaved changes. Discard them?",
 tip_save:"Export as a .dlg file (Ctrl+S)",
@@ -1065,6 +1085,13 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   q_k_MinusStanding:"Lose trader standing",q_k_MinusExp:"Lose experience",
   q_a_item:"Change item",q_a_num:"Change count",q_a_val:"Change value",q_a_up:"Move up",q_a_del:"Delete",
   q_a_quest:"Change quest",q_ask_num:"How many?",q_ask_val:"Value",
+  q_a_adv:"Advanced",q_m_adv:"Advanced settings",q_adv_yes:"Required",q_adv_no:"Not required",
+  q_adv_note:"These are the fields stock quests actually use. Weapon and body-part lists have no editor yet.",
+  q_adv_once:"Must finish in one raid",q_adv_secs:"Time limit (s, 0 = none)",q_adv_fir:"Found in raid",
+  q_adv_cir:"Brought out this raid",q_adv_dogtag:"Min dogtag level",q_adv_dmin:"Min durability %",
+  q_adv_dmax:"Max durability %",q_adv_zone:"Zone ID",q_adv_plant:"Plant time (s)",
+  q_adv_distcmp:"Distance compare",q_adv_dist:"Distance (m)",q_adv_from:"Time of day from (h)",
+  q_adv_to:"Time of day to (h)",q_adv_after:"Delay after prerequisite (h)",
   q_c_VisitPlace:"Reach / trigger \"{0}\"",q_c_Kills:"Kill {0} {1}",q_c_savage:"scavs",q_c_target:"targets",
   q_c_at:"({0})",q_c_HandoverItem:"Hand over {0} of the listed items ({1} accepted)",
   q_c_FindItem:"Find {0} of the listed items in raid ({1} accepted)",
@@ -1176,7 +1203,7 @@ function parseDlg(text){
   for(const raw of text.replace(/\r\n/g,"\n").split("\n")){
     ln++;const line=raw.trim();
     if(!line||line[0]==="#"||line.startsWith("//")){
-      if(line&&!n)t.headRaw.push({k:"raw",v:line});     /* 文件头里的注释要留住 */
+      if(!n)t.headRaw.push({k:"raw",v:line});          /* 文件头里的注释和空行都要留住（空行是作者的分段） */
       else if(line)pend.push(line);                    /* 节点体里的挂到下一个元素上 */
       continue;}
     const head=line.match(/^<([\w.\-]+)>\s*(.*)$/);
@@ -1197,8 +1224,9 @@ function parseDlg(text){
       if(k==="trader"){const m=v.match(/^(\S+)?\s*"(.*)"/);
         if(m){t.trader=m[1]||null;t.name=m[2];}else t.name=v;}
       else if(k==="start")t.start=v; else if(k==="first")t.first=v;
-      else if(k==="actor"){t.actor=v;t.headRaw.pop();t.headRaw.push({k:"raw",v:line});}
-      else if(k==="scene"){t.scene=v;t.headRaw.pop();t.headRaw.push({k:"raw",v:line});}
+      /* 这两行进模型（界面上能改），头行的位置按 k 记着，回写由 DialogWriter 重新生成。
+         以前是"存下值、同时把整行当原文留住"——那时没有入口，改不了才没露馅。 */
+      else if(k==="actor")t.actor=v; else if(k==="scene")t.scene=v;
       else if(k==="tab"){if(v.startsWith("if "))t.tab=gate(v.slice(3),t.tabS);}
       else if(k==="when"){const w=v.match(/^(.*?)\s*->\s*(\S+)$/);
         if(w){const conds=[...w[1].matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
@@ -1411,6 +1439,8 @@ function dlgPage(){
       <div class="cart">
         <div><k>file</k><v id="fpath">${esc(filePath||T("no_file"))}</v></div>
         <div><k>trader</k><v>${esc(doc.name||"?")}</v></div>
+        <div class="edit" data-head title="${T('tip_head')}"><k>scene</k><v>${esc(doc.scene||"—")}</v></div>
+        <div class="edit" data-head title="${T('tip_head')}"><k>actor</k><v>${esc(doc.actor||"—")}</v></div>
         <div><k>${T("hdr_nodes")}</k><v id="fmeta">${Object.keys(doc.nodes).length}</v></div>
       </div>
       <div id="bars" title="${T('tip_bars')}"></div>
@@ -1709,8 +1739,10 @@ function wireSplit(){$("split").onmousedown=e=>{e.preventDefault();
    现在**唯一的写手是 C# 的 DialogWriter**，前端只把模型发过去。 */
 const docJson=()=>({
   trader:doc.trader,name:doc.name,start:doc.start,first:doc.first,
+  actor:doc.actor||null,scene:doc.scene||null,
   tab:doc.tab,tabS:doc.tabS,
-  headRaw:(doc.headRaw||[]).map(e=>({k:e.k,i:e.i||0,v:e.v||null})),
+  /* v 用 ?? 不用 ||：空行的 v 是 ""，用 || 会被当成没有，那一行就没了 */
+  headRaw:(doc.headRaw||[]).map(e=>({k:e.k,i:e.i||0,v:e.v??null})),
   when:doc.when,triggers:doc.triggers,alias:doc.alias,aliasOrder:doc.aliasOrder,
   nodes:Object.entries(doc.nodes).map(([nm,n])=>({
     name:nm,bg:n.bg,anim:n.anim,bgm:n.bgm,npc:n.npc,audio:n.audio,jump:n.jump,
@@ -1764,6 +1796,33 @@ function bgMenu(e){const n=N();const list=[...ASSETS.bg.map(a=>a.name),T("no_bg"
   p.querySelectorAll("[data-bg]").forEach(b=>b.onclick=()=>{
     const v=b.dataset.bg===T("no_bg")?"":b.dataset.bg;
     if(!isTalk())n.narr[beat].bg=v;else n.bg=v;drawStage();hide();});}
+/* ══ 文件头的 scene: / actor: ══
+   解析器和 DialogWriter 一直支持这两行，只是没有入口，作者拿工具写不出来。
+   **不做成下拉**：能填什么要等 VisitAPI Rework 那边的原生房间分析出结果，
+   现在给个假选项列表等于骗人，所以就是两个自由文本框 + 一句说明。 */
+function headMenu(e){
+  const p=place(e,`<h4>${T("m_head")}</h4>
+    <label class="fld"><i>scene</i><input id="hScene" value="${esc(doc.scene||"")}"></label>
+    <label class="fld"><i>actor</i><input id="hActor" value="${esc(doc.actor||"")}"></label>
+    <div class="hint">${T("m_head_d")}</div>`);
+  const put=()=>{
+    setHead("scene",$("hScene").value.trim());
+    setHead("actor",$("hActor").value.trim());
+    markDirty(true);render();
+  };
+  p.querySelectorAll("input").forEach(i=>{
+    i.onkeydown=ev=>{if(ev.key==="Enter"){put();hide();}};
+    i.onblur=put;});
+  $("hScene").focus();
+}
+/* 清空＝那一行不写了（DialogWriter 见到 null 就跳过这条头行）。
+   文件里本来没有这一行的话，补一条记录插在 start 后面，不然写手不知道该在哪儿吐。 */
+function setHead(k,v){
+  doc[k]=v||null;
+  if(!v||doc.headRaw.some(h=>h.k===k))return;
+  const i=doc.headRaw.findIndex(h=>h.k==="start");
+  doc.headRaw.splice(i<0?doc.headRaw.length:i+1,0,{k,i:0});
+}
 function hide(){$("pop").classList.remove("on");}
 addEventListener("mousedown",e=>{if(!$("pop").contains(e.target)&&!e.target.closest(".kebab,.jump,.bglayer"))hide();});
 
@@ -1818,6 +1877,7 @@ function render(){
   if(page==="dlg"){m.innerHTML=dlgPage();
     $("bglayer").onclick=e=>bgMenu(e);
     $("srcBtn").onclick=()=>openSrc(false);
+    document.querySelectorAll("[data-head]").forEach(b=>b.onclick=headMenu);
     $("saveBtn").onclick=saveDlg;
     $("openBtn").onclick=openPicker;
     $("vfold").onclick=()=>{
@@ -2048,6 +2108,19 @@ api("/api/assets").then(a=>{ASSETS={bg:a.bg||[],audio:a.audio||[]};if($("bglayer
 let dead=false;
 const ping=()=>fetch("/api/ping").then(r=>{if(r.ok)alive();},serverGone);
 ping();setInterval(ping,10000);
+
+/* ══ 长连接（真正管用的那个）══
+   报到和 pagehide 那一发告别都是"请浏览器帮个忙"：定时器会被掐，卸载途中的请求不保证送得出去
+   （关整个窗口时尤其容易丢）。于是就出现了"标签页关了、程序还赖着"。
+
+   这里开一条 SSE 长连接：**标签页一没，socket 立刻断，是操作系统告诉服务端的，不用页面配合**。
+   反过来也一样——服务端没了，这边 onerror 立刻响，不用等下一次心跳（后台还可能被压到一分钟一次）。
+   令牌走查询串：EventSource 发不了自定义头。 */
+try{
+  const live=new EventSource("/live?t="+encodeURIComponent(TOK));
+  live.onopen=alive;
+  live.onerror=()=>{ if(live.readyState===EventSource.CLOSED||live.readyState===EventSource.CONNECTING)serverGone(); };
+}catch(_){ /* 没有 EventSource 就退回上面那套心跳，服务端也留着旧的超时兜底 */ }
 /* 从后台切回来立刻补一发：别等下一个 tick，被掐着的时候那可能是一分钟以后 */
 addEventListener("visibilitychange",()=>{if(!document.hidden)ping();});
 addEventListener("focus",ping);
@@ -2108,9 +2181,18 @@ function loadDoc(path,gotoNode){
     beat=doc.nodes[cur]?doc.nodes[cur].narr.length:0;
     hide();render();savedText=docSnap();markDirty(false);
   }).catch(e=>note(String(e.message),"dirty"));}
-/* 浮层：复用 .pop，但定位在屏幕中上方，不跟着某个按钮走 */
+/* 浮层：挂在「打开」按钮底下。
+   以前是硬算屏幕中上方的，结果面板飘在左上角、离触发它的按钮十万八千里，
+   看着像是从别的地方冒出来的。按钮在右边，所以右对齐着往下挂。
+   按钮不在的时候（还没渲染到对话页）才退回屏幕中上方。 */
 function place2(html){
   const p=$("pop");p.innerHTML=html;p.classList.add("on");
-  p.style.left=Math.max(12,(innerWidth-360)/2)+"px";p.style.top="76px";return p;}</script>
+  p.style.left="-9999px";p.style.top="0";          /* 先量宽度，再定位 */
+  const w=p.offsetWidth,m=12,b=$("openBtn");
+  if(b){const r=b.getBoundingClientRect();
+    p.style.left=Math.max(m,Math.min(r.right-w,innerWidth-w-m))+"px";
+    p.style.top=(r.bottom+6)+"px";}
+  else{p.style.left=Math.max(m,(innerWidth-w)/2)+"px";p.style.top="76px";}
+  return p;}</script>
 
 <script src="/ui/quest.js"></script>
