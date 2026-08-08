@@ -255,8 +255,11 @@ function cardPane(q){
       <span title="${esc(T("q_tip_qtrader"))}"><k>${T("q_meta_trader")}</k>${esc(qtrader(q.traderId))}</span>
     </div>
     <div class="tbrief">
+      <!-- 预览走 /qimg：任务 json 里存的是 /files/quest/icon/xxx，不是工作区里的相对路径，
+           以前拿它去 /media 拼 backgrounds/ 自然什么都读不到（原版任务的图也一样白着） -->
       <div class="plate${q.image?"":" empty"}" id="qimg"
-        ${q.image?`style="background-image:url('/media?path=${encodeURIComponent("backgrounds/"+q.image)}&t=${TOK}')"`:""}
+        ${q.image?`style="background-image:url('/qimg?name=${encodeURIComponent(q.image)}&t=${encodeURIComponent(TOK)}')"`:""}
+        title="${esc(q.image||T("q_img"))}"
         >${q.image?"":T("q_img")}</div>
       <div class="txt" contenteditable="plaintext-only" data-f="description"
         data-ph="${esc(T("q_desc_ph"))}">${esc(qtext(q,"description"))}</div>
@@ -538,9 +541,7 @@ function wireQuest(){
   M.querySelectorAll("[data-ack]").forEach(b=>b.onclick=()=>
     ackTrader(b.dataset.ack,!(QD.knownTraders||[]).includes(b.dataset.ack)));
   M.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{q[b.dataset.sw]=!q[b.dataset.sw];qtouch();render();});
-  const im=$("qimg"); if(im)im.onclick=()=>{
-    const v=prompt(T("q_img_ask"),q.image||"");
-    if(v!=null){q.image=v;qtouch();render();}};
+  const im=$("qimg"); if(im)im.onclick=()=>imgOpen();
   qbars();
 }
 /* 改完只刷"脏"标记和统计，不整页重渲染 —— 否则每敲一个字光标就跳走 */
@@ -811,6 +812,110 @@ function staleAsk(){
       p.style.top =Math.max(0,Math.min(innerHeight-40,ev.clientY-dy))+"px";};
   });
   addEventListener("keydown",e=>{if(e.key==="Escape")closeItems();});
+})();
+
+/* ══════════════ 任务图选择器 ══════════════
+   两个来源：SPT 自带的 332 张，和作者自己模组 images\quest\icon 里的那份。
+
+   ⚠️ 反编译核实过：SPT 的 ImageRouteImporter **只扫 SPT_Data\images 一处**，
+   模组目录下的图必须由那个模组自己调 imageRouter.AddRoute 注册，否则进游戏是空白。
+   VisitAPI-Server 会替作者注册（QuestLoader.RegisterImages）；别的模组得自己做，界面上要说清楚。 */
+let QIMG=null, gpCat="spt", gpQ="";
+function imgOpen(){
+  gpQ=""; const p=$("gpick"); p.classList.add("on");
+  if(!p.dataset.placed){       /* 同物品选择器：先把百分比 inset 固化成像素，否则拖不动 */
+    const r=p.getBoundingClientRect();
+    p.style.inset="auto";p.style.left=r.left+"px";p.style.top=r.top+"px";
+    p.style.width=r.width+"px";p.style.height=r.height+"px";p.dataset.placed="1";
+  }
+  $("gpTitle").textContent=T("q_img_title");
+  $("gpq").value="";$("gpq").placeholder=T("q_img_search");
+  if(QIMG)drawImgs(); else $("gplist").innerHTML=`<div class="imempty">${T("q_ip_loading")}</div>`;
+  $("gpq").focus();
+  /* 每次打开都重扫一遍。作者的实际动作是"先去文件夹丢图，再回来选"——
+     缓存一整个会话的话，刚放进去的图这一整次都看不见。有旧数据就先摆着，扫完再换。 */
+  api("/api/quests/images").then(d=>{
+    const first=!QIMG; QIMG=d;
+    /* 头一次打开：哪边有图就站哪边。模组目录通常是空的，开局摆一片空白很劝退 */
+    if(first)gpCat=(d.mod?.files||[]).length&&!(d.spt?.files||[]).length?"mod":"spt";
+    if($("gpick").classList.contains("on"))drawImgs();
+  },e=>{if(!QIMG)$("gplist").innerHTML=`<div class="imempty" style="color:var(--err)">${esc(e.message)}</div>`;});
+}
+const closeImgs=()=>$("gpick").classList.remove("on");
+
+function drawImgs(){
+  const spt=QIMG.spt||{},mod=QIMG.mod||{};
+  const cats=[["spt",T("q_img_spt"),(spt.files||[]).length],
+              ["mod",mod.name||T("q_img_mod"),(mod.files||[]).length],
+              ["custom",T("q_img_custom"),null],
+              ["none",T("q_img_none"),null]];
+  $("gpcats").innerHTML=cats.map(([k,n,c])=>
+    `<button data-c="${k}" aria-pressed="${gpCat===k}">${esc(n)}${c===null?"":` <span style="opacity:.55">${c}</span>`}</button>`).join("");
+  $("gpcats").querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.c==="none"){imgSet("");return;}
+    gpCat=b.dataset.c;drawImgs();});
+  /* 页脚只在看目录时报路径。自填/清除那两页跟目录无关，摆个路径在那儿是误导 */
+  const dir=gpCat==="mod"?mod.dir:gpCat==="spt"?spt.dir:"";
+  $("gpfoot").innerHTML=`<span>${esc(dir||"")}</span>`;
+  $("gplist").innerHTML=gpCat==="custom"?imgCustomPane():imgGrid(gpCat==="mod"?mod:spt,gpCat);
+  wireImgs();
+}
+
+function imgGrid(sec,src){
+  const files=(sec.files||[]).filter(f=>!gpQ||f.toLowerCase().includes(gpQ.toLowerCase()));
+  if(!files.length)return `<div class="imempty">${
+    (sec.files||[]).length?T("q_img_nohit"):TF("q_img_empty",esc(sec.dir||"—"))}</div>`;
+  const cur=(qq()||{}).image||"";
+  const warn=src==="mod"&&!sec.registers
+    ?`<div class="imwarn" style="margin:10px 10px 0">${TF("q_img_noreg",esc(sec.name||"?"))}</div>`:"";
+  return warn+`<div class="imgrid">`+files.map(f=>{
+    const ok=f.split(".").length===2;      /* 名字里多一个点，SPT 切扩展名时会把它截断 */
+    return `<button class="imcell${ok?"":" bad"}" data-pick="${esc(f)}" data-src="${src}"
+      aria-pressed="${cur==="/files/quest/icon/"+f}" title="${esc(ok?f:T("q_img_dot"))}">
+      <img loading="lazy" src="/qimg?src=${src}&name=${encodeURIComponent(f)}&t=${encodeURIComponent(TOK)}" alt="">
+      <figcaption>${esc(f)}</figcaption></button>`;}).join("")+`</div>`;
+}
+
+/* 没用 VisitAPI 的人：图片在他自己的模组里，路径也是他自己的，这里只能让他手填 */
+function imgCustomPane(){
+  return `<div class="impane">
+    <div class="imwarn">${T("q_img_ownwarn")}</div>
+    <h4>${T("q_img_custom")}</h4>
+    <p>${T("q_img_custom_d")}</p>
+    <input id="gpCustom" value="${esc((qq()||{}).image||"")}" placeholder="/files/quest/icon/myquest.png">
+    <div class="kindmenu" style="margin-top:.7rem"><button data-use="1">${T("q_img_use")}</button></div>
+  </div>`;
+}
+
+function imgSet(v){
+  const q=qq(); if(!q)return;
+  q.image=v; qtouch(); closeImgs(); render();
+}
+
+function wireImgs(){
+  $("gplist").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>
+    imgSet("/files/quest/icon/"+b.dataset.pick));
+  const c=$("gpCustom");
+  if(c){
+    const go=()=>imgSet(c.value.trim());
+    $("gplist").querySelector("[data-use]").onclick=go;
+    c.onkeydown=e=>{if(e.key==="Enter")go();};
+    c.focus();
+  }
+}
+
+/* 静态接线，跟物品选择器同一套 */
+(function(){
+  $("gpClose").onclick=closeImgs;
+  $("gpq").oninput=e=>{gpQ=e.target.value;if(QIMG)drawImgs();};
+  $("gpHead").onmousedown=qdrag(e=>{
+    if(e.target.closest("input,button"))return null;
+    const p=$("gpick"),r=p.getBoundingClientRect(),dx=e.clientX-r.left,dy=e.clientY-r.top;
+    return ev=>{
+      p.style.left=Math.max(-r.width+140,Math.min(innerWidth-140,ev.clientX-dx))+"px";
+      p.style.top =Math.max(0,Math.min(innerHeight-40,ev.clientY-dy))+"px";};
+  });
+  addEventListener("keydown",e=>{if(e.key==="Escape")closeImgs();});
 })();
 
 /* ══════════════ 对话挂接 ══════════════

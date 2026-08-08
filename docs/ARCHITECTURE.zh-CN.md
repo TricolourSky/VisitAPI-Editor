@@ -25,7 +25,7 @@
 |---|---|---|
 | `VisitAPI.Dlg` | netstandard2.0 | `.dlg` 的解析与回写。**和游戏插件共用这份源码** |
 | `VisitAPI.Server` | net10.0 (Web SDK) | 服务端 + 界面（界面嵌成资源打进 exe） |
-| `VisitAPI.Quests` | net10.0 | 任务 / 文案的读写与校验、只读 SPT_Data、任务↔对话的挂接 |
+| `VisitAPI.Quests` | net10.0 | 任务 / 文案的读写与校验、只读 SPT_Data、任务↔对话的挂接、任务配图 |
 
 ### 为什么 `VisitAPI.Dlg` 是 netstandard2.0
 
@@ -55,9 +55,15 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 - **端口**：绑 `:0` 让系统分配，记下号再放掉
 - **只绑 `127.0.0.1`**。绝不能绑 `0.0.0.0` —— 那等于把"随便读写你硬盘"开放给整个局域网
-- **心跳**：界面每 10 秒 `/api/ping`，服务端 40 秒没动静就自杀
-  ⚠️ 不要改成"页面关闭时主动发退出信号"：`pagehide` **按 F5 刷新时也会触发**，
-  那样用户一刷新服务端就死、页面再也加载不出来（踩过）
+- **心跳**：两条路子一起用，谁先满足算谁的
+  - 界面每 10 秒 `/api/ping`，**3 分钟**没动静就自杀。这个超时不能按"心跳间隔的几倍"来拍：
+    Chromium 系在标签页隐藏满 5 分钟后进入 intensive throttling，把定时器压到**每分钟最多一次**。
+    早先这里是 40 秒，于是切去别的标签页十几分钟回来，服务端已经自己退了、页面还开着
+  - `pagehide` 发 `/api/bye`，服务端**等 10 秒宽限期，期间有新 ping 就撤销**。
+    宽限期就是用来分辨"关闭"和"F5 刷新"的——`pagehide` 按 F5 也会触发，
+    早先直接退，结果一刷新服务端就死（踩过）
+  - 页面重新可见时会立刻补一发；ping 失败则盖一层"后台已退出"的提示。
+    它关不掉自己（不是脚本开的窗，`window.close()` 会被拦），能做的只有把话说清楚
 - **`--no-browser`**：不自动开浏览器。自动化测试必须用，否则弹出的标签页会一直替它报到，心跳超时永远测不出来
 
 `Workspace.cs` 两道安全闸：
@@ -75,6 +81,7 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 |---|---|
 | `GET /` | 界面（会把令牌注入成 `<meta name="tok">`） |
 | `GET /api/ping` | 心跳，唯一不验令牌的接口 |
+| `POST /api/bye` | 「页面要走了」。开始 10 秒倒计时，期间任何一发 ping 都会撤销它 |
 | `POST /api/quit` | 退出 |
 | `GET/POST /api/workspace` | 读/设工作区，顺带回构建时间与素材目录是否存在 |
 | `GET /api/list?dir=` | 列子目录与剧本文件（`.dlg` 与 `.dlg.demo`） |
@@ -90,6 +97,20 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 | `GET /api/quests/links` | 扫全部 `.dlg`，读出任务↔选项的挂接与触发点 |
 | `POST /api/quests/link` | 挂上/摘掉一条挂接。**改的是 `.dlg`，走 `DialogWriter`** |
 | `POST /api/quests/trader-ok` | 标记「这个商人我认识」（给还没装/没适配的商人 mod 用） |
+| `GET /api/quests/images` | 任务配图清单：SPT 自带的那份 + 模组目录里的那份 |
+| `GET /qimg?src=&name=&t=` | 配图字节。**不挂在 `/api` 下**——`<img src>` 发不了令牌头，只能像 `/media` 那样走查询串 |
+
+## 两条 SPT 的事实，配图功能全靠它们
+
+两条都是反编译 4.1.1 的 `SPTarkov.Server.Core.dll` 核实出来的，不是推测。哪天 SPT 改了，先坏的就是配图。
+
+1. **`ImageRouteImporter` 只扫 `./SPT_Data/images/`**。那是个私有方法、只有一处写死的调用点，
+   所以**模组自己目录里的图不会被伺服**，必须由模组调 `imageRouter.AddRoute(键, 绝对路径)` 注册。
+   VisitAPI 服务端会替自己 `images\quest\icon\` 下的图做这件事；选的是别的模组时，编辑器会提醒。
+2. **路由键不带扩展名**。注册和查表两边都过 `FileUtil.StripExtension`，它是 `path.Split('.').First()`
+   —— 截到**第一个**点，不是最后一个。这就是为什么原版 `quests.json` 写 `.jpg` 而磁盘上是 `.png`
+   也能对上，也是为什么 `a.b.png` 这种名字永远匹配不上。编辑器的预览按同样的规则解析
+   （所以原版任务的配图能正常显示），选择器里会把带多余点号的名字标出来。
 
 ## 回写保真
 
@@ -121,7 +142,8 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 ## 界面
 
-单个 `wwwroot/index.html`，无构建步骤、无框架、无依赖。里面包含：
+`wwwroot/` 下三个文件：`index.html`（外壳 + 对话编辑器）、`quest.css` / `quest.js`（任务编辑器）。
+无构建步骤、无框架、无依赖。里面包含：
 
 - 一份对齐 `DialogParser.cs` 的 JS 解析器（同一份文本，两边解析出同一张图）
 - 画布预览、节点图（自绘贝塞尔连线 + 拖拽缩放）、分拍页签、中英双语、深浅双主题

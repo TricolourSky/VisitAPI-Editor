@@ -14,7 +14,7 @@ It reads and writes `.dlg` scripts and SPT quest files on your disk.
 | Project | Target | What it does |
 |---|---|---|
 | `VisitAPI.Dlg` | netstandard2.0 | `.dlg` parsing and writing. **Shared with the game plugin.** |
-| `VisitAPI.Quests` | net10.0 | Quests / locales read-write, validation, read-only SPT_Data, quest↔dialogue hooks |
+| `VisitAPI.Quests` | net10.0 | Quests / locales read-write, validation, read-only SPT_Data, quest↔dialogue hooks, quest icons |
 | `VisitAPI.Server` | net10.0 (Web) | Self-hosted server + the UI, embedded as resources |
 
 ### Why `VisitAPI.Dlg` is netstandard2.0
@@ -46,9 +46,17 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 - **Per-run random token**, injected into the page as `<meta name="tok">` and required by every
   `/api/*` call. Other sites can't read our page cross-origin, so they can't obtain it.
 - **Path jail.** Every path must resolve inside the workspace (or the quest DB); `..` is rejected.
-- **Heartbeat.** The page pings every 10s; after 40s of silence the server exits.
-  It deliberately does *not* let the page signal "I'm closing" — `pagehide` also fires on F5,
-  which killed the server on every refresh when we tried it.
+- **Heartbeat.** Two independent ways to notice nobody is watching:
+  - The page pings every 10s and the server exits after **3 minutes** of silence. That timeout is
+    deliberately not "a few times the ping interval": Chromium **throttles background tabs to at most
+    one timer wake per minute** once a tab has been hidden for five minutes. With the old 40s timeout,
+    switching to another tab for a quarter of an hour killed the server while the page stayed open.
+  - `pagehide` posts `/api/bye`, and the server exits **10 seconds later unless a ping arrives first**.
+    The grace period is what separates "closed" from "refreshed" — F5 fires `pagehide` too, and an
+    earlier version that exited on it turned every refresh into a kill.
+  - The page also pings immediately on `visibilitychange`, and paints a "backend has shut down" overlay
+    when a ping fails. It cannot close itself (`window.close()` is blocked for pages a script did not
+    open), so saying so is the most it can do.
 - **UI is embedded** in the exe as resources (`ui/index.html`, `ui/quest.css`, `ui/quest.js`).
   Single-file publishing does not carry a `wwwroot` folder along, so embedding is the reliable route.
 
@@ -59,6 +67,7 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 | `GET /` | The UI (token injected as `<meta name="tok">`) |
 | `GET /ui/{name}` | The rest of the embedded UI assets |
 | `GET /api/ping` | Heartbeat — the only endpoint that skips the token |
+| `POST /api/bye` | "The page is going away." Starts a 10s countdown any ping cancels |
 | `POST /api/quit` | Shut down |
 | `GET/POST /api/workspace` | Read/set the `.dlg` workspace; also reports the build stamp |
 | `GET /api/list?dir=` | List folders and script files (`.dlg` and `.dlg.demo`) |
@@ -74,6 +83,8 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 | `GET /api/quests/links` | Scan every `.dlg` for quest↔option hooks and triggers |
 | `POST /api/quests/link` | Attach/detach a hook. **This edits the `.dlg`, via `DialogWriter`** |
 | `POST /api/quests/trader-ok` | Mark a trader as known (for mods not installed / not updated yet) |
+| `GET /api/quests/images` | Quest icons available from SPT and from the mod folder |
+| `GET /qimg?src=&name=&t=` | The icon bytes. **Not under `/api`** — `<img src>` cannot send the token header, so it goes in the query string like `/media` |
 
 ## Faithful round-trip
 
@@ -121,6 +132,21 @@ One page, no framework, no build step. `index.html` carries the shell and the di
   language; `qlang` is which language of *content* you are currently writing.
 - Theme is a `data-theme` attribute on `<html>`; every colour is a custom property, so nothing needs to
   know whether it is currently light or dark.
+
+## Two SPT facts this depends on
+
+Both were established by decompiling `SPTarkov.Server.Core.dll` for 4.1.1, not by inference. If either
+ever changes, the quest image picker is what breaks.
+
+1. **`ImageRouteImporter` only walks `./SPT_Data/images/`.** It is a private method with one hardcoded
+   call site, so images sitting in a mod's own folder are *not* served. A mod has to register them:
+   `imageRouter.AddRoute(key, absolutePath)`. The VisitAPI server mod does this for its
+   `images\quest\icon\`; the editor tells you when the folder you picked belongs to a mod that may not.
+2. **Route keys carry no file extension.** Registration and lookup both run the path through
+   `FileUtil.StripExtension`, which is `path.Split('.').First()` — it truncates at the *first* dot, not
+   the last. That is why vanilla `quests.json` can say `.jpg` for a file that is `.png` on disk, and why
+   a name like `a.b.png` can never resolve. The editor resolves previews the same way, so vanilla quest
+   art shows up correctly, and it flags names with an extra dot in the picker.
 
 ## UI design rules
 

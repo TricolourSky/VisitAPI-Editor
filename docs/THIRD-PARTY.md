@@ -28,6 +28,12 @@ Two options:
 If you want them replaced, say so — the change is confined to a single `const ICON={...}` in
 `index.html`.
 
+## The author avatar
+
+`src/VisitAPI.Server/wwwroot/author.jpg` (320×320, ~33 KB) is the project author's own avatar, shown on
+the About page. It is first-party — included here only so the list of what ships inside the exe is
+complete. If you fork this, replace it with your own and update the name and links in `abAuthor()`.
+
 ---
 
 ## What is deliberately not published with the source

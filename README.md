@@ -39,11 +39,16 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
 - **Plain language** — conditions read "kill 5 scavs (Interchange)", not `CounterCreator`;
   a reward of `5449016a…` shows up as "Roubles"
 - **Item picker** — 4288 items searchable in either language, straight from `SPT_Data\templates\handbook.json`
+- **Image picker** — pick the quest's card art from SPT's own 332 built-in icons, or from your mod's
+  `images\quest\icon` folder, or type a path
 - **Chain graph** — auto-layered by prerequisite depth (LV.0 / LV.1 …); **drag from a card to another
   to create a prerequisite**; loops, self-links and duplicates are refused
 - **Dialogue hooks** — see which option hands the quest out or takes it in; two clicks to attach; click to jump
 - **You choose where they go** — no VisitAPI required; quests can live in any mod's `db` folder
-- **Validation** — no objectives, empty completion mail, missing prerequisite, duplicate id, unknown trader… 12 rules
+- **Validation** — no objectives, empty completion mail, missing prerequisite, duplicate id, unknown trader… 13 rules
+
+There is also an **About page** (the first item in the sidebar, and where the editor opens): what each
+module can and cannot do yet, plus the live paths it resolved on this machine.
 
 Shared: dark/light themes, English/Chinese UI (the interface language is separate from the language
 you're writing your text in).
@@ -87,6 +92,19 @@ your own path (missing `quests` / `locales` folders get created). Your choice is
 **About custom traders**: traders registered by other mods (`db\traders\<id>\base.json`) show up in the
 trader list automatically. If that trader's mod isn't installed — or isn't updated for your SPT version
 yet — the editor says "not found on this machine"; click "I know this trader" and it stops asking.
+
+**About quest images**: SPT only serves images out of `SPT_Data\images` — **it does not pick up images
+from a mod's own folder on its own.** For your own art to show in game, the mod it lives in has to
+register it:
+
+```csharp
+imageRouter.AddRoute("/files/quest/icon/" + nameWithoutExtension, absolutePathToTheFile);
+```
+
+The VisitAPI server mod does this for everything under its `images\quest\icon\`. Any other mod has to
+add the call itself — the editor says so on the picker's "type a path" tab. Note the route key carries
+**no file extension** (SPT truncates at the first dot on both sides), so a file name with an extra dot
+in it can never resolve; the picker flags those.
 
 ### Faithful round-trip
 
@@ -156,9 +174,12 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - [x] Backgrounds (image / video), audio (music / voice)
 - [x] SPT quest editor (create / edit / delete / save · chain graph · validation · no VisitAPI needed)
 - [x] Quest ↔ dialogue hooks, with cross-file jump
+- [x] Quest card art, picked from SPT's own icons or your mod's folder
 - [ ] Bot outfit swapping
 - [ ] Chapter/campaign authoring
 - [ ] `scene:` / `actor:` controls in the dialogue editor
+- [ ] Restore from the `.bak` copies the editor leaves behind
+- [ ] A step-by-step guide inside the app
 
 ---
 

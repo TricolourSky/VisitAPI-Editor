@@ -307,6 +307,31 @@
 .ipfoot{padding:.4rem .85rem;border-top:1px solid var(--line);font:10px/1 var(--mono);
   letter-spacing:.08em;color:var(--ink-3);display:flex;gap:1rem}
 
+/* ── 任务图选择器：共用上面那套窗体，右边换成缩略图网格 ── */
+.imgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px;padding:10px}
+.imcell{border:0;padding:0;background:var(--panel-3);cursor:pointer;position:relative;
+  box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.imcell img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--graph-bg)}
+.imcell figcaption{display:block;font:9px/1.4 var(--mono);color:var(--ink-3);padding:.3rem .35rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.imcell:hover{box-shadow:inset 0 0 0 2px var(--y)}
+.imcell:hover figcaption{color:var(--y)}
+.imcell[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--y)}
+.imcell[aria-pressed="true"] figcaption{background:var(--y);color:var(--y-ink);font-weight:700}
+/* 名字里带点号的：SPT 会把它截断，选了也不会显示，所以直接标出来别让人踩 */
+.imcell.bad{opacity:.45}
+.imcell.bad figcaption{color:var(--err)}
+.impane{padding:1.1rem 1.2rem;max-width:44rem}
+.impane h4{font-size:13px;font-weight:700;letter-spacing:.06em;margin-bottom:.5rem}
+.impane p{font-size:12px;line-height:1.75;color:var(--ink-2);margin-bottom:.7rem}
+.impane code{font:11px/1.5 var(--mono);color:var(--ink);background:var(--panel-3);padding:.05rem .3rem}
+.impane input{width:100%;background:var(--panel-3);border:1px solid var(--line-2);color:var(--ink);
+  font:12px/1.6 var(--mono);padding:.4rem .55rem;outline:none}
+.impane input:focus{border-color:var(--y)}
+.imwarn{border-left:3px solid var(--o);padding:.5rem .8rem;background:rgba(255,106,18,.07);
+  font-size:11.5px;line-height:1.7;color:var(--ink-2);margin-bottom:.8rem}
+.imempty{padding:1.2rem;color:var(--ink-3);font-size:12px;line-height:1.8}
+
 /* 弹出小菜单里的选项 */
 .kindmenu{display:flex;flex-wrap:wrap;gap:2px}
 .kindmenu button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:pointer;font-size:11.5px;

@@ -80,6 +80,42 @@ public static class QuestApi
             return Results.Json(new { ok = true, known = ws.KnownTraders });
         });
 
+        // 任务图：列出两个来源。SPT 自带那份一定能用；模组那份要看模组自己注不注册（见 QuestImages 注释）
+        app.MapGet("/api/quests/images", () =>
+        {
+            var sptDir = QuestImages.SptDir(ws.EftRoot);
+            var modDir = QuestImages.ModDir(ws.QuestDb);
+            return Results.Json(new
+            {
+                spt = new { dir = sptDir, files = QuestImages.List(sptDir) },
+                mod = new
+                {
+                    dir = modDir,
+                    name = QuestImages.ModName(ws.QuestDb),
+                    files = QuestImages.List(modDir),
+                    // VisitAPI-Server 会替作者注册；别的模组得自己调 AddRoute，界面据此提示
+                    registers = QuestImages.ModName(ws.QuestDb)
+                        .Equals("VisitAPI-Server", StringComparison.OrdinalIgnoreCase),
+                },
+            });
+        });
+
+        // 缩略图的字节。**不能挂在 /api 下面**：那道闸门要 X-Token 头，而 <img src> 发不了自定义头，
+        // 所以和 /media 一样把令牌走查询串。只认裸文件名，路径拼接在服务端做（见 QuestImages.Resolve）。
+        // t 必须可空：声明成必填时缺参数会被框架挡成 400，403 才是这里该说的话
+        app.MapGet("/qimg", (string? src, string? name, string? t) =>
+        {
+            if (t != ws.Token) return Results.StatusCode(403);
+            // src 省略＝两边都找（任务卡上那张预览就是这么来的，它只知道 json 里那个值）
+            var full = src switch
+            {
+                "mod" => QuestImages.Resolve(QuestImages.ModDir(ws.QuestDb), name ?? ""),
+                "spt" => QuestImages.Resolve(QuestImages.SptDir(ws.EftRoot), name ?? ""),
+                _ => QuestImages.ResolveAny(ws.EftRoot, ws.QuestDb, name ?? ""),
+            };
+            return full == null ? Results.NotFound() : Results.File(full, QuestImages.Mime(full));
+        });
+
         app.MapPost("/api/quests/root", (RootReq r) =>
             ws.SetQuestDb(r.Path)
                 ? Results.Json(new { ok = true, dir = ws.QuestDb })

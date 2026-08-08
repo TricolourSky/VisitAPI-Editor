@@ -7,8 +7,30 @@ namespace VisitAPI.Server;
 
 public static class Program
 {
+    // 下面两个时刻由请求线程写、定时器线程读，所以都存成 long（UTC ticks）：
+    // 64 位下 long 的读写是原子的，而 DateTime? 是 16 字节，撕裂读能读出"有值但时间是垃圾"的组合。
+
     /// <summary>浏览器最后一次报到的时间。标签页被关掉后就不再报到，服务端据此自杀。</summary>
-    static DateTime _lastPing = DateTime.UtcNow;
+    static long _lastPing = DateTime.UtcNow.Ticks;
+
+    /// <summary>
+    /// 页面说"我要走了"的时刻（关标签页 / 关窗口 / 刷新都会发），0 表示没有待处理的告别。
+    /// 不能收到就退——**F5 刷新也会发这一发**，那样一刷新服务端就没了。
+    /// 所以只记时刻，等 <see cref="ByeGrace"/> 这段宽限期；期间只要有新的 ping 进来（＝页面又活了，
+    /// 说明刚才是刷新不是关闭），就把它撤销。
+    /// </summary>
+    static long _byeAt;
+    static readonly TimeSpan ByeGrace = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// 多久没报到就认为页面没了。
+    ///
+    /// **这个值不能按"心跳间隔的几倍"来拍。** 浏览器会掐后台标签页的定时器：
+    /// Chromium 系在标签页隐藏满 5 分钟后进入 intensive throttling，把 setInterval 压到
+    /// **每分钟最多一次**。原来这里是 40 秒，于是用户切去看个视频十几分钟，服务端就自己退了，
+    /// 页面还开着——线上遇到的就是这个。留 3 分钟，够扛三次被掐掉的心跳。
+    /// </summary>
+    static readonly TimeSpan Idle = TimeSpan.FromMinutes(3);
 
     public static void Main(string[] args)
     {
@@ -46,7 +68,15 @@ public static class Program
         // 界面拆成了多份（index.html + quest.css/js），这条把 wwwroot 里其余的静态资源放出来。
         // 资源名是编译期固定的字符串，取不到就是 404，`..` 穿越不出去。
         app.MapGet("/ui/{name}", (string name) => Ui(name, ws.Token));
-        app.MapGet("/api/ping", () => { _lastPing = DateTime.UtcNow; return Results.Ok(); });
+        // 报到。顺手撤销待退出标记：能报到就说明刚才那声"我要走了"是刷新，不是关页面。
+        app.MapGet("/api/ping", () =>
+        {
+            Volatile.Write(ref _lastPing, DateTime.UtcNow.Ticks);
+            Volatile.Write(ref _byeAt, 0);
+            return Results.Ok();
+        });
+        // 页面卸载时发这一发（关标签页/关窗口/刷新都会发）。真关还是刷新，交给宽限期去分辨。
+        app.MapPost("/api/bye", () => { Volatile.Write(ref _byeAt, DateTime.UtcNow.Ticks); return Results.Ok(); });
         app.MapPost("/api/quit", (IHostApplicationLifetime life) => { life.StopApplication(); return Results.Ok(); });
 
         WatchBrowser(app.Lifetime);
@@ -116,22 +146,27 @@ public static class Program
     };
 
     /// <summary>
-    /// 没人看着就别占着进程：界面每 10 秒报到一次，超过 40 秒没动静就认为标签页关了，自己退出。
+    /// 没人看着就别占着进程。两条路子一起用：
     ///
-    /// 只用超时判断，不让页面在关闭时主动发退出信号——因为浏览器的 pagehide 事件
-    /// 按 F5 刷新时也会触发，那样用户一刷新服务端就死了，页面再也加载不出来（已实测踩到）。
-    /// 40 秒也是给休眠、切后台节流留的余量，杀早了用户会莫名其妙。
+    /// 1. **页面主动告别**（快）：关标签页时发 <c>/api/bye</c>，等 10 秒宽限期没人再报到就退出。
+    ///    宽限期是为了区分"关闭"和"F5 刷新"——两者都会触发 pagehide，直接退会让刷新变成杀进程。
+    /// 2. **静默超时**（兜底）：浏览器崩了、进程被杀、告别那一发没发出去时，靠 <see cref="Idle"/> 收场。
+    ///
+    /// 超时值定得很宽是有原因的，见 <see cref="Idle"/> 上的注释：后台标签页的定时器会被浏览器掐。
     /// </summary>
     static void WatchBrowser(IHostApplicationLifetime life)
     {
         var t = new System.Threading.Timer(_ =>
         {
-            if (DateTime.UtcNow - _lastPing > TimeSpan.FromSeconds(40))
-            {
-                Console.WriteLine("浏览器已关闭，退出。");
-                life.StopApplication();
-            }
-        }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(5));
+            // 各读一次存进局部变量：读两遍的话，中间来一发 ping 就能读出自相矛盾的组合
+            var now = DateTime.UtcNow.Ticks;
+            var byeAt = Volatile.Read(ref _byeAt);
+            var bye = byeAt != 0 && now - byeAt > ByeGrace.Ticks;
+            if (!bye && now - Volatile.Read(ref _lastPing) <= Idle.Ticks) return;
+            Console.WriteLine(bye ? "页面已关闭，退出。/ Page closed, shutting down."
+                                  : "页面长时间没有响应，退出。/ Page went silent, shutting down.");
+            life.StopApplication();
+        }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(3));
         life.ApplicationStopping.Register(() => t.Dispose());
     }
 

@@ -402,6 +402,120 @@ svg{display:block}
   padding:.36rem .95rem;cursor:pointer;white-space:nowrap;text-transform:uppercase}
 .seg button:hover{color:var(--y)}
 .seg button[aria-pressed="true"]{color:var(--y-ink);background:var(--y);font-weight:700}
+/* ══ 程序介绍页 ══
+   卡片和行沿用设置页那一套，但版式是自己的：宽屏两栏 + 底部四栏须知。
+   860px 单栏在 2K 屏上只占左边一条，右边整片空着——那是把宽度浪费掉了。 */
+/* 铺满整屏：外层给高度，内层竖着排，中间那块网格吃掉剩下的高度。
+   宽度不再设上限——2K 屏上留 900px 空白纯属浪费，换成三栏。 */
+.abwrap{flex:1 1 auto;min-height:0;overflow:auto;padding:1.5rem 2.1rem 2rem;position:relative;
+  display:flex;flex-direction:column}
+.abin{position:relative;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+/* 四角刻度括号：和流程图那屏同一套装饰语言 */
+.abin::before,.abin::after{content:"";position:absolute;width:26px;height:26px;
+  pointer-events:none;border-color:var(--line-2)}
+.abin::before{left:-12px;top:-8px;border-left:2px solid;border-top:2px solid}
+.abin::after{right:-12px;bottom:-14px;border-right:2px solid;border-bottom:2px solid}
+.abhero{position:relative;margin-bottom:1.1rem}
+/* 巨大水印字收在页尾。放标题右边会和规格带糊在一起——那儿本来就是信息最密的地方 */
+.abmark{margin-top:1.4rem;font:800 96px/.82 var(--ui);letter-spacing:.03em;
+  color:var(--ink);opacity:.05;pointer-events:none;user-select:none;white-space:nowrap;overflow:hidden}
+.abmark i{font-style:normal;font-size:.34em;letter-spacing:.4em;vertical-align:.9em;opacity:.9}
+.abhead{position:relative;z-index:1;display:flex;align-items:center;gap:1.3rem;margin-bottom:.8rem}
+.abhead .slab{width:9px;height:74px;background:var(--y);flex:0 0 auto}
+.abhead h1{font-size:42px;font-weight:800;letter-spacing:.13em;line-height:1.02}
+.abhead .lede{font:10px/1 var(--mono);letter-spacing:.24em;color:var(--ink-3);margin-top:.6rem}
+.abspec{margin-left:auto;align-self:stretch}
+.abspec v.good{color:var(--ok)} .abspec v.bad{color:var(--o)}
+@media (max-width:1080px){.abspec{display:none}}
+
+/* 两栏。三栏试过——内容摊不满，每张卡下半截都空着，比留白还难看。
+   两栏让每列的自然高度接近一屏，不用靠拉伸凑。 */
+.abgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1rem;align-items:stretch;flex:1 1 auto;margin-bottom:1rem}
+@media (max-width:1080px){.abgrid{grid-template-columns:minmax(0,1fr)}}
+.abcol{display:flex;flex-direction:column;gap:1rem;min-width:0}
+.abcol>.card{margin-bottom:0}     /* 列自己用 gap 排，卡片再带 margin 就成双份间距 */
+/* 屏幕比内容高时，多出来的高度给每列最后一张卡，两列底边就齐了。
+   只让卡片长，不去拉伸里面的行——行距被撑到一百多像素时，看着像排版崩了。 */
+.abcol>.card:last-child{flex:1 1 auto}
+
+/* 作者卡 */
+.abauth{display:flex;gap:1.2rem;padding:1.1rem 0 1rem}
+.abface{flex:0 0 auto;width:152px;height:152px;position:relative;background:var(--panel-3);
+  box-shadow:inset 0 0 0 1px var(--line-2);
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%)}
+.abface img{width:100%;height:100%;object-fit:cover}
+/* 扫描线：实物屏幕的质感，压得很淡，别把头像糊掉 */
+.abface::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.20) 0 1px,transparent 1px 3px)}
+.abwho{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.abwho>b{display:block;font-size:19px;font-weight:700;letter-spacing:.08em}
+.abwho .abrole{display:block;font-size:12px;color:var(--ink-3);margin:.28rem 0 .8rem}
+.abwho .ablic{margin-top:auto}
+.ablink{display:flex;align-items:center;gap:.6rem;text-decoration:none;
+  padding:.36rem 0;border-top:1px solid var(--line)}
+.ablink k{flex:0 0 auto;width:64px;font:8.5px/1 var(--mono);letter-spacing:.2em;
+  color:var(--ink-3);text-transform:uppercase}
+.ablink v{font:11px/1.3 var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ablink:hover v{color:var(--y)}
+.ablic{font:9.5px/1.5 var(--mono);letter-spacing:.06em;color:var(--ink-3);
+  padding-top:.5rem;border-top:1px solid var(--line);margin-top:.36rem}
+
+/* 快速上手：这三步是真有先后的（先指目录才谈得上写），所以编号在这里不是装饰 */
+.abstep{display:flex;align-items:center;gap:.9rem;padding:.95rem 0;border-bottom:1px solid var(--line)}
+.abstep:last-child{border-bottom:0}
+.abstep>n{flex:0 0 auto;width:30px;font:800 22px/1 var(--mono);color:var(--line-2);text-align:center}
+.abstep[data-done="1"]>n{color:var(--ok)}
+.abstep .lbl{flex:1 1 auto;min-width:0}
+.abstep .lbl b{display:block;font-size:13.5px;font-weight:600;letter-spacing:.05em}
+.abstep .lbl span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:.18rem}
+.abstep .go{flex:0 0 auto;display:flex;gap:.4rem}
+
+/* 须知：在第三列里就竖着排，四条各占一格；单栏时也一样 */
+.abnotes{display:grid;grid-template-columns:minmax(0,1fr);margin:0 -1.2rem;padding:.1rem 0}
+.abcell{padding:1rem 1.2rem;border-top:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.abcell:first-child{border-top:0}
+/* 挂牌在 flex 列里会被拉成整条横杠，得钉回内容宽度 */
+.abcell>.abkind{align-self:flex-start}
+.abcell>b{display:block;font-size:13px;font-weight:600;letter-spacing:.05em;margin:.55rem 0 .3rem}
+.abkind{display:inline-block;font:8.5px/1 var(--mono);letter-spacing:.2em;font-weight:700;
+  text-transform:uppercase;padding:.28rem .5rem;transform:skewX(var(--sk));
+  color:#08201F;background:var(--tech)}
+/* 明亮主题的 --tech 是深青，深色字压在上面几乎看不见，得反过来 */
+:root[data-theme="light"] .abkind{color:#F1FAF9}
+.abkind>span{display:block;transform:skewX(calc(var(--sk) * -1))}
+
+/* 服务端没了时盖住整页。页面关不掉自己，但不能装作还能用 */
+.deadwrap{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
+.deadbox{background:var(--panel);box-shadow:0 0 0 1px var(--o),0 20px 60px rgba(0,0,0,.6);
+  padding:1.4rem 1.8rem;max-width:30rem;border-left:6px solid var(--o)}
+.deadbox b{display:block;font-size:15px;font-weight:700;letter-spacing:.06em;color:var(--o)}
+.deadbox span{display:block;font-size:12.5px;line-height:1.7;color:var(--ink-2);margin-top:.5rem}
+
+.row>.btn{flex:0 0 auto}
+.abrow .ic{flex:0 0 auto;width:26px;height:26px;color:var(--ink-3)}
+.abrow .ic svg{width:100%;height:100%;display:block}
+/* 能用的模块图标提亮、没做的压暗。这里不给黄——黄在这一页只留给"你在这" */
+.abrow[data-on="1"] .ic{color:var(--ink)}
+/* 状态挂牌：斜切只给这类挂牌，静止纯平，只有"当前"才配拿黄 */
+.abst{flex:0 0 auto;font:9px/1 var(--mono);letter-spacing:.16em;font-weight:700;text-transform:uppercase;
+  padding:.32rem .6rem;transform:skewX(var(--sk));color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+.abst>span{display:block;transform:skewX(calc(var(--sk) * -1))}
+.abst.on{color:var(--y-ink);background:var(--y);box-shadow:none}
+.abst.ok{color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok)}
+.abst.warn{color:var(--o);box-shadow:inset 0 0 0 1px var(--o)}
+/* 选择器要压过 `.row .lbl span`（0,2,1），不然字号颜色被它盖回去 */
+.row .lbl span.abnote{font-size:12px;line-height:1.65;color:var(--ink-2);margin-top:.35rem}
+.row .lbl span.abpath{font:11px/1.5 var(--mono);color:var(--ink-2);margin-top:.45rem;
+  word-break:break-all;user-select:text}
+.row .lbl span.abpath.none{color:var(--ink-3)}
+.abnote{display:block;font-size:12px;line-height:1.65;color:var(--ink-2)}
+.abnote code{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--panel-3);padding:.05rem .3rem}
+.abnote b{color:var(--ink);font-weight:600}
+/* `.row .lbl b` 是 display:block（给行标题用的），说明文字里的 <b> 会被它顶成整行，
+   所以这里必须连 .row .lbl 一起写，压过那条 */
+.row .lbl span.abnote b{display:inline;color:var(--ink);font-weight:600;font-size:inherit;letter-spacing:0}
 .slider{display:flex;align-items:center;gap:.8rem;flex:0 0 auto;width:250px}
 .slider input[type=range]{flex:1 1 auto;accent-color:var(--y);cursor:pointer}
 .slider .val{font:11px/1 var(--mono);color:var(--y);width:42px;text-align:right}
@@ -466,6 +580,14 @@ svg{display:block}
   <div class="ipfoot" id="ipfoot"></div>
 </div>
 
+<!-- 任务图选择器。和物品选择器共用 .ipick 那套窗体，只是右边换成缩略图网格 -->
+<div class="ipick" id="gpick">
+  <header id="gpHead"><b id="gpTitle"></b>
+    <input id="gpq"><button class="xclose" id="gpClose">✕</button></header>
+  <div class="ipbody"><div class="ipcats" id="gpcats"></div><div class="iplist" id="gplist"></div></div>
+  <div class="ipfoot" id="gpfoot"></div>
+</div>
+
 <script>
 const ICON={talk:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAUWSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBqAWIIAHpIAMkAPyQN2TAeSBHJABUoAHCEAtAzAJEMAHMkA90AK0A11PBdABtAD1QAbwAQGYZAAmAQZIAXVAOzAVmAXMAeY+GcAcYCYwFWgH6oAUYAAmGYBJgAdkgOaf/erX77/9nvtuvfO+B264874HrrrzvgeueDLuvO+Bq+6874Ebbr/nvlt//uvffgBoBjKABzDJAEwCDJAGGpYuW/7aKI6Dnb17eDqiKA6WLF36GqARSAMGYJIBmAQYIAXkjDFe/+AQU7o6eTr6h4YwxnhAFkgBBmCSAZgECOABKYBJhx90wLcPP+iAzxx+0AEfOvygA967L4cfdMCHDj/ogM8cftAB3waYBKQADxCASQZgEiAJwABM+uRnP7fyC1/+yqFf+fo3jvzaN7999L585evfOPILX/7KoZ/87OdWAkwCDCAJgEkG4F95znOfd8LJp5525vEnnnTOsccf/8J9Of7Ek845+dTTznzOc593AsC/YgD+lcMPOuAzhx90wDsOP+iAVx9+0AEvPfygA15++EEHvPLwgw54zeEHHfC6ww864A2HH3TA2w4/6IAPHX7QAV8G+FcMwL/yqc9+/pgvfvVrp3/tm98+6xvf+e4LvvbNb7/gK9/45gu++NWvvejzX/rKuZ/94pfO/fTnvvCCT3z6M8/5yMc/cTzAv2IA/pUzn/vck046+ZTnHnv88S88+phjzz32+ONfePwJJz7/pJNPee4pp512xmmnn3HaGc95zsnPPevs4855wQuPKJXLADwRA7A3QAEmHX7QAV86/KADPnT4QQe87fCDDnjL4Qcd8N7DDzrgkwA7e/ewt6GRUQASgALszQBMAhSwQAww6WOf/PSxn/rs50/77Be+eM5nv/DFF3zqs59/3sc++anTAf4VIAYsoACTDMAkQIEQKAMEgU+pXOasc845+sznPvek084489TEmc997olnnfP8o0rlMgD7EgQ+AEAZCAEFmGQAJgExUAXGi8XCro7WVrKZDAB7GxwZYWhkFN/36WxvY0pXJ7U6WluZmJjYCYwDVSAGmGQAJgExUAZGvvnVr77poQcf+P0jDz30z4cefOCSB+6//7J77r77qjtvv/2G7du2bWttasL3fTrbWikVCqN33n779ffcffdVD9x33+UPP/TgxQ89+MDvv/X1r74FGAHKQAwwyQBMAixQBsYuu/SSh9/8+td96Y2ve81n3/z6133+rW98/Zfe+dY3f+s973z7zzasX/8QQGdbKxMTE8Of+sTHPvOed779G+9865u/+NY3veFzb3rdaz/z5te/7kuXX3rpQ8AoUAYswCQDMAlQIAKKwDCwB9gJbJ8E7Kirrx8FKBWLA1/47Gc+eMdtt90FbAK2ANuAncAeYBgoARGgAJMMwCRAAQtUgSIwDgwDQ8BgAtjT0FA/VqlU9nzz6197643XX3cPsAPYAwwAQ8AwMA4UgSpgAQWYZABqAZoALBABIVAFKkABGBGRtb//7W9ecunF/7wX2AMMAxNAGagAIRABFtAEQC0D8GQAFgiB4qte9tLf/eKnP3kIGALGgTIQAwrwZBiAJwuIgApQBApAEagAMaAAT5YBeDIATQAxECaAGLCAAjwVBuDJAnRfAJ4qA7A/GID94f8Ajrn2SpAlXikAAAAASUVORK5CYII=",quest:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAYoSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBmB/MABPBBDAAwIgDeSAPFAH5IEckAECwAPMJMADDCAJgEkGYF8AAQwQABmgHmhJAG1AK9AGtALNQAOQAzIJIJcAskAK8AABSBiAvQECGCAAckAz0Aa0Ax1A+ySgIwG0J4BWoG0S0ATkAB8QgIQB2BsgQADUAc1A+5e/9o2XXHX9jX++874H7rvzvgfumXTnfQ/ce8Mtt136ne//8I1ADzAVmPbu973/zEuvuubXL3vFK5cDdUAAGICEAagFCBAAWaARaLvgb//44gknnfTZxsbGxaVSaff2bduuWvXYY3/YtHHjpYVCYXs2l5t6+JFHvu/SK6/+KTDz8COOPOTFL33Z99ra2o5713vfdzmQBQJAABIGoBbgASmgHmi55Iqrfjh9xowzwjAc/+ff//aFE44+8mXnPv/sT7/uVa/4zsvOe9HnTzr26Ff99te/+uTExMSetvb2xZddfe03v/y1r3/OGOMBjI+NrQEE0ARAwgBMAgTwgCzQ8K3vff+l7R0dh4TV6sTb3/ym9375C5+/GSgAY8AoMAJM/PgH37/v5OOO+fjWLVvWt7a2dqfSmXqArVu23HnKCce9CagAEaAACQMwCRAgBeRmzJzZdsSRR70b4Iff/943Hn7owWHAAjEQAWWgAoQAJ51y6sx0JlMfRhGeZ1izevV9L37h878KjANFoAooQMIATAIMkAKyb3/nu08XEW9gYGD9X/70xw3z5s9vvPTKq7/+mc9/4TlAcwJoBBpe+opXrvziV776ia6urq5yuQLA6lWPPQaMAxNACYgABUgYgEmAAXwgmDV79oEA11x5xWUAv/3jn3/S1t5+wOlnPudzH/vkp14KzARmvPTlrzju3e9935cAEqgdBzjy6KMPAcpAFYgACyhAwgBMAgQwgJfNZlsAhoaGxoMgsGNjY7sBEmed8/z3vP6Nb3rOKaeddtS73vu+zwIkLrvk4qve8463/wSgrq6+EYgAC2gCYJIBmARoAiCKohLAwkWLpoRhGJ5+0gkfXL1q1XUAiTe+5a1v/twXv/xBETEAD9x//y2f/8ynr5w7b54PEMdRGYgBTQDUMgCTAAtEQNjXt2cDwIoDDjwaUKD82le+/PsPPnD/5QCVapVCqWQAHn7owRvf+sbX/xaYeOWrX3MKwPDw8GYgSgAKUMsATAIUCIHypRf/8yqAtra2+S99+SsWAAqU3/KG1//sqiuv+E06laIul+PBB+6/9k2ve+2vgcoxxx3XMnXatKUAd9x22+VAGagCFqCWAZgEWCAEihf/4x/rdmzffgPAW9/xzg/PnjOnBQiA+NMf/9hld95++0WrHnv0hre84fW/B2xLS2v2o5/45NsAxsZGN33nm9+4DSgCVcAC1DIAtYAqUATG3vz6134+juNSKpVq+OVvfvfN933wQ8cBaYD3vPPtf33dq175S0Bf9opXLrng7//4YktL6wyAn/34x58DRoECEAIKUMsATAIUsEAFGBscHNzz4x98/x3lcnkom8u1nfeSl37gsquv/cpv//int/34Z794+c9+9etXX3rl1Z9613vf95G6urp2QP920YUfv+iC8x8ARoESEAMKUMsA1AIUCIECMPSH3/32zve84+2v2rF9+w0Ara2tcxcsXHTCAQcd9NzlK1ae0tbePhegt7f3vp/86Idv+dqXv3QpMARMAFXAAuzNANQCFIiBCjAODDz4wP1rX3TOWR/85te/+uoHH7j/t1s2b75m584dt27duuX6Rx955I+/+dUv33HOc854229++YubgX5gFCgDMaAAezMAewMUiIEKMA4MAr0X/uUvd7zlDa//xkte9IIPv/Cs5733xS94/gff8JpXfe0nP/zBNcAuoB8YBUpABCjAvhiAfQEUiIEKMAEMA31AL7AL2AnsSgB9wBAwDpSBGFCAx2MAHg+ggAUioARMACPAMDCUAEaAcaAEhIAFFOCJGIB/BdAEEAMRUAUqQBWIgBjQBMCTYQD2BwOwPxiA/eH/AFwPK1m8mZwRAAAAAElFTkSuQmCC",finish:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAPkSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBmB/MAD7gwF4tgCSAEwCkATA3gzAswEwgA9kgFwCyAA+YABqGYBnChDAB7JAA9CcAOqBDOADAjDJADwTgAABkAOagc5f//6PH/rj+Rd8EmgBcoAPCMAkA/B0AQL4QAZoBLo+/6WvvHLR4sVvnzN33hv/8JcL3g9kAA8QgEkGYG+AJACTACQBMAkQwAMyQCPQ8bZ3vuvUk0455T2AAHielwUEYG8GoBZgAB/IALkEkAF8wACSADwgAzQCHS9/5auOeenLX/FRY4wPsHXLlhtf+dIXfxeoAjGgAJMMwCRAAA/IAPVAC9AKNAF5IAAM4AEpoB5oO+2MMw9889ve/pkgCLIAO3fsuP81r3z556MoGgFKQAQowCQDUAvwgSzQ8sfzL/jE7/98/ieBLqAFqAPSQAZoANpXHnDgwg9+5KNfSKVS9QD9fX1r3/W2t366VCz2AqNACYgAahmASYAAHpD54/kXvG/O3HlvnDd//ut/8otffgiYArQDLUAz0DFr9uxZX/ra175QV1fXATA6Orrjfe9+58d27tyxBRgExoEQ0ATAJAOwN0CsVQ8gsfKAA1/yg5/89F3AVGAKMLWpqWnGd37wwy+1tLTOAZiYmOj7xEc//OH169ZtAAaBcaAKWEABahmASYACMVB95Utf/IOHHnzgLwCJgw859EXf+cEP3wHMMsbM+sFPfvbxzs6uxQCVSmX8G1/9ysfvueuu1cAAMAZUAQsowN4MQC0gAkrA6Jtf/7of3n/fvRcBJA4/4sizv/KNb77u69/+zhvnzpt3GEAYhqXvfftbH7vy8svuB/qBMaACxIAC7IsBqAXEQAkYBfa87U1v/P59997zV4DE8SeceMpRRx9zPEAcx9U//eH3X/rrhRfcCfQDo0AZiAEFeDwGYBKgCSAEJoAhYPfb3/ym79137z1/BSiWSlTDCFW1f7vowm/9+AffvwboB0aBMhADCvBEDEAtQBNACEwAQ8Dut7/5Td994L77Lsxls6QCX6+75uoffvNrX/0n0AeMACUgAhTgXzEAewM0AYTABDAE7Hrrm97wtbVrVv9m1WOP/uwTH/3Ir4FeYBgoARGgAE+GAdgXQBNACEwAg8DOV7/8ZZ953ate+WVgNzAMlIAQUIAnywA8HkATQAgUgBFgMAGMAkUgBBTgqTAATwTQBBABZaCYAMpABFiAp8oA/CuATgJsAtAEwNNhAPYHA7A/GID9wQDsD/8HrwstSoZ2LMQAAAAASUVORK5CYII=",
   quit:"data:image/png;base64,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",trade:"data:image/png;base64,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"};
@@ -499,7 +621,7 @@ const I18N={zh:{
   st0:"未解锁",st1:"可接取",st2:"进行中",st3:"可提交",st4:"已完成",st5:"已失败",
   hdr_nodes:"节点",hdr_trigs:"触发器",sec_viewport:"视口 / VIEWPORT",sec_graph:"流程 / FLOW",
   tip_bars:"每一竖线是一个节点：橙=入口，青=触发器入口",tip_fold:"收起视口，让流程图占满",tip_rail:"章节索引：点刻度跳到那条故事线",
-  btn_src:"查看 .dlg",btn_revert:"还原原文件",btn_save:"保存 .dlg",btn_open:"打开",
+  btn_src:"查看 .dlg",btn_save:"保存 .dlg",btn_open:"打开",
   tip_open:"从工作区里挑一个 .dlg 打开",m_open:"打开 .dlg",up_dir:"上一级",no_dlg:"这个目录下没有剧本文件",demo_tag:"示例",demo_save:"这是示例文件，游戏不会读取 .demo。改为另存到 {0} 吗？",
   ws_unset:"工作区未设置",
   why_nows:"工作区还没设置——点右上角「打开」先指到 <EFT>\\BepInEx\\config\\VisitAPI",
@@ -512,7 +634,7 @@ const I18N={zh:{
   root_hint:"没自动找到 EFT。填 .dlg 所在的目录（一般是 <EFT>\\BepInEx\\config\\VisitAPI），填一次就会记住。",
   no_file:"（未打开文件）",unsaved:"有未保存改动",saved_ok:"已保存",
   save_nofile:"还没打开文件，先点「打开」",save_fail:"保存失败:",confirm_discard:"当前改动还没保存，确定丢弃吗？",
-  tip_revert:"丢弃草稿，重新载入原始 .dlg",tip_save:"导出为 .dlg 文件（Ctrl+S）",
+tip_save:"导出为 .dlg 文件（Ctrl+S）",
   bg_set:"点这里设置背景",bg_missing:"（素材未找到）",
   tip_split:"拖动改变节点图高度",
   g_add:"＋ 新节点",g_del:"删除节点",g_fit:"框选全部",g_peek:"切换台词预览",
@@ -530,15 +652,58 @@ const I18N={zh:{
   broken:"处断链",all_ok:"个节点全部连通",entries:"个入口（含",trig_entries:"个触发器入口）",
   src_title:".dlg 源码",src_copy:"复制全文",src_dl:"下载文件",src_close:"关闭",
   src_gen:"由画布实时生成",src_warn:"条解析警告",src_nowarn:"解析无警告",
-  saved_draft:"已存草稿",saved_clip:"已复制到剪贴板 · 也试了下载",
-  saved_sel:"已全选，按 Ctrl+C 复制",saved_restored:"已恢复上次的草稿",
+  saved_sel:"已全选，按 Ctrl+C 复制",
   saved_dl:"已尝试下载",saved_copied:"已复制到剪贴板",
+  /* ── 程序介绍 ──
+     这一页不是宣传页：模块表照实说哪些没做，环境卡读的是真路径。
+     骗一句，用户下次就不信整页了。 */
+  ab_lede:"WHAT THIS IS · WHAT IT CAN'T DO YET",
+  ab_what:"WHAT IS THIS",
+  ab_what_b:"给不写代码的人用的 SPT 编辑器",
+  ab_what_d:"写商人对话、做任务，一边写一边看它在游戏里长什么样。改的就是你硬盘上的文件本身——没有工程文件，也没有「导出」这一步，存了就是改好了。",
+  ab_mod:"MODULES",
+  ab_ready:"可用",ab_todo:"未实现",ab_here:"你在这",
+  ab_go:"进入",
+  ab_d_about:"就是这一页。",
+  ab_d_cloth:"换 BOT 身上的服装。还没开始做。",
+  ab_d_dlg:"编 .dlg 剧本：台词、分支、背景图/视频、语音、BGM，右边实时预览加整张流程图。要装 VisitAPI 插件，游戏里才读得到。",
+  ab_d_quest:"编 SPT 任务：目标、奖励、四封邮件、失败分支、任务链，还能把任务挂到对话的某个选项上。不需要 VisitAPI。",
+  ab_d_back:"从自动留下的 .bak 里挑一份还原回去。还没开始做。",
+  ab_d_help:"一步一步的使用说明。还没开始做——在那之前先看这一页。",
+  ab_env:"ENVIRONMENT",
+  ab_e_ws:"工作区（剧本）",ab_e_ws_d:".dlg、背景图、音频都从这里读",
+  ab_e_q:"任务库",ab_e_q_d:"任务和文案写到这个目录下的 quests / locales",
+  ab_e_eft:"游戏根目录",ab_e_eft_d:"物品表、地图、商人清单从这里读；找不到它，任务编辑器就没有下拉可选",
+  ab_e_build:"版本",ab_e_build_d:"编译时写死在 exe 里，不是文件修改时间——拷来拷去也不会变假",
+  ab_st_ok:"已就绪",ab_st_unset:"未设置",ab_st_none:"未找到",
+  ab_set:"去设置",
+  ab_sp_build:"版本",ab_sp_mod:"模块",ab_sp_ws:"工作区",ab_sp_q:"任务库",
+  ab_auth:"AUTHOR",
+  ab_auth_role:"VisitAPI 框架 / 编辑器 作者",
+  ab_auth_alt:"作者头像",
+  ab_auth_repo:"仓库",ab_auth_issue:"反馈",ab_auth_issue_v:"提个 issue",
+  ab_qs:"QUICK START",
+  ab_qs1:"指一个工作区",ab_qs1_d:"剧本、背景图、音频都从那儿读，通常是 <EFT>\\BepInEx\\config\\VisitAPI",
+  ab_qs1_ok:"已经指好了，随时可以换",
+  ab_qs2:"选任务库",ab_qs2_d:"任务写到哪个模组下面由你决定，没有 VisitAPI 也能编",
+  ab_qs2_ok:"已经选好了，随时可以换",
+  ab_qs3:"开始写",ab_qs3_d:"两边是通的：任务能挂到对话的某个选项上，点一下就跳过去",
+  ab_read:"READ THIS FIRST",
+  ab_n1_k:"任务",ab_n2_k:"对话",ab_n3_k:"安全",ab_n4_k:"素材",
+  srv_gone:"编辑器后台已经退出了",
+  srv_gone_d:"这个页面现在什么都读不到也存不了。回到 VisitAPI.Editor.exe 那个黑窗口重新启动一次，它会开一个新页面——这一页可以直接关掉。（没存的改动留在这一页里，重开后要重新改一遍。）",
+  ab_n1:"任务放在哪才会真的生效",
+  ab_n1_d:"SPT 不会自己去扫任意目录。它的 <code>CustomQuestService</code> 是给模组在内存里调的接口，<b>它不读任何文件</b>——真正读文件的是每个模组自己的加载器。所以任务必须存在一个会去读它的模组下面：装了 VisitAPI 服务端，它就读自己旁边的 <code>db\\quests</code>。",
+  ab_n2:"对话要插件，任务不要",
+  ab_n2_d:"任务这边写出来的是标准 SPT 任务文件，没装 VisitAPI 照样能做、也能给别的模组用。<code>.dlg</code> 是 VisitAPI 的格式，得装插件游戏里才认。",
+  ab_n3:"覆盖之前都会先留一份 .bak",
+  ab_n3_d:"剧本、任务、文案三种文件都一样。存错了不用慌，把那份 <code>.bak</code> 的后缀去掉就回来了。",
+  ab_n4:"素材放哪",
+  ab_n4_d:"背景图放 <code>&lt;工作区&gt;\\backgrounds</code>，音频放 <code>&lt;工作区&gt;\\audio</code>。在这里选得到的，游戏里就一定读得到——两边认的是同一个目录。",
   set_title:"设置",set_lede:"PREFERENCES · STORED LOCALLY",
-  set_appear:"外观",set_theme:"主题",set_theme_d:"整个界面的明暗配色",
+  set_theme:"主题",set_theme_d:"整个界面的明暗配色",
   set_dark:"深色",set_light:"明亮",
-  set_blur:"背景模糊度",set_blur_d:"侧栏和各种面板的背景模糊强度",
-  set_demo:"面板样例 · 拖滑条看背景模糊变化",
-  set_lang:"语言",set_lang_t:"界面语言",set_lang_d:"只影响界面文字，不动你的剧本内容",
+  set_lang_t:"界面语言",set_lang_d:"只影响界面文字，不动你的剧本内容",
   set_note_t:"关于画布里的对话框",
   set_note_d:"版式照搬塔科夫原生对话框（说话人条、选项行、跳转标），但配色改成了中性黑——原版的棕黑放在这套界面里太出戏。",
   /* ── 任务编辑 ──
@@ -555,7 +720,6 @@ const I18N={zh:{
   q_root_bad:"这个目录用不了：{0}",
   q_root_none:"没扫到 SPT 的 mods 目录。可以直接在下面填一个路径。",
   q_root_cur:"当前：{0}",
-  q_root_change:"换个位置",
   qa_stale:"这些文件在编辑器外面被改过了。你现在保存会覆盖掉那些改动 —— 建议先重新载入。",
   qa_bad_name:"文件名不合法：{0}",
   qa_broken_locale:"文案文件 {0} 读不动，先修好它再保存。为了不清空你的文案，这次没有写盘。",
@@ -594,7 +758,16 @@ const I18N={zh:{
   q_tip_start:"游戏里这里显示任务状态。写任务时更该盯的是「玩家怎样才能接到它」",
   q_tip_qtrader:"任务挂在哪个商人下面。在属性页里改",
   q_start_none:"无条件",q_start_n:"{0} 个条件",
-  q_img:"点击设置配图",q_img_ask:"配图路径（相对 backgrounds 目录）",
+  q_img:"点击设置配图",
+  q_img_title:"任务配图",q_img_search:"按文件名搜索",
+  q_img_spt:"SPT 自带",q_img_mod:"模组目录",q_img_custom:"自己填路径",q_img_none:"不要配图",
+  q_img_nohit:"没有匹配的文件名",
+  q_img_empty:"这个目录下还没有图片。把图片放进 <code>{0}</code>，再重新打开这个窗口就能看到（不用刷新页面）。",
+  q_img_dot:"文件名里有多余的点号，SPT 会把它截断，这张图进游戏不会显示——改个名字再用",
+  q_img_noreg:"图片放在 <b>{0}</b> 下面，但 <b>SPT 不会自动伺服模组目录里的图片</b>——它只扫 <code>SPT_Data\\images</code> 一处。要让它显示，得由 {0} 的服务端代码调 <code>imageRouter.AddRoute</code> 注册。VisitAPI-Server 会自动帮你做这件事，换成别的模组就得自己加。",
+  q_img_ownwarn:"<b>没用 VisitAPI 也能设配图</b>，但图片和路径都是你自己模组的事：把图放进 <code>&lt;你的模组&gt;\\images\\quest\\icon\\</code>，并且由那个模组调 <code>imageRouter.AddRoute(\"/files/quest/icon/&lt;不带扩展名的文件名&gt;\", 图片的绝对路径)</code> 注册。只把文件丢进去是不会生效的。",
+  q_img_custom_d:"填任务 json 里 <code>image</code> 字段的值，通常长这样：<code>/files/quest/icon/名字.png</code>。SPT 查表时会切掉扩展名，所以带不带都行，但<b>文件名里不能有多余的点号</b>。",
+  q_img_use:"就用这个",
   q_desc_ph:"这里还没写描述，玩家在任务界面看到的会是一串 id",q_name_ph:"任务名",
   q_sec_gate:"接取条件",q_sec_equip:"初始装备",q_sec_obj:"目标",q_sec_rew:"奖励",
   q_sec_failc:"失败条件",q_sec_failr:"失败惩罚",q_sec_own:"归属",q_sec_sw:"开关",q_sec_note:"备注",
@@ -637,7 +810,7 @@ const I18N={zh:{
   q_m_obj:"目标类型",q_m_rew:"奖励类型",q_m_equip:"初始装备",q_m_gate:"接取条件",
   q_m_failc:"失败条件",q_m_failr:"失败惩罚",q_m_map:"任务出现在哪张图",q_m_ll:"商人信赖等级",
   q_m_type:"任务类型",q_m_side:"阵营",q_m_trader:"挂在哪个商人",q_m_prereq:"选一个前置任务",
-  q_m_row:"这一行",q_ll_no:"不要求",q_lv:"{0} 级",q_noquest:"工作区里没有别的任务",
+  q_m_row:"这一行",q_ll_no:"不要求",q_lv:"{0} 级",
   q_k_VisitPlace:"到达 / 触发某处",q_k_VisitPlace_d:"配合 .dlg 的 trigger 用",
   q_k_HandoverItem:"上交物品",q_k_FindItem:"战局中找到物品",q_k_FindItem_d:"必须战局内捡到",
   q_k_Kills:"击杀",q_k_Kills_d:"可限定地图",q_k_Skill:"技能等级",
@@ -699,7 +872,7 @@ en:{
   st0:"Locked",st1:"Available",st2:"Started",st3:"Ready to hand in",st4:"Success",st5:"Failed",
   hdr_nodes:"nodes",hdr_trigs:"triggers",sec_viewport:"VIEWPORT",sec_graph:"FLOW",
   tip_bars:"One tick per node — orange = entry, teal = trigger entry",tip_fold:"Collapse the viewport, give the flow full width",tip_rail:"Chapter index — click a tick to jump to that thread",
-  btn_src:"View .dlg",btn_revert:"Revert to file",btn_save:"Save .dlg",btn_open:"Open",
+  btn_src:"View .dlg",btn_save:"Save .dlg",btn_open:"Open",
   tip_open:"Pick a .dlg from the workspace",m_open:"Open .dlg",up_dir:"up",no_dlg:"No script files here",demo_tag:"demo",demo_save:"This is a demo file — the game only reads .dlg. Save as {0} instead?",
   ws_unset:"workspace not set",
   why_nows:"Workspace not set — click Open and point it at <EFT>\\BepInEx\\config\\VisitAPI",
@@ -712,7 +885,7 @@ en:{
   root_hint:"Couldn't find EFT automatically. Enter the folder holding your .dlg files (usually <EFT>\\BepInEx\\config\\VisitAPI). It will be remembered.",
   no_file:"(no file open)",unsaved:"Unsaved changes",saved_ok:"Saved",
   save_nofile:"No file open — click Open first",save_fail:"Save failed:",confirm_discard:"You have unsaved changes. Discard them?",
-  tip_revert:"Discard the draft and reload the original .dlg",tip_save:"Export as a .dlg file (Ctrl+S)",
+tip_save:"Export as a .dlg file (Ctrl+S)",
   bg_set:"Click to set a background",bg_missing:"(asset not found)",
   tip_split:"Drag to resize the node graph",
   g_add:"＋ New node",g_del:"Delete node",g_fit:"Fit all",g_peek:"Toggle line preview",
@@ -730,15 +903,55 @@ en:{
   broken:"broken link(s)",all_ok:"nodes, all connected",entries:"entry points (incl.",trig_entries:"from triggers)",
   src_title:".dlg source",src_copy:"Copy all",src_dl:"Download",src_close:"Close",
   src_gen:"generated live from the canvas",src_warn:"parse warning(s)",src_nowarn:"no parse warnings",
-  saved_draft:"Draft saved",saved_clip:"Copied to clipboard · download attempted",
-  saved_sel:"Selected — press Ctrl+C",saved_restored:"Restored your last draft",
+  saved_sel:"Selected — press Ctrl+C",
   saved_dl:"Download attempted:",saved_copied:"Copied to clipboard",
+  ab_lede:"WHAT THIS IS · WHAT IT CAN'T DO YET",
+  ab_what:"WHAT IS THIS",
+  ab_what_b:"An SPT editor for people who don't write code",
+  ab_what_d:"Write trader dialogue and build quests, seeing as you go what they will look like in game. It edits the files on your disk directly — there is no project file and no export step; saving is the change.",
+  ab_mod:"MODULES",
+  ab_ready:"Ready",ab_todo:"Not built",ab_here:"You are here",
+  ab_go:"Open",
+  ab_d_about:"This page.",
+  ab_d_cloth:"Swap what bots wear. Not started yet.",
+  ab_d_dlg:"Edit a .dlg script: lines, branches, backgrounds and video, voice, music — live preview on the right plus the whole flow graph. Needs the VisitAPI plugin for the game to read it.",
+  ab_d_quest:"Edit SPT quests: objectives, rewards, all four mails, the failure branch, quest chains, and which dialogue option hands a quest out. VisitAPI not required.",
+  ab_d_back:"Roll a file back to one of the .bak copies this tool leaves behind. Not started yet.",
+  ab_d_help:"A step-by-step guide. Not started yet — until then, this page is it.",
+  ab_env:"ENVIRONMENT",
+  ab_e_ws:"Workspace (scripts)",ab_e_ws_d:".dlg files, backgrounds and audio are read from here",
+  ab_e_q:"Quest DB",ab_e_q_d:"Quests and text are written to quests / locales under this folder",
+  ab_e_eft:"Game root",ab_e_eft_d:"Items, maps and traders come from here; without it the quest editor has nothing to offer you",
+  ab_e_build:"Build",ab_e_build_d:"Baked in at compile time, not the file's timestamp — copying the exe around can't make it lie",
+  ab_st_ok:"Ready",ab_st_unset:"Not set",ab_st_none:"Not found",
+  ab_set:"Set it",
+  ab_sp_build:"Build",ab_sp_mod:"Modules",ab_sp_ws:"Workspace",ab_sp_q:"Quest DB",
+  ab_auth:"AUTHOR",
+  ab_auth_role:"Author of the VisitAPI framework and this editor",
+  ab_auth_alt:"Author avatar",
+  ab_auth_repo:"Repo",ab_auth_issue:"Feedback",ab_auth_issue_v:"Open an issue",
+  ab_qs:"QUICK START",
+  ab_qs1:"Point at a workspace",ab_qs1_d:"Scripts, backgrounds and audio are read from there — usually <EFT>\\BepInEx\\config\\VisitAPI",
+  ab_qs1_ok:"Set — you can change it any time",
+  ab_qs2:"Pick a quest DB",ab_qs2_d:"Which mod folder your quests land in is your call; VisitAPI is not required",
+  ab_qs2_ok:"Set — you can change it any time",
+  ab_qs3:"Start writing",ab_qs3_d:"The two are wired together: a quest can hang off a dialogue option, and one click jumps you there",
+  ab_read:"READ THIS FIRST",
+  ab_n1_k:"Quests",ab_n2_k:"Dialogue",ab_n3_k:"Safety",ab_n4_k:"Media",
+  srv_gone:"The editor's backend has shut down",
+  srv_gone_d:"This page can no longer read or save anything. Start VisitAPI.Editor.exe again — it will open a fresh page, and you can close this one. (Unsaved edits live only in this page, so you would have to redo them.)",
+  ab_n1:"Where a quest has to live to take effect",
+  ab_n1_d:"SPT does not scan arbitrary folders. Its <code>CustomQuestService</code> is an in-memory API for mods to call — <b>it reads no files at all</b>. The code that actually reads files is each mod's own loader. So a quest only counts once it lives under a mod that reads it: install the VisitAPI server mod and it reads <code>db\\quests</code> next to itself.",
+  ab_n2:"Dialogue needs the plugin, quests don't",
+  ab_n2_d:"What the quest side writes are plain SPT quest files — you can build them with no VisitAPI installed, and other mods can use them. <code>.dlg</code> is VisitAPI's own format, so that side does need the plugin.",
+  ab_n3:"A .bak is written before every overwrite",
+  ab_n3_d:"Scripts, quests and locale files alike. If you save something you didn't mean to, drop the <code>.bak</code> suffix and it's back.",
+  ab_n4:"Where media goes",
+  ab_n4_d:"Backgrounds in <code>&lt;workspace&gt;\\backgrounds</code>, audio in <code>&lt;workspace&gt;\\audio</code>. Anything you can pick here will resolve in game — both sides read the same folder.",
   set_title:"Settings",set_lede:"PREFERENCES · STORED LOCALLY",
-  set_appear:"Appearance",set_theme:"Theme",set_theme_d:"Light or dark for the whole interface",
+  set_theme:"Theme",set_theme_d:"Light or dark for the whole interface",
   set_dark:"Dark",set_light:"Light",
-  set_blur:"Background blur",set_blur_d:"Backdrop blur for the sidebar and panels",
-  set_demo:"Panel sample — drag the slider",
-  set_lang:"Language",set_lang_t:"Interface language",set_lang_d:"Affects UI text only, never your script",
+  set_lang_t:"Interface language",set_lang_d:"Affects UI text only, never your script",
   set_note_t:"About the dialogue box on the canvas",
   set_note_d:"Its layout mirrors Tarkov's native dialogue box (speaker bar, option rows, jump tags), but the palette is neutral black — the original brown clashed with this console.",
   qa_no_quest_db:"No quest folder picked yet. It's your call where quests live — pick one below, or type your own path.",
@@ -752,7 +965,6 @@ en:{
   q_root_bad:"Can't use that folder: {0}",
   q_root_none:"No SPT mods folder found. Type a path below instead.",
   q_root_cur:"Current: {0}",
-  q_root_change:"Change location",
   qa_stale:"These files changed outside the editor. Saving now would overwrite those changes — reload first.",
   qa_bad_name:"Invalid file name: {0}",
   qa_broken_locale:"Locale file {0} can't be read. Nothing was written, so your text is safe — fix the file first.",
@@ -790,7 +1002,16 @@ en:{
   q_tip_start:"In game this shows quest status. While authoring, what matters is how the player can get it",
   q_tip_qtrader:"Which trader owns this quest. Change it on the Properties tab",
   q_start_none:"no conditions",q_start_n:"{0} condition(s)",
-  q_img:"Click to set an image",q_img_ask:"Image path (relative to the backgrounds folder)",
+  q_img:"Click to set an image",
+  q_img_title:"Quest image",q_img_search:"Search by file name",
+  q_img_spt:"SPT built-in",q_img_mod:"Mod folder",q_img_custom:"Type a path",q_img_none:"No image",
+  q_img_nohit:"No file name matches",
+  q_img_empty:"No images in this folder yet. Drop them into <code>{0}</code> and reopen this window — no page refresh needed.",
+  q_img_dot:"Extra dot in the file name — SPT truncates there, so this image will not show in game. Rename it first.",
+  q_img_noreg:"These live under <b>{0}</b>, but <b>SPT does not serve images from mod folders on its own</b> — it only scans <code>SPT_Data\\images</code>. For them to show, {0}'s server code has to register them with <code>imageRouter.AddRoute</code>. VisitAPI-Server does that for you; any other mod has to add it.",
+  q_img_ownwarn:"<b>You do not need VisitAPI to set an image</b>, but the file and the path are your own mod's business: put the image in <code>&lt;your mod&gt;\\images\\quest\\icon\\</code> and have that mod call <code>imageRouter.AddRoute(\"/files/quest/icon/&lt;name without extension&gt;\", absolutePathToImage)</code>. Dropping the file in is not enough on its own.",
+  q_img_custom_d:"This is the <code>image</code> field of the quest json, normally shaped like <code>/files/quest/icon/name.png</code>. SPT strips the extension when it looks the route up, so it is optional — but the file name <b>must not contain an extra dot</b>.",
+  q_img_use:"Use this",
   q_desc_ph:"No description yet — the player would see a raw id on the quest screen",q_name_ph:"Quest name",
   q_sec_gate:"Accept conditions",q_sec_equip:"Starting gear",q_sec_obj:"Objectives",q_sec_rew:"Rewards",
   q_sec_failc:"Fail conditions",q_sec_failr:"Fail penalties",q_sec_own:"Ownership",q_sec_sw:"Switches",
@@ -833,7 +1054,7 @@ en:{
   q_m_obj:"Objective type",q_m_rew:"Reward type",q_m_equip:"Starting gear",q_m_gate:"Accept condition",
   q_m_failc:"Fail condition",q_m_failr:"Fail penalty",q_m_map:"Which map does it appear on",q_m_ll:"Trader loyalty",
   q_m_type:"Quest type",q_m_side:"Side",q_m_trader:"Owning trader",q_m_prereq:"Pick a prerequisite quest",
-  q_m_row:"This row",q_ll_no:"Not required",q_lv:"LL {0}",q_noquest:"No other quest in this workspace",
+  q_m_row:"This row",q_ll_no:"Not required",q_lv:"LL {0}",
   q_k_VisitPlace:"Reach / trigger a spot",q_k_VisitPlace_d:"Pairs with a trigger in the .dlg",
   q_k_HandoverItem:"Hand over items",q_k_FindItem:"Find in raid",q_k_FindItem_d:"Must be picked up in raid",
   q_k_Kills:"Kills",q_k_Kills_d:"Can be limited to a map",q_k_Skill:"Skill level",
@@ -922,7 +1143,8 @@ function applyStatic(){
 const PAGES=[{id:"about",k:"nav_about",icon:"info"},{id:"cloth",k:"nav_cloth",icon:"shirt"},
   {id:"dlg",k:"nav_dlg",icon:"chat"},{id:"quest",k:"nav_quest",icon:"list"},
   {id:"back",k:"nav_back",icon:"undo"},{id:"help",k:"nav_help",icon:"help"}];
-let page="dlg";
+/* 开局落在介绍页：第一次用的人先看清这东西能干什么、不能干什么，再进模块 */
+let page="about",picked=false;
 const STATUS=["Locked","AvailableForStart","Started","AvailableForFinish","Success","Fail"];
 const SHORTK=["st0","st1","st2","st3","st4","st5"];
 const shortStatus=()=>SHORTK.map(T);
@@ -1603,7 +1825,11 @@ function render(){
       relaid=false;setTimeout(relayout,20);};       /* 宽度变了就按新长宽比重排一次 */
     wireGraph();wireSplit();refresh();setTimeout(relayout,30);
     markDirty(dirty);
+    /* 第一次进对话页就把「打开」弹出来：画布上那份是空白起手模板，不是从磁盘读的，
+       不提示的话用户会以为看到的就是自己的文件（我自己先掉进去过） */
+    if(!picked&&!filePath){picked=true;openPicker();}
   }else if(page==="quest"){m.innerHTML=questPage();wireQuest();
+  }else if(page==="about"){m.innerHTML=aboutPage();wireAbout();
   }else if(page==="set"){m.innerHTML=setPage();wireSettings();
   }else{const p=PAGES.find(x=>x.id===page);
     m.innerHTML=`<div class="setwrap">
@@ -1612,6 +1838,127 @@ function render(){
         <div class="rule"></div></div>
       <div class="card note"><div class="chead">TODO<span>SEC.${secNo(p.id)}</span></div><div class="row"><div class="lbl">
         <b>${T(p.k)}</b><span>${T("todo")}</span></div></div></div></div>`;}}
+
+/* ══ 程序介绍页 ══
+   这一页不是宣传页：模块表照实标「未实现」，环境卡读的是真路径不是示意图。
+   在这种页面上美化一次现实，用户下次整个界面都不会信。 */
+let ABENV=null,abWait=false;
+function abLoad(){
+  if(ABENV||abWait)return;abWait=true;
+  /* 工作区在 /api/workspace，任务库和游戏根目录在 /api/quests/roots。
+     各自兜住失败——少一样不该让整页空着。 */
+  const get=u=>api(u).catch(()=>null);
+  Promise.all([get("/api/workspace"),get("/api/quests/roots")])
+    .then(r=>ABENV={ws:r[0]||{},q:r[1]||{}})
+    .then(()=>{abWait=false;if(page==="about")render();});}
+const AB_READY=["dlg","quest"];
+const AB_REPO="https://github.com/TricolourSky/VisitAPI-Editor";
+function aboutPage(){
+  abLoad();const e=ABENV||{},ws=e.ws||{},q=e.q||{};
+  return `<div class="abwrap"><div class="abin">
+    ${abHero(ws,q)}
+    <div class="abgrid">
+      <div class="abcol">${abWhat()}${abModules()}${abNotes()}</div>
+      <div class="abcol">${abAuthor()}${abQuick(ws,q)}${abEnv(ws,q)}</div>
+    </div>
+    <div class="abmark">VISITAPI EDITOR <i>SEC.${secNo("about")}</i></div>
+  </div></div>`;}
+
+function abQuick(ws,q){
+  const step=(n,k,done,go)=>`<div class="abstep" data-done="${done?1:0}">
+    <n>${done?"✓":"0"+n}</n>
+    <div class="lbl"><b>${T(k)}</b><span>${done?T(k+"_ok"):T(k+"_d")}</span></div>
+    <div class="go">${done?"":go}</div></div>`;
+  const btn=(attr,k)=>`<button class="btn ghost" ${attr}><span>${T(k)}</span></button>`;
+  /* 第三步没有"完成"可言——写东西是一直在做的事，所以它永远给按钮 */
+  return `<div class="card"><div class="chead">${T("ab_qs")}<span>REF.A002</span></div>
+    ${step(1,"ab_qs1",!!ws.ok,btn('data-ws="1"',"ab_set"))}
+    ${step(2,"ab_qs2",!!q.current,btn('data-go="quest"',"ab_set"))}
+    <div class="abstep" data-done="0"><n>03</n>
+      <div class="lbl"><b>${T("ab_qs3")}</b><span>${T("ab_qs3_d")}</span></div>
+      <div class="go">${btn('data-go="dlg"',"nav_dlg")}${btn('data-go="quest"',"nav_quest")}</div></div>
+  </div>`;}
+
+function abHero(ws,q){
+  /* 标题右边这条规格带和顶栏的 .cart 是同一套：键小写压暗、值走等宽 */
+  const spec=(k,v,cls)=>`<div><k>${T(k)}</k><v class="${cls||""}">${esc(v)}</v></div>`;
+  const st=v=>v?[T("ab_st_ok"),"good"]:[T("ab_st_unset"),"bad"];
+  const w=st(ws.ok),d=st(!!q.current);
+  return `<div class="abhero">
+    <div class="abhead"><div class="slab"></div>
+      <div><h1>${T("nav_about")}</h1><div class="lede">// SEC.${secNo("about")} · ${T("ab_lede")}</div></div>
+      <div class="cart abspec">
+        ${spec("ab_sp_build",ws.build||"—")}
+        ${spec("ab_sp_mod",AB_READY.length+" / "+PAGES.length)}
+        ${spec("ab_sp_ws",w[0],w[1])}
+        ${spec("ab_sp_q",d[0],d[1])}
+      </div></div>
+    <div class="tape"></div></div>`;}
+
+function abWhat(){
+  return `<div class="card"><div class="chead">${T("ab_what")}<span>REF.A000</span></div>
+    <div class="row"><div class="lbl"><b>${T("ab_what_b")}</b>
+      <span class="abnote">${T("ab_what_d")}</span></div></div></div>`;}
+
+function abAuthor(){
+  const link=(k,href,v)=>`<a class="ablink" href="${href}" target="_blank" rel="noopener">
+    <k>${T(k)}</k><v>${esc(v)}</v></a>`;
+  return `<div class="card"><div class="chead">${T("ab_auth")}<span>REF.A001</span></div>
+    <div class="abauth">
+      <div class="abface"><img src="/ui/author.jpg" alt="${T("ab_auth_alt")}"></div>
+      <div class="abwho"><b>TricolourSky</b><span class="abrole">${T("ab_auth_role")}</span>
+        ${link("ab_auth_repo",AB_REPO,"github.com/TricolourSky/VisitAPI-Editor")}
+        ${link("ab_auth_issue",AB_REPO+"/issues",T("ab_auth_issue_v"))}
+        <div class="ablic">MIT License · © 2026 TricolourSky</div>
+      </div></div></div>`;}
+
+function abModules(){
+  const D={about:"ab_d_about",cloth:"ab_d_cloth",dlg:"ab_d_dlg",
+    quest:"ab_d_quest",back:"ab_d_back",help:"ab_d_help"};
+  const rows=PAGES.map(p=>{
+    const here=p.id==="about",ok=AB_READY.includes(p.id);
+    /* 能点的才给按钮，不能点的给挂牌——别让用户去按一个什么都不会发生的东西 */
+    const act=here?`<div class="abst on"><span>${T("ab_here")}</span></div>`
+      :ok?`<button class="btn ghost" data-go="${p.id}"><span>${T("ab_go")}</span></button>`
+         :`<div class="abst"><span>${T("ab_todo")}</span></div>`;
+    return `<div class="row abrow" data-on="${here||ok?1:0}"><div class="ic">${ico(p.icon)}</div>
+      <div class="lbl"><b>${T(p.k)}</b><span class="abnote">${T(D[p.id])}</span></div>${act}</div>`;}).join("");
+  return `<div class="card"><div class="chead">${T("ab_mod")}
+    <span>${AB_READY.length} / ${PAGES.length} ${T("ab_ready").toUpperCase()}</span></div>${rows}</div>`;}
+
+function abEnv(ws,q){
+  /* val 空＝这一项没着落，此时才给出口；有着落就只报状态，不制造多余的按钮。
+     ok 传空字符串表示这一项没有"就绪"可言（版本号就是版本号，不是一种状态）。 */
+  const row=(k,val,act,ok)=>`<div class="row"><div class="lbl"><b>${T(k)}</b>
+    <span class="abnote">${T(k+"_d")}</span>
+    <span class="abpath${val?"":" none"}">${val?esc(val):"—"}</span></div>
+    ${val?(ok===""?"":`<div class="abst ok"><span>${T("ab_st_ok")}</span></div>`):act}</div>`;
+  const chip=k=>`<div class="abst warn"><span>${T(k)}</span></div>`;
+  const btn=(id,k)=>`<button class="btn ghost" ${id}><span>${T(k)}</span></button>`;
+  return `<div class="card alt"><div class="chead">${T("ab_env")}<span>LIVE · THIS MACHINE</span></div>
+    ${row("ab_e_ws",ws.ok?ws.root:"",btn('data-ws="1"',"ab_set"))}
+    ${row("ab_e_q",q.current||"",btn('data-go="quest"',"ab_set"))}
+    ${row("ab_e_eft",q.eft||"",chip("ab_st_none"))}
+    ${row("ab_e_build",ws.build||"",chip("ab_st_none"),"")}</div>`;}
+
+function abNotes(){
+  /* 挂牌写的是"这条坑属于哪个模块"，不是编号——四条之间没有先后，编号会骗人 */
+  const cells=["ab_n1","ab_n2","ab_n3","ab_n4"].map(k=>
+    `<div class="abcell"><div class="abkind"><span>${T(k+"_k")}</span></div>
+      <b>${T(k)}</b><span class="abnote">${T(k+"_d")}</span></div>`).join("");
+  return `<div class="card note"><div class="chead">${T("ab_read")}<span>REF.N001</span></div>
+    <div class="abnotes">${cells}</div></div>`;}
+
+function wireAbout(){
+  hide();          /* 对话页起手会自动弹"打开 .dlg"面板，切过来得把它收掉 */
+  /* 换页前把环境缓存作废：回来时路径可能已经被改过了 */
+  document.querySelectorAll("#main [data-go]").forEach(b=>
+    b.onclick=()=>{ABENV=null;page=b.dataset.go;render();});
+  /* 指工作区是对话模块的事，先切过去再弹选择器，免得选完文件人还留在介绍页上。
+     先置 picked 是为了压掉 render() 里那发首次弹窗，不然会连开两次。
+     「去设置」在快速上手和环境卡里各有一个，所以按属性收，不用 id。 */
+  document.querySelectorAll("#main [data-ws]").forEach(b=>
+    b.onclick=()=>{ABENV=null;picked=true;page="dlg";render();openPicker();});}
 
 /* ══ 设置页 ══ */
 function setPage(){
@@ -1682,7 +2029,8 @@ applyStatic();render();savedText=docSnap();markDirty(false);   /* 初始基线�
 /* 开局就把「打开」弹出来。界面里那份是空白起手模板，不是从磁盘读的——
    不主动提示的话，用户会以为看到的就是自己的文件（我自己就先掉进去过）。 */
 let WS={};
-api("/api/workspace").then(w=>{WS=w;showWs();if(w.ok)openPicker();}).catch(()=>{});
+/* 弹「打开」的时机交给 render()：进对话页才弹，这里只管把工作区信息取回来 */
+api("/api/workspace").then(w=>{WS=w;showWs();}).catch(()=>{});
 function showWs(){const e=$("wsInfo");if(!e)return;
   e.textContent=`BUILD ${WS.build||"?"}  ·  ${WS.ok?WS.root:T("ws_unset")}`;
   e.className=WS.ok?"":"warn";}
@@ -1691,13 +2039,36 @@ function showWs(){const e=$("wsInfo");if(!e)return;
 api("/api/assets").then(a=>{ASSETS={bg:a.bg||[],audio:a.audio||[]};if($("bglayer"))drawStage();}).catch(()=>{});
 
 /* ══ 心跳 ══
-   服务端靠这个判断标签页还开着；断了 60 秒它就自己退出，不留僵尸进程。
-   页面关闭时补一发 quit，让它立刻走，不用等超时。 */
+   服务端靠这个判断页面还开着，没人看着就自己退出，不留僵尸进程。
 
-const ping=()=>fetch("/api/ping").catch(()=>{});
+   ⚠️ 这里踩过一个不容易想到的坑：**浏览器会掐后台标签页的定时器**。
+   Chromium 系在标签页隐藏满 5 分钟后进入 intensive throttling，setInterval 被压到每分钟最多一次。
+   服务端原来 40 秒没收到就退出，于是"切去看个视频十几分钟回来，程序自己关了、页面还在"。
+   两头一起改：服务端把超时放宽到 3 分钟（见 Program.Idle），这边在页面重新可见时立刻补一发。 */
+let dead=false;
+const ping=()=>fetch("/api/ping").then(r=>{if(r.ok)alive();},serverGone);
 ping();setInterval(ping,10000);
-/* 注意：不要在 pagehide 里发退出信号。pagehide 按 F5 刷新时也会触发，
-   那样一刷新服务端就死了，页面再也加载不出来。只靠心跳超时判断，最多多留 40 秒。 */
+/* 从后台切回来立刻补一发：别等下一个 tick，被掐着的时候那可能是一分钟以后 */
+addEventListener("visibilitychange",()=>{if(!document.hidden)ping();});
+addEventListener("focus",ping);
+
+/* 页面要走了就说一声，服务端不用干等超时。
+   pagehide 按 F5 刷新时同样会触发，所以服务端收到后**只是开始计时**，
+   宽限期内新页面报到就撤销——判断"是关闭还是刷新"的活儿在服务端那边做（见 WatchBrowser）。
+   keepalive 让这一发在页面卸载途中也能发出去，同时还能带上令牌。 */
+addEventListener("pagehide",()=>{
+  try{fetch("/api/bye",{method:"POST",keepalive:true,headers:{"X-Token":TOK}});}catch(_){}});
+
+/* 服务端没了的话，页面就是一张什么都点不动的死页。它自己关不掉自己
+   （不是脚本开的窗，window.close 会被浏览器拦），那至少得说清楚发生了什么。 */
+function serverGone(){
+  if(dead)return;dead=true;
+  const d=document.createElement("div");d.className="deadwrap";
+  d.innerHTML=`<div class="deadbox"><b>${T("srv_gone")}</b><span>${T("srv_gone_d")}</span></div>`;
+  document.body.appendChild(d);}
+function alive(){
+  if(!dead)return;dead=false;
+  const d=document.querySelector(".deadwrap");if(d)d.remove();}
 /* ══ 打开文件 ══
    服务端列目录（只回子目录和 .dlg），点一下就载入。
    不用系统文件对话框——浏览器根本给不了真实路径，而且我们本来就只该在工作区里转。 */
