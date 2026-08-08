@@ -438,6 +438,7 @@ svg{display:block}
 .bghint small{display:block;margin-top:.4rem;font-size:11px;opacity:.75;line-height:1.5;max-width:26rem}
 </style>
 
+<link rel="stylesheet" href="/ui/quest.css">
 <canvas id="sky"></canvas>
 <div class="shell">
   <nav class="nav" id="nav">
@@ -456,6 +457,14 @@ svg{display:block}
   <textarea id="srcPre" spellcheck="false" readonly></textarea>
   <div class="srcedge e" data-rz="e"></div><div class="srcedge s" data-rz="s"></div>
   <div class="srcgrip" data-rz="se"></div></div>
+
+<!-- 物品选择器（任务编辑器用）。注意类名是 ipick 不是 picker —— 后者被"打开 .dlg"占了 -->
+<div class="ipick" id="ipick">
+  <header id="ipHead"><b id="ipTitle"></b>
+    <input id="ipq"><button class="xclose" id="ipClose">✕</button></header>
+  <div class="ipbody"><div class="ipcats" id="ipcats"></div><div class="iplist" id="iplist"></div></div>
+  <div class="ipfoot" id="ipfoot"></div>
+</div>
 
 <script>
 const ICON={talk:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAUWSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBqAWIIAHpIAMkAPyQN2TAeSBHJABUoAHCEAtAzAJEMAHMkA90AK0A11PBdABtAD1QAbwAQGYZAAmAQZIAXVAOzAVmAXMAeY+GcAcYCYwFWgH6oAUYAAmGYBJgAdkgOaf/erX77/9nvtuvfO+B264874HrrrzvgeueDLuvO+Bq+6874Ebbr/nvlt//uvffgBoBjKABzDJAEwCDJAGGpYuW/7aKI6Dnb17eDqiKA6WLF36GqARSAMGYJIBmAQYIAXkjDFe/+AQU7o6eTr6h4YwxnhAFkgBBmCSAZgECOABKYBJhx90wLcPP+iAzxx+0AEfOvygA967L4cfdMCHDj/ogM8cftAB3waYBKQADxCASQZgEiAJwABM+uRnP7fyC1/+yqFf+fo3jvzaN7999L585evfOPILX/7KoZ/87OdWAkwCDCAJgEkG4F95znOfd8LJp5525vEnnnTOsccf/8J9Of7Ek845+dTTznzOc593AsC/YgD+lcMPOuAzhx90wDsOP+iAVx9+0AEvPfygA15++EEHvPLwgw54zeEHHfC6ww864A2HH3TA2w4/6IAPHX7QAV8G+FcMwL/yqc9+/pgvfvVrp3/tm98+6xvf+e4LvvbNb7/gK9/45gu++NWvvejzX/rKuZ/94pfO/fTnvvCCT3z6M8/5yMc/cTzAv2IA/pUzn/vck046+ZTnHnv88S88+phjzz32+ONfePwJJz7/pJNPee4pp512xmmnn3HaGc95zsnPPevs4855wQuPKJXLADwRA7A3QAEmHX7QAV86/KADPnT4QQe87fCDDnjL4Qcd8N7DDzrgkwA7e/ewt6GRUQASgALszQBMAhSwQAww6WOf/PSxn/rs50/77Be+eM5nv/DFF3zqs59/3sc++anTAf4VIAYsoACTDMAkQIEQKAMEgU+pXOasc845+sznPvek084489TEmc997olnnfP8o0rlMgD7EgQ+AEAZCAEFmGQAJgExUAXGi8XCro7WVrKZDAB7GxwZYWhkFN/36WxvY0pXJ7U6WluZmJjYCYwDVSAGmGQAJgExUAZGvvnVr77poQcf+P0jDz30z4cefOCSB+6//7J77r77qjtvv/2G7du2bWttasL3fTrbWikVCqN33n779ffcffdVD9x33+UPP/TgxQ89+MDvv/X1r74FGAHKQAwwyQBMAixQBsYuu/SSh9/8+td96Y2ve81n3/z6133+rW98/Zfe+dY3f+s973z7zzasX/8QQGdbKxMTE8Of+sTHPvOed779G+9865u/+NY3veFzb3rdaz/z5te/7kuXX3rpQ8AoUAYswCQDMAlQIAKKwDCwB9gJbJ8E7Kirrx8FKBWLA1/47Gc+eMdtt90FbAK2ANuAncAeYBgoARGgAJMMwCRAAQtUgSIwDgwDQ8BgAtjT0FA/VqlU9nzz6197643XX3cPsAPYAwwAQ8AwMA4UgSpgAQWYZABqAZoALBABIVAFKkABGBGRtb//7W9ecunF/7wX2AMMAxNAGagAIRABFtAEQC0D8GQAFgiB4qte9tLf/eKnP3kIGALGgTIQAwrwZBiAJwuIgApQBApAEagAMaAAT5YBeDIATQAxECaAGLCAAjwVBuDJAnRfAJ4qA7A/GID94f8Ajrn2SpAlXikAAAAASUVORK5CYII=",quest:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAYoSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBmB/MABPBBDAAwIgDeSAPFAH5IEckAECwAPMJMADDCAJgEkGYF8AAQwQABmgHmhJAG1AK9AGtALNQAOQAzIJIJcAskAK8AABSBiAvQECGCAAckAz0Aa0Ax1A+ySgIwG0J4BWoG0S0ATkAB8QgIQB2BsgQADUAc1A+5e/9o2XXHX9jX++874H7rvzvgfumXTnfQ/ce8Mtt136ne//8I1ADzAVmPbu973/zEuvuubXL3vFK5cDdUAAGICEAagFCBAAWaARaLvgb//44gknnfTZxsbGxaVSaff2bduuWvXYY3/YtHHjpYVCYXs2l5t6+JFHvu/SK6/+KTDz8COOPOTFL33Z99ra2o5713vfdzmQBQJAABIGoBbgASmgHmi55Iqrfjh9xowzwjAc/+ff//aFE44+8mXnPv/sT7/uVa/4zsvOe9HnTzr26Ff99te/+uTExMSetvb2xZddfe03v/y1r3/OGOMBjI+NrQEE0ARAwgBMAgTwgCzQ8K3vff+l7R0dh4TV6sTb3/ym9375C5+/GSgAY8AoMAJM/PgH37/v5OOO+fjWLVvWt7a2dqfSmXqArVu23HnKCce9CagAEaAACQMwCRAgBeRmzJzZdsSRR70b4Iff/943Hn7owWHAAjEQAWWgAoQAJ51y6sx0JlMfRhGeZ1izevV9L37h878KjANFoAooQMIATAIMkAKyb3/nu08XEW9gYGD9X/70xw3z5s9vvPTKq7/+mc9/4TlAcwJoBBpe+opXrvziV776ia6urq5yuQLA6lWPPQaMAxNACYgABUgYgEmAAXwgmDV79oEA11x5xWUAv/3jn3/S1t5+wOlnPudzH/vkp14KzARmvPTlrzju3e9935cAEqgdBzjy6KMPAcpAFYgACyhAwgBMAgQwgJfNZlsAhoaGxoMgsGNjY7sBEmed8/z3vP6Nb3rOKaeddtS73vu+zwIkLrvk4qve8463/wSgrq6+EYgAC2gCYJIBmARoAiCKohLAwkWLpoRhGJ5+0gkfXL1q1XUAiTe+5a1v/twXv/xBETEAD9x//y2f/8ynr5w7b54PEMdRGYgBTQDUMgCTAAtEQNjXt2cDwIoDDjwaUKD82le+/PsPPnD/5QCVapVCqWQAHn7owRvf+sbX/xaYeOWrX3MKwPDw8GYgSgAKUMsATAIUCIHypRf/8yqAtra2+S99+SsWAAqU3/KG1//sqiuv+E06laIul+PBB+6/9k2ve+2vgcoxxx3XMnXatKUAd9x22+VAGagCFqCWAZgEWCAEihf/4x/rdmzffgPAW9/xzg/PnjOnBQiA+NMf/9hld95++0WrHnv0hre84fW/B2xLS2v2o5/45NsAxsZGN33nm9+4DSgCVcAC1DIAtYAqUATG3vz6134+juNSKpVq+OVvfvfN933wQ8cBaYD3vPPtf33dq175S0Bf9opXLrng7//4YktL6wyAn/34x58DRoECEAIKUMsATAIUsEAFGBscHNzz4x98/x3lcnkom8u1nfeSl37gsquv/cpv//int/34Z794+c9+9etXX3rl1Z9613vf95G6urp2QP920YUfv+iC8x8ARoESEAMKUMsA1AIUCIECMPSH3/32zve84+2v2rF9+w0Ara2tcxcsXHTCAQcd9NzlK1ae0tbePhegt7f3vp/86Idv+dqXv3QpMARMAFXAAuzNANQCFIiBCjAODDz4wP1rX3TOWR/85te/+uoHH7j/t1s2b75m584dt27duuX6Rx955I+/+dUv33HOc854229++YubgX5gFCgDMaAAezMAewMUiIEKMA4MAr0X/uUvd7zlDa//xkte9IIPv/Cs5733xS94/gff8JpXfe0nP/zBNcAuoB8YBUpABCjAvhiAfQEUiIEKMAEMA31AL7AL2AnsSgB9wBAwDpSBGFCAx2MAHg+ggAUioARMACPAMDCUAEaAcaAEhIAFFOCJGIB/BdAEEAMRUAUqQBWIgBjQBMCTYQD2BwOwPxiA/eH/AFwPK1m8mZwRAAAAAElFTkSuQmCC",finish:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABWZkRUNSJJPjAOWrYpkAAAPkSURBVHgB5cRjtCVn2oDh+3mravPY57RtxLYzM0kGydi2bdu2EYxi22bbPH2szap6n2/Vj7PWXr06mWimZ773x3UBsD8YgP3BAOwPBmB/MAD7gwF4tgCSAEwCkATA3gzAswEwgA9kgFwCyAA+YABqGYBnChDAB7JAA9CcAOqBDOADAjDJADwTgAABkAOagc5f//6PH/rj+Rd8EmgBcoAPCMAkA/B0AQL4QAZoBLo+/6WvvHLR4sVvnzN33hv/8JcL3g9kAA8QgEkGYG+AJACTACQBMAkQwAMyQCPQ8bZ3vuvUk0455T2AAHielwUEYG8GoBZgAB/IALkEkAF8wACSADwgAzQCHS9/5auOeenLX/FRY4wPsHXLlhtf+dIXfxeoAjGgAJMMwCRAAA/IAPVAC9AKNAF5IAAM4AEpoB5oO+2MMw9889ve/pkgCLIAO3fsuP81r3z556MoGgFKQAQowCQDUAvwgSzQ8sfzL/jE7/98/ieBLqAFqAPSQAZoANpXHnDgwg9+5KNfSKVS9QD9fX1r3/W2t366VCz2AqNACYgAahmASYAAHpD54/kXvG/O3HlvnDd//ut/8otffgiYArQDLUAz0DFr9uxZX/ra175QV1fXATA6Orrjfe9+58d27tyxBRgExoEQ0ATAJAOwN0CsVQ8gsfKAA1/yg5/89F3AVGAKMLWpqWnGd37wwy+1tLTOAZiYmOj7xEc//OH169ZtAAaBcaAKWEABahmASYACMVB95Utf/IOHHnzgLwCJgw859EXf+cEP3wHMMsbM+sFPfvbxzs6uxQCVSmX8G1/9ysfvueuu1cAAMAZUAQsowN4MQC0gAkrA6Jtf/7of3n/fvRcBJA4/4sizv/KNb77u69/+zhvnzpt3GEAYhqXvfftbH7vy8svuB/qBMaACxIAC7IsBqAXEQAkYBfa87U1v/P59997zV4DE8SeceMpRRx9zPEAcx9U//eH3X/rrhRfcCfQDo0AZiAEFeDwGYBKgCSAEJoAhYPfb3/ym79137z1/BSiWSlTDCFW1f7vowm/9+AffvwboB0aBMhADCvBEDEAtQBNACEwAQ8Dut7/5Td994L77Lsxls6QCX6+75uoffvNrX/0n0AeMACUgAhTgXzEAewM0AYTABDAE7Hrrm97wtbVrVv9m1WOP/uwTH/3Ir4FeYBgoARGgAE+GAdgXQBNACEwAg8DOV7/8ZZ953ate+WVgNzAMlIAQUIAnywA8HkATQAgUgBFgMAGMAkUgBBTgqTAATwTQBBABZaCYAMpABFiAp8oA/CuATgJsAtAEwNNhAPYHA7A/GID9wQDsD/8HrwstSoZ2LMQAAAAASUVORK5CYII=",
@@ -532,6 +541,156 @@ const I18N={zh:{
   set_lang:"语言",set_lang_t:"界面语言",set_lang_d:"只影响界面文字，不动你的剧本内容",
   set_note_t:"关于画布里的对话框",
   set_note_d:"版式照搬塔科夫原生对话框（说话人条、选项行、跳转标），但配色改成了中性黑——原版的棕黑放在这套界面里太出戏。",
+  /* ── 任务编辑 ──
+     服务端只回码和参数（见 QuestValidator.Issue），人话全在这两张表里。
+     这样加一门语言＝加一份表，不用回头改 C#。 */
+  qa_no_quest_db:"还没指定任务库。任务文件存到哪由你决定 —— 挑一个下面的目录，或者自己填一个。",
+  q_root_title:"任务存到哪",
+  q_root_note:"任务编辑器<b>不依赖 VisitAPI</b>，做出来的就是标准的 SPT 任务文件。但要注意：<b>SPT 本身不会自动加载任意目录下的任务</b> —— 得有一个服务端 mod 去读它。VisitAPI-Server 会读自己目录下的 <code>db\\quests</code>；你也可以存到别的 mod 下面，或者先存着，之后自己写加载器。",
+  q_root_found:"这台机器上找到的位置",
+  q_root_has:"已经有任务",
+  q_root_empty:"还是空的",
+  q_root_manual:"或者自己填一个目录（不存在会自动创建 quests / locales）",
+  q_root_use:"就用这个",
+  q_root_bad:"这个目录用不了：{0}",
+  q_root_none:"没扫到 SPT 的 mods 目录。可以直接在下面填一个路径。",
+  q_root_cur:"当前：{0}",
+  q_root_change:"换个位置",
+  qa_stale:"这些文件在编辑器外面被改过了。你现在保存会覆盖掉那些改动 —— 建议先重新载入。",
+  qa_bad_name:"文件名不合法：{0}",
+  qa_broken_locale:"文案文件 {0} 读不动，先修好它再保存。为了不清空你的文案，这次没有写盘。",
+  qe_bad_id:"任务 ID 不是 24 位十六进制，SPT 会静默拒绝注册它。",
+  qe_no_success_msg:"完成邮件是空的。空文案会同时导致任务卡在已完成状态 + 玩家收到一封空信。",
+  qe_no_objectives:"一个目标都没有，玩家接了也永远完不成。",
+  qe_no_desc:"没写任务描述，玩家在任务界面看到的会是一串 id。",
+  qe_no_name:"没写任务名。",
+  qe_bad_type:"任务类型 {0} 不在 SPT 的 QuestTypeEnum 里，客户端可能不认。",
+  qe_bad_trader:"商人 ID 不合法：{0}",
+  qe_unknown_trader:"这台机器上没找到商人 {0}（SPT 自带的和各 mod 的 db\\traders 里都没有）。如果它来自一个还没装、或还没适配当前 SPT 版本的商人 mod，那这条提醒可以忽略 —— 在属性页点「这个商人我认识」就不再提醒。否则任务进游戏不会出现。",
+  q_src_spt:"SPT 自带",q_src_mod:"来自 {0}",q_src_dlg:"来自 .dlg 的 trader 行",q_src_used:"任务里用过",
+  q_src_warn:"下面这些这台机器上没找到（mod 没装 / 没适配都会这样），能不能出现取决于运行时",
+  q_m_trader_id:"直接填商人 ID",q_ask_trader:"商人 ID（24 位十六进制）",q_bad_id:"不是合法的 24 位十六进制 ID：{0}",
+  q_trader_ack:"这个商人我认识",q_trader_ack_d:"这台机器上没找到它。如果它来自还没装/还没适配的 mod，点一下就不再提醒。",
+  q_trader_acked:"已标记为认识",q_trader_unack:"取消标记",
+  qe_fail_no_msg:"设了失败条件却没写失败邮件，玩家任务失败时会收到一封空信。",
+  qe_missing_prereq:"{1} 里引用的任务 {0} 不在工作区里。",
+  qe_dup_id:"同一个任务 ID 出现在多个文件里（{0}），游戏里只会留下一个。",
+  qe_broken_file:"任务文件 {0} 读不动：{1}",
+  qe_broken_locale:"文案文件 {0}.json 读不动：{1}",
+  /* 任务编辑器界面 */
+  q_load:"读取任务库…",q_reload:"重新载入",q_save:"保存",q_saving:"保存中…",q_saved:"已保存",
+  q_dirty:"有未保存改动",q_clean:"全部校验通过",q_issues:"{0} 处问题",q_savefail:"保存失败：{0}",
+  q_stale_ask:"这些文件在编辑器外面被改过了。「重新载入」会丢掉你现在的改动；「强制保存」会盖掉外面的改动。",
+  q_force:"强制保存",q_confirm_reload:"当前改动还没保存，确定重新载入吗？",
+  q_hdr_file:"文件",q_hdr_trader:"商人",q_hdr_count:"任务",
+  q_pane_card:"任务卡",q_pane_fail:"失败",q_pane_prop:"属性",
+  q_tip_card:"玩家在游戏里看到的那一页：描述、目标、奖励",
+  q_tip_fail:"失败条件和失败惩罚。原版 558 个任务里只有 46 个用了",
+  q_tip_prop:"类型、阵营、各种开关 —— 游戏里看不到，但决定任务怎么运作",
+  q_contentlang:"你正在写哪种语言的文案（跟界面语言无关）",
+  q_meta_loc:"地点",q_meta_ll:"信赖",q_meta_start:"接取",q_meta_trader:"商人",
+  q_tip_map:"点一下换地图：这个任务只在选中的图里出现",
+  q_tip_ll:"商人信赖等级：到这一级，这个任务才会出现在商人那里",
+  q_tip_start:"游戏里这里显示任务状态。写任务时更该盯的是「玩家怎样才能接到它」",
+  q_tip_qtrader:"任务挂在哪个商人下面。在属性页里改",
+  q_start_none:"无条件",q_start_n:"{0} 个条件",
+  q_img:"点击设置配图",q_img_ask:"配图路径（相对 backgrounds 目录）",
+  q_desc_ph:"这里还没写描述，玩家在任务界面看到的会是一串 id",q_name_ph:"任务名",
+  q_sec_gate:"接取条件",q_sec_equip:"初始装备",q_sec_obj:"目标",q_sec_rew:"奖励",
+  q_sec_failc:"失败条件",q_sec_failr:"失败惩罚",q_sec_own:"归属",q_sec_sw:"开关",q_sec_note:"备注",
+  q_sec_ro:"只读 · 编辑器不改这些",
+  q_add:"＋ 添加",q_add_cond:"＋ 添加条件",q_add_obj:"＋ 添加目标",q_add_rew:"＋ 添加奖励",
+  q_e_gate:"没有条件 —— 玩家一见到商人就能接",
+  q_e_equip:"没有 —— 接任务时商人不先给东西",
+  q_e_obj:"还没有任何目标，玩家接了也没法完成",
+  q_e_rew:"没有奖励",
+  q_e_failc:"没有失败条件 —— 这个任务接了就不会失败",
+  q_e_failr:"没有惩罚 —— 失败了也不扣东西",
+  q_fail_note:"满足下面<b>任意一条</b>，任务就判定失败。最常见的用法是「另一个任务完成了，这个就作废」。原版 558 个任务里只有 46 个用了这块 —— 空着是正常的。",
+  q_prop_note:"这一页的东西<b>游戏里一个都看不到</b>，但它们决定任务怎么运作。",
+  q_msg_success:"完成邮件",q_msg_fail:"失败邮件",q_msg_started:"接取邮件",q_msg_change:"变更通知",
+  q_msg_lines:"玩家台词",
+  q_tipm_success:"玩家交完任务后收到的信。必填 —— 留空会让任务卡在已完成状态，还给玩家发一封空信",
+  q_tipm_fail:"任务判定失败时发的信。原版 558 个里 53 个写了",
+  q_tipm_started:"玩家刚接下任务时发的信。原版一个都没写，但字段是有效的",
+  q_tipm_change:"任务内容被改动时的通知。原版一个都没写",
+  q_tipm_lines:"玩家在商人对话界面上说的三句话",
+  q_to_player:"→ 玩家",
+  q_ph_req:"⚠ 必填！留空会让任务卡在已完成状态，并给玩家发一封空邮件",
+  q_ph_opt:"空着就是不发这封信",
+  q_lines_note:"玩家在商人对话界面上说的三句话 —— <b>不是邮件，是按钮上的台词</b>",
+  q_line_accept:"接下时",q_line_decline:"拒绝时",q_line_complete:"交任务时",
+  q_line_ph:"空着的话游戏用默认台词",
+  q_p_type:"任务类型",q_p_type_d:"决定任务卡上那个角标，和客户端怎么归类它",
+  q_p_side:"阵营",q_p_side_d:"Scav 任务只有野人局能做",
+  q_p_trader:"商人",q_p_trader_d:"任务挂在哪个商人下面。换商人会顺带把信赖/好感条件的目标一起改掉",
+  q_p_note:"作者备注",q_p_note_d:"note 字段。原版 558 个任务一个都没写，纯粹留给作者",
+  q_p_note_ph:"给自己看的",
+  q_sw_restartable:"失败后可重接",q_sw_restartable_d:"任务失败以后玩家还能再接一次",
+  q_sw_instantComplete:"接了就完成",q_sw_instantComplete_d:"接取的瞬间直接判定完成，用来做纯剧情任务",
+  q_sw_secretQuest:"隐藏任务",q_sw_secretQuest_d:"不在商人任务列表里显示，只能靠别的方式触发",
+  q_sw_isKey:"钥匙任务",q_sw_isKey_d:"客户端用来标记这是解锁类任务",
+  q_sw_canShowNotificationsInGame:"战局内弹提示",q_sw_canShowNotificationsInGame_d:"目标完成时在战局里弹一条提示",
+  q_on:"开",q_off:"关",
+  q_ro_id:"任务 id",q_ro_status:"出现状态 status",q_ro_file:"所在文件",
+  q_ro_dlgid:"dialogueId",q_ro_empty:"（空）",q_ro_dlgid_d:"原版 558 个里 29 个用了它",
+  q_m_obj:"目标类型",q_m_rew:"奖励类型",q_m_equip:"初始装备",q_m_gate:"接取条件",
+  q_m_failc:"失败条件",q_m_failr:"失败惩罚",q_m_map:"任务出现在哪张图",q_m_ll:"商人信赖等级",
+  q_m_type:"任务类型",q_m_side:"阵营",q_m_trader:"挂在哪个商人",q_m_prereq:"选一个前置任务",
+  q_m_row:"这一行",q_ll_no:"不要求",q_lv:"{0} 级",q_noquest:"工作区里没有别的任务",
+  q_k_VisitPlace:"到达 / 触发某处",q_k_VisitPlace_d:"配合 .dlg 的 trigger 用",
+  q_k_HandoverItem:"上交物品",q_k_FindItem:"战局中找到物品",q_k_FindItem_d:"必须战局内捡到",
+  q_k_Kills:"击杀",q_k_Kills_d:"可限定地图",q_k_Skill:"技能等级",
+  q_k_Quest:"完成前置任务",q_k_Quest_d:"这条会画进任务链图",
+  q_k_Level:"玩家等级",q_k_TraderStanding:"商人好感",q_k_TraderStanding_d:"小数，0.2 就是 +0.2",
+  q_k_Experience:"经验",q_k_Money:"金钱",q_k_Item:"物品",q_k_AssortmentUnlock:"解锁商品",
+  q_k_QuestDone:"另一个任务完成了",q_k_InRaid:"在战局里做了某件事",
+  q_k_MinusStanding:"扣商人好感",q_k_MinusExp:"扣经验",
+  q_a_item:"换物品",q_a_num:"改数量",q_a_val:"改数值",q_a_up:"上移",q_a_del:"删除",
+  q_a_quest:"换任务",q_ask_num:"需要多少个？",q_ask_val:"数值",
+  q_c_VisitPlace:"到达 / 触发「{0}」",q_c_Kills:"击杀 {0} 个{1}",q_c_savage:"野人",q_c_target:"目标",
+  q_c_at:"（{0}）",q_c_HandoverItem:"上交 {0} 件指定物品（{1} 种可选）",
+  q_c_FindItem:"在战局中找到 {0} 件指定物品（{1} 种可选）",
+  q_c_Skill:"{0} 技能达到 {1} 级",q_c_Quest:"完成前置任务：{0}",
+  q_c_Level:"玩家等级 {0} {1}",q_c_TraderStanding:"{0} 好感 {1} {2}",q_c_TraderLoyalty:"{0} 信赖等级 ≥ {1}",
+  q_c_unknown:"（未知条件 {0}）",q_unknown_trader:"未知商人 {0}",q_unknown_map:"未知地图 {0}",
+  q_r_Experience:"经验",q_r_rub:"卢布",q_r_usd:"美元",q_r_eur:"欧元",q_r_Item:"物品",
+  q_r_TraderStanding:"好感",q_r_unknown:"？",
+  q_ip_title:"选择物品",q_ip_search:"搜名字或 tpl id…（中英都行）",q_ip_all:"全部",
+  q_ip_none:"没有匹配的物品",q_ip_foot:"显示 {0} / 共 {1} 件 · 数据来自 SPT_Data",
+  q_ip_drag:"按住这行可以把窗口拖走",q_ip_close:"关闭",q_ip_loading:"读取物品表…",
+  q_g_obj:"目标",q_g_rew:"奖励",q_g_fit:"归位：缩放到全部可见",
+  q_g_hint:"点右边卡片切换任务 · 卡上的文字直接点着改",
+  q_chain:"任务链 / CHAIN",q_t_quests:"QUESTS",q_t_obj:"OBJECTIVES",q_t_rew:"REWARDS",q_t_warn:"WARN",
+  q_v_title:"校验 · {0} 处",q_v_none:"没有问题",q_v_err:"错误",q_v_warn:"警告",
+  /* 对话挂接：任务和 .dlg 之间那根线 */
+  q_pane_link:"对话",q_tip_link:"这个任务在 .dlg 里的入口：哪个节点的哪个选项能接到 / 交掉它",
+  q_link_note:"任务不是凭空出现的 —— 它是 <b>.dlg 里某个节点的某个选项</b>被按下才发生的。这一页改的是 .dlg，不是任务 json，所以<b>点一下就直接落盘</b>，不用按保存。",
+  q_link_nows:"工作区还没设置，读不到 .dlg。先在「对话编辑」里点「打开」指一次。",
+  q_sec_accept:"接取入口",q_hint_accept:"玩家点了这个选项，任务就到手了",
+  q_sec_complete:"交付入口",q_hint_complete:"玩家点了这个选项，任务就交掉了（上交＝同时把物品给出去）",
+  q_sec_setstatus:"改状态",q_hint_setstatus:"不接也不交，只把任务状态推一格。常用来做剧情里的隐性推进",
+  q_sec_trig:"触发点",q_hint_trig:".dlg 头部的 trigger 行：玩家走到哪、按什么键会打开这段对话。只能在对话编辑器里改",
+  q_add_link:"＋ 挂到对话选项",q_e_link:"没有",
+  q_e_trig:"没有 —— 这个任务不靠场景里的触发点开启对话",
+  q_a_unlink:"解除挂接",q_m_node:"第 1 步 · 选节点",q_m_opt:"第 2 步 · 选 <{0}> 里的选项",
+  q_m_handover:"第 3 步 · 交任务时要不要同时上交物品",
+  q_act_accept:"接取",q_act_complete:"交付",q_act_handover:"上交",q_act_setstatus:"改状态",
+  q_opt_taken:"已挂 {0}",q_notext:"（无文字）",q_when_status:"当本任务 = {0}",
+  q_nopts:"{0} 个选项",q_link_fail:"改 .dlg 失败：{0}",q_dlgtag:"有对话入口",
+  q_goto_dlg:"在对话编辑器里打开这个节点",
+  /* 任务链图 */
+  q_g_add:"新建任务",q_g_del:"删除当前任务",q_g_chain:"只看这条链",
+  q_g_drag:"从右边的方块拖到另一张卡上，就把它设成前置",
+  q_m_file:"放进哪个文件",q_m_newfile:"＋ 新建文件…",q_ask_file:"新文件名（会放进 db\\quests\\）",
+  q_m_newtrader:"挂在哪个商人",q_new_name:"新任务",q_new_desc:"（还没写描述）",
+  q_new_mail:"（还没写完成邮件）",
+  q_del_ask:"确定删除「{0}」吗？它的文案会一起清掉，别的任务里指向它的前置条件也会被移除。",
+  q_del_done:"已删除「{0}」，顺带清掉了 {1} 处引用",
+  q_link_self:"不能把任务设成自己的前置",
+  q_link_dup:"这条前置已经有了",
+  q_link_cycle:"这样会绕成环：「{0}」本来就（间接）要求先完成「{1}」",
+  q_link_ok:"已把「{0}」设为「{1}」的前置",
   todo:"这一页还没做——先把「对话编辑」定下来，其余照抄同一套卡片和控件。"},
 en:{
   nav_about:"About",nav_cloth:"Outfits",nav_dlg:"Dialogue",nav_quest:"Quests",
@@ -582,11 +741,160 @@ en:{
   set_lang:"Language",set_lang_t:"Interface language",set_lang_d:"Affects UI text only, never your script",
   set_note_t:"About the dialogue box on the canvas",
   set_note_d:"Its layout mirrors Tarkov's native dialogue box (speaker bar, option rows, jump tags), but the palette is neutral black — the original brown clashed with this console.",
+  qa_no_quest_db:"No quest folder picked yet. It's your call where quests live — pick one below, or type your own path.",
+  q_root_title:"Where quests go",
+  q_root_note:"The quest editor <b>doesn't need VisitAPI</b> — what it writes are plain SPT quest files. One caveat: <b>SPT won't load quests from an arbitrary folder on its own</b> — a server mod has to read them. VisitAPI-Server reads <code>db\\quests</code> next to itself; you can also save into another mod's folder, or just keep them here and write a loader later.",
+  q_root_found:"Found on this machine",
+  q_root_has:"has quests",
+  q_root_empty:"empty",
+  q_root_manual:"Or type a folder (quests / locales get created if missing)",
+  q_root_use:"Use this",
+  q_root_bad:"Can't use that folder: {0}",
+  q_root_none:"No SPT mods folder found. Type a path below instead.",
+  q_root_cur:"Current: {0}",
+  q_root_change:"Change location",
+  qa_stale:"These files changed outside the editor. Saving now would overwrite those changes — reload first.",
+  qa_bad_name:"Invalid file name: {0}",
+  qa_broken_locale:"Locale file {0} can't be read. Nothing was written, so your text is safe — fix the file first.",
+  qe_bad_id:"Quest ID isn't a 24-character hex string. SPT will silently refuse to register it.",
+  qe_no_success_msg:"The completion mail is empty. That both leaves the quest stuck as complete and sends the player a blank letter.",
+  qe_no_objectives:"No objectives at all — the player can accept it but can never finish it.",
+  qe_no_desc:"No description, so the quest screen shows a raw id to the player.",
+  qe_no_name:"No quest name.",
+  qe_bad_type:"Quest type {0} isn't in SPT's QuestTypeEnum — the client may not accept it.",
+  qe_bad_trader:"Invalid trader ID: {0}",
+  qe_unknown_trader:"Trader {0} wasn't found on this machine (not in SPT's own traders, not in any mod's db\\traders). If it comes from a trader mod you haven't installed — or one that isn't updated for your SPT version yet — you can ignore this: click \"I know this trader\" on the Properties tab to stop the warning. Otherwise the quest won't show up in game.",
+  q_src_spt:"built into SPT",q_src_mod:"from {0}",q_src_dlg:"from a .dlg trader line",q_src_used:"used by a quest",
+  q_src_warn:"Not found on this machine (an uninstalled or not-yet-updated mod looks like this too) — whether they show up depends on runtime",
+  q_m_trader_id:"Type a trader ID",q_ask_trader:"Trader ID (24 hex characters)",q_bad_id:"Not a valid 24-character hex ID: {0}",
+  q_trader_ack:"I know this trader",q_trader_ack_d:"Not found on this machine. If it comes from a mod that isn't installed or updated yet, click here to stop the warning.",
+  q_trader_acked:"marked as known",q_trader_unack:"Unmark",
+  qe_fail_no_msg:"There are fail conditions but no fail mail, so failing sends the player a blank letter.",
+  qe_missing_prereq:"Quest {0}, referenced from {1}, isn't in this workspace.",
+  qe_dup_id:"The same quest ID appears in more than one file ({0}) — only one survives in game.",
+  qe_broken_file:"Quest file {0} can't be read: {1}",
+  qe_broken_locale:"Locale file {0}.json can't be read: {1}",
+  q_load:"Loading quests…",q_reload:"Reload",q_save:"Save",q_saving:"Saving…",q_saved:"Saved",
+  q_dirty:"Unsaved changes",q_clean:"All checks passed",q_issues:"{0} issue(s)",q_savefail:"Save failed: {0}",
+  q_stale_ask:"These files changed outside the editor. Reload discards your current edits; Save anyway overwrites theirs.",
+  q_force:"Save anyway",q_confirm_reload:"You have unsaved changes. Reload anyway?",
+  q_hdr_file:"file",q_hdr_trader:"trader",q_hdr_count:"quests",
+  q_pane_card:"Quest card",q_pane_fail:"Failure",q_pane_prop:"Properties",
+  q_tip_card:"What the player sees in game: description, objectives, rewards",
+  q_tip_fail:"Fail conditions and penalties. Only 46 of the 558 stock quests use this",
+  q_tip_prop:"Type, side, switches — invisible in game, but they decide how the quest behaves",
+  q_contentlang:"Which language you're writing the text in (independent of the UI language)",
+  q_meta_loc:"map",q_meta_ll:"LL",q_meta_start:"accept",q_meta_trader:"trader",
+  q_tip_map:"Click to change the map — the quest only appears on the one you pick",
+  q_tip_ll:"Trader loyalty level: the quest only shows up once the player reaches it",
+  q_tip_start:"In game this shows quest status. While authoring, what matters is how the player can get it",
+  q_tip_qtrader:"Which trader owns this quest. Change it on the Properties tab",
+  q_start_none:"no conditions",q_start_n:"{0} condition(s)",
+  q_img:"Click to set an image",q_img_ask:"Image path (relative to the backgrounds folder)",
+  q_desc_ph:"No description yet — the player would see a raw id on the quest screen",q_name_ph:"Quest name",
+  q_sec_gate:"Accept conditions",q_sec_equip:"Starting gear",q_sec_obj:"Objectives",q_sec_rew:"Rewards",
+  q_sec_failc:"Fail conditions",q_sec_failr:"Fail penalties",q_sec_own:"Ownership",q_sec_sw:"Switches",
+  q_sec_note:"Notes",q_sec_ro:"Read-only · the editor won't touch these",
+  q_add:"＋ Add",q_add_cond:"＋ Add condition",q_add_obj:"＋ Add objective",q_add_rew:"＋ Add reward",
+  q_e_gate:"No conditions — the player can take it the moment they meet the trader",
+  q_e_equip:"None — the trader hands over nothing up front",
+  q_e_obj:"No objectives yet, so the player could accept it but never finish it",
+  q_e_rew:"No rewards",
+  q_e_failc:"No fail conditions — once accepted, this quest can't be failed",
+  q_e_failr:"No penalties — failing costs nothing",
+  q_fail_note:"Meeting <b>any one</b> of these fails the quest. The usual use is \"another quest finished, so this one is void\". Only 46 of the 558 stock quests use this — empty is normal.",
+  q_prop_note:"<b>None of this is visible in game</b>, but it decides how the quest behaves.",
+  q_msg_success:"Completion mail",q_msg_fail:"Fail mail",q_msg_started:"Accept mail",q_msg_change:"Change notice",
+  q_msg_lines:"Player lines",
+  q_tipm_success:"The letter after handing the quest in. Required — leaving it empty both sticks the quest as complete and sends a blank letter",
+  q_tipm_fail:"Sent when the quest is failed. 53 of the 558 stock quests write one",
+  q_tipm_started:"Sent right after the player accepts. No stock quest uses it, but the field works",
+  q_tipm_change:"Notice sent when the quest changes. No stock quest uses it",
+  q_tipm_lines:"The three lines the player says in the trader dialogue",
+  q_to_player:"→ player",
+  q_ph_req:"⚠ Required. Leaving it empty sticks the quest as complete and sends the player a blank letter",
+  q_ph_opt:"Leave empty to not send this one",
+  q_lines_note:"The three lines the player says in the trader dialogue — <b>not mail, they're button text</b>",
+  q_line_accept:"Accepting",q_line_decline:"Declining",q_line_complete:"Handing in",
+  q_line_ph:"Empty means the game uses its default line",
+  q_p_type:"Quest type",q_p_type_d:"Sets the badge on the quest card and how the client files it",
+  q_p_side:"Side",q_p_side_d:"Scav quests can only be done in scav raids",
+  q_p_trader:"Trader",q_p_trader_d:"Which trader owns this quest. Changing it also retargets loyalty/standing conditions",
+  q_p_note:"Author note",q_p_note_d:"The note field. No stock quest writes one — it's purely for you",
+  q_p_note_ph:"Just for yourself",
+  q_sw_restartable:"Restartable",q_sw_restartable_d:"The player can take it again after failing",
+  q_sw_instantComplete:"Instant complete",q_sw_instantComplete_d:"Completes the moment it's accepted — for pure story quests",
+  q_sw_secretQuest:"Hidden quest",q_sw_secretQuest_d:"Not listed at the trader; something else has to trigger it",
+  q_sw_isKey:"Key quest",q_sw_isKey_d:"Marks it as an unlock quest for the client",
+  q_sw_canShowNotificationsInGame:"In-raid popups",q_sw_canShowNotificationsInGame_d:"Pops a notice in raid when an objective completes",
+  q_on:"On",q_off:"Off",
+  q_ro_id:"Quest id",q_ro_status:"AppearStatus",q_ro_file:"File",
+  q_ro_dlgid:"dialogueId",q_ro_empty:"(empty)",q_ro_dlgid_d:"29 of the 558 stock quests use it",
+  q_m_obj:"Objective type",q_m_rew:"Reward type",q_m_equip:"Starting gear",q_m_gate:"Accept condition",
+  q_m_failc:"Fail condition",q_m_failr:"Fail penalty",q_m_map:"Which map does it appear on",q_m_ll:"Trader loyalty",
+  q_m_type:"Quest type",q_m_side:"Side",q_m_trader:"Owning trader",q_m_prereq:"Pick a prerequisite quest",
+  q_m_row:"This row",q_ll_no:"Not required",q_lv:"LL {0}",q_noquest:"No other quest in this workspace",
+  q_k_VisitPlace:"Reach / trigger a spot",q_k_VisitPlace_d:"Pairs with a trigger in the .dlg",
+  q_k_HandoverItem:"Hand over items",q_k_FindItem:"Find in raid",q_k_FindItem_d:"Must be picked up in raid",
+  q_k_Kills:"Kills",q_k_Kills_d:"Can be limited to a map",q_k_Skill:"Skill level",
+  q_k_Quest:"Finish a prerequisite",q_k_Quest_d:"This one gets drawn into the chain graph",
+  q_k_Level:"Player level",q_k_TraderStanding:"Trader standing",q_k_TraderStanding_d:"A decimal — 0.2 means +0.2",
+  q_k_Experience:"Experience",q_k_Money:"Money",q_k_Item:"Item",q_k_AssortmentUnlock:"Unlock stock",
+  q_k_QuestDone:"Another quest finished",q_k_InRaid:"Did something in raid",
+  q_k_MinusStanding:"Lose trader standing",q_k_MinusExp:"Lose experience",
+  q_a_item:"Change item",q_a_num:"Change count",q_a_val:"Change value",q_a_up:"Move up",q_a_del:"Delete",
+  q_a_quest:"Change quest",q_ask_num:"How many?",q_ask_val:"Value",
+  q_c_VisitPlace:"Reach / trigger \"{0}\"",q_c_Kills:"Kill {0} {1}",q_c_savage:"scavs",q_c_target:"targets",
+  q_c_at:"({0})",q_c_HandoverItem:"Hand over {0} of the listed items ({1} accepted)",
+  q_c_FindItem:"Find {0} of the listed items in raid ({1} accepted)",
+  q_c_Skill:"{0} skill reaches level {1}",q_c_Quest:"Finish prerequisite: {0}",
+  q_c_Level:"Player level {0} {1}",q_c_TraderStanding:"{0} standing {1} {2}",q_c_TraderLoyalty:"{0} loyalty ≥ {1}",
+  q_c_unknown:"(unknown condition {0})",q_unknown_trader:"Unknown trader {0}",q_unknown_map:"Unknown map {0}",
+  q_r_Experience:"Experience",q_r_rub:"Roubles",q_r_usd:"Dollars",q_r_eur:"Euros",q_r_Item:"Item",
+  q_r_TraderStanding:"Standing",q_r_unknown:"?",
+  q_ip_title:"Pick an item",q_ip_search:"Search by name or tpl id (either language)",q_ip_all:"All",
+  q_ip_none:"No matching item",q_ip_foot:"Showing {0} of {1} · from SPT_Data",
+  q_ip_drag:"Drag this bar to move the window",q_ip_close:"Close",q_ip_loading:"Loading items…",
+  q_g_obj:"obj",q_g_rew:"rew",q_g_fit:"Fit all",
+  q_g_hint:"Click a card on the right to switch quests · click text on a card to edit it",
+  q_chain:"CHAIN",q_t_quests:"QUESTS",q_t_obj:"OBJECTIVES",q_t_rew:"REWARDS",q_t_warn:"WARN",
+  q_v_title:"Checks · {0}",q_v_none:"Nothing wrong",q_v_err:"error",q_v_warn:"warning",
+  q_pane_link:"Dialogue",q_tip_link:"Where this quest lives in the .dlg: which option on which node hands it out or takes it in",
+  q_link_note:"A quest doesn't appear out of nowhere — it happens when the player presses <b>one option on one node of a .dlg</b>. This page edits the .dlg, not the quest json, so <b>changes here save immediately</b> — no need to press Save.",
+  q_link_nows:"No workspace set, so there are no .dlg files to read. Point at one from the Dialogue page first.",
+  q_sec_accept:"Hand-out points",q_hint_accept:"Pressing this option gives the player the quest",
+  q_sec_complete:"Hand-in points",q_hint_complete:"Pressing this option completes the quest (hand over = it also takes the items)",
+  q_sec_setstatus:"Status nudges",q_hint_setstatus:"Neither accepts nor completes — just moves the quest one status along. Handy for quiet story progress",
+  q_sec_trig:"Triggers",q_hint_trig:"The trigger lines at the top of the .dlg: where the player has to stand and what they press. Edit them on the Dialogue page",
+  q_add_link:"＋ Attach to an option",q_e_link:"None",
+  q_e_trig:"None — this quest doesn't open its dialogue from a spot in the world",
+  q_a_unlink:"Detach",q_m_node:"Step 1 · pick a node",q_m_opt:"Step 2 · pick an option on <{0}>",
+  q_m_handover:"Step 3 · should handing in also take items?",
+  q_act_accept:"accept",q_act_complete:"complete",q_act_handover:"hand over",q_act_setstatus:"set status",
+  q_opt_taken:"already {0}",q_notext:"(no text)",q_when_status:"when this quest = {0}",
+  q_nopts:"{0} options",q_link_fail:"Couldn't edit the .dlg: {0}",q_dlgtag:"has a dialogue entry",
+  q_goto_dlg:"Open this node in the dialogue editor",
+  q_g_add:"New quest",q_g_del:"Delete this quest",q_g_chain:"Show only this chain",
+  q_g_drag:"Drag from the square on the right onto another card to make it a prerequisite",
+  q_m_file:"Which file",q_m_newfile:"＋ New file…",q_ask_file:"New file name (goes into db\\quests\\)",
+  q_m_newtrader:"Owning trader",q_new_name:"New quest",q_new_desc:"(no description yet)",
+  q_new_mail:"(no completion mail yet)",
+  q_del_ask:"Delete \"{0}\"? Its text goes too, and prerequisites in other quests that point at it are removed.",
+  q_del_done:"Deleted \"{0}\" and cleaned up {1} reference(s)",
+  q_link_self:"A quest can't be its own prerequisite",
+  q_link_dup:"That prerequisite is already there",
+  q_link_cycle:"That would make a loop: \"{0}\" already requires \"{1}\" (directly or not)",
+  q_link_ok:"\"{0}\" is now a prerequisite of \"{1}\"",
   todo:"Not built yet — Dialogue comes first, then the rest reuses the same cards and controls."}};
 let lang=localStorage.getItem("visitapi.ef3.lang")
   ||((navigator.language||"").toLowerCase().startsWith("zh")?"zh":"en");
 if(!I18N[lang])lang="zh";
 const T=k=>I18N[lang][k]??I18N.zh[k]??k;
+/* 带参数的文案：TF("qe_missing_prereq", id, "AvailableForStart")。
+   服务端的校验结果就是 {code, args}，这里直接摊进去。 */
+const TF=(k,...a)=>a.reduce((s,v,i)=>s.split("{"+i+"}").join(v),T(k));
+/* 服务端只回码，人话在上面那两张表里 —— 加一门语言不用回头改 C# */
+const issueText=e=>TF("qe_"+e.code,...(e.args||[]));
 
 /* ══ 偏好：主题 / 模糊度 / 语言 ══
    全部落 localStorage。主题写在 <html data-theme> 上，令牌一换整页跟着变，
@@ -604,7 +912,12 @@ function applyStatic(){
   $("srcTitle").textContent=T("src_title");
   $("srcCopy").firstChild.textContent=T("src_copy");
   $("srcDl").firstChild.textContent=T("src_dl");
-  $("srcClose").firstChild.textContent=T("src_close");}
+  $("srcClose").firstChild.textContent=T("src_close");
+  /* 物品选择器是静态标记，切界面语言时也要跟着换 */
+  $("ipTitle").textContent=T("q_ip_title");
+  $("ipq").placeholder=T("q_ip_search");
+  $("ipClose").title=T("q_ip_close");
+  $("ipHead").title=T("q_ip_drag");}
 
 const PAGES=[{id:"about",k:"nav_about",icon:"info"},{id:"cloth",k:"nav_cloth",icon:"shirt"},
   {id:"dlg",k:"nav_dlg",icon:"chat"},{id:"quest",k:"nav_quest",icon:"list"},
@@ -622,6 +935,11 @@ function parseDlg(text){
   const t={trader:null,name:null,start:"root",first:null,tab:null,tabS:[],when:[],triggers:[],
            alias:{},aliasOrder:[],nodes:{},headRaw:[],warn:[]};
   let n=null,ln=0;
+  /* 攒着的注释：碰到下一个元素就挂到它头上（和 C# 的 DialogParser 同一套做法）。
+     以前这里是"进了节点就直接丢"，于是节点体里的注释存一次就没了 —— SORA 那份
+     注释恰好全在文件头，所以一直没暴露。 */
+  let pend=[];
+  const take=()=>{const p=pend;pend=[];return p;};
   const KV=segs=>{const d={};segs.forEach(s=>{const i=s.indexOf(":");
     if(i>0)d[s.slice(0,i).trim().toLowerCase()]=s.slice(i+1).trim();});return d;};
   const A=id=>id&&t.alias[id]?t.alias[id]:id;
@@ -637,10 +955,15 @@ function parseDlg(text){
     ln++;const line=raw.trim();
     if(!line||line[0]==="#"||line.startsWith("//")){
       if(line&&!n)t.headRaw.push({k:"raw",v:line});     /* 文件头里的注释要留住 */
+      else if(line)pend.push(line);                    /* 节点体里的挂到下一个元素上 */
       continue;}
     const head=line.match(/^<([\w.\-]+)>\s*(.*)$/);
     if(head){const d=KV(head[2].split(" | "));
-      n=t.nodes[head[1]]={name:head[1],bg:d.bg||"",anim:d.anim,bgm:d.bgm,narr:[],npc:"",jump:null,opts:[]};
+      /* 归属规则和 C# 的 DialogParser 逐行对齐：<节点> 前面那几行注释算**上一个节点的尾巴**，
+         只有第一个节点之前的才算它自己的头。两边不一致的话，回写位置就会漂。 */
+      if(n)n.tail=take();
+      n=t.nodes[head[1]]={name:head[1],bg:d.bg||"",anim:d.anim,bgm:d.bgm,narr:[],npc:"",jump:null,opts:[],
+                          lead:take(),npcLead:[],jumpLead:[],tail:[]};
       continue;}
     if(!n){ /* 文件头 */
       const qa=line.match(/^quest\s+(\S+)\s*=\s*(\S+)$/i);
@@ -666,11 +989,13 @@ function parseDlg(text){
       continue;}
     /* 节点体 */
     const seg=line.split(" | ");
-    if(line.startsWith("->")){n.jump=line.slice(2).trim();continue;}
+    if(line.startsWith("->")){n.jump=line.slice(2).trim();n.jumpLead=take();continue;}
     if(line.startsWith(">")){const d=KV(seg.slice(1));
-      n.narr.push({text:seg[0].slice(1).trim(),bg:d.bg||"",audio:d.audio});continue;}
+      /* anim 也要收：以前只收了 bg/audio，旁白上的 anim 存一次就没了 */
+      n.narr.push({text:seg[0].slice(1).trim(),bg:d.bg||"",anim:d.anim,audio:d.audio,lead:take()});continue;}
     if(line.startsWith("- ")){
-      const o={t:"",to:null,act:null,gate:null,once:false,always:false,standing:null,setst:null};
+      const o={t:"",to:null,act:null,gate:null,gate2:null,once:false,always:false,
+               standing:null,setst:null,lead:take()};
       const left=seg[0].slice(2).trim();const ar=left.indexOf(" -> ");
       o.t=(ar<0?left:left.slice(0,ar)).trim();
       o.to=ar<0?null:left.slice(ar+4).trim();
@@ -683,14 +1008,17 @@ function parseDlg(text){
         else if(key==="complete")o.act={kind:"complete",q:A(v)};
         else if(key==="handover")o.act={kind:"handover",q:A(sp<0?v:v.slice(0,sp)),label:sp<0?null:v.slice(sp+1).trim()};
         else if(key==="setstatus"){o.setst={q:A(eq<0?v:v.slice(0,eq).trim()),v:eq<0?3:ST(v.slice(eq+1))};}
-        else if(key==="if"){const s=[];o.gate={kind:"if",q:A(gate(v,s)),s};}
-        else if(key==="ifnot"){const s=[];o.gate={kind:"ifnot",q:A(gate(v,s)),s};}
+        /* 一个选项上 if 和 ifnot 可以同时存在。界面只编辑 gate 这一个，
+           另一个原样搁在 gate2 里带回去 —— 不然存一次就少一条门控。 */
+        else if(key==="if"||key==="ifnot"){const s=[];const g={kind:key,q:A(gate(v,s)),s};
+          if(!o.gate)o.gate=g; else o.gate2=g;}
         else if(key==="standing")o.standing={who:eq<0?null:v.slice(0,eq).trim(),d:parseFloat(eq<0?v:v.slice(eq+1))||0};
         else t.warn.push(`第 ${ln} 行: 未知指令 '${key}'`);});
       n.opts.push(o);continue;}
-    n.npc=seg[0].trim();
+    n.npc=seg[0].trim();n.npcLead=take();
     const d=KV(seg.slice(1));if(d.audio)n.audio=d.audio;
   }
+  if(n)n.tail=(n.tail||[]).concat(pend);        /* 文件末尾剩下的注释 */
   /* 跳转校验 */
   Object.values(t.nodes).forEach(nd=>{
     [...nd.opts.map(o=>o.to),nd.jump].forEach(tg=>{
@@ -800,7 +1128,11 @@ function relayout(){
 let cur=doc.first&&doc.nodes[doc.first]?doc.first:doc.start,beat=0,gx=14,gy=10,gs=.8;
 const N=()=>doc.nodes[cur];
 const isTalk=()=>beat===N().narr.length;
-const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+/* String(s??"")：早先写的是 (s||"")，传个数字进来就 "replace is not a function"。
+   模板里 esc(数量) 这种太自然了，helper 自己扛住比每个调用处都记得转要靠谱。
+   引号也要转义 —— 这些值会进 title="…" / data-…="…"，不转就能把属性顶出去。 */
+const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 const isReal=t=>!!doc.nodes[t], isRsv=t=>RESERVED.includes(t);
 const icoFor=o=>o.act?.kind==="accept"?ICON.quest:o.act?ICON.finish:
   o.to==="@close"||!o.to?ICON.quit:o.to==="@trade"?ICON.trade:ICON.talk;
@@ -1149,43 +1481,22 @@ function wireSplit(){$("split").onmousedown=e=>{e.preventDefault();
   addEventListener("mousemove",mv);addEventListener("mouseup",up);};}
 
 /* 源码 / 校验 / 浮层 */
-/* 文件头按 headRaw 的原顺序重放：注释原样吐回，可编辑的行从模型重新生成。
-   这样改了节点名，trigger 里的 node 跟着变，而注释和行序纹丝不动。 */
-const HEADLINE={
-  trader:()=>`trader: ${doc.trader||""} "${doc.name||""}"`,
-  start:()=>`start: ${doc.start}`,
-  first:()=>doc.first?`first: ${doc.first}`:null,
-  tab:()=>doc.tab?`tab: if ${doc.tab}=${doc.tabS.map(x=>STATUS[x]).join("/")}`:null,
-  trigger:e=>doc.triggers[e.i]!==undefined?`trigger: ${doc.triggers[e.i]}`:null,
-  quest:e=>{const a=doc.aliasOrder[e.i];return a?`quest ${a} = ${doc.alias[a]}`:null;},
-  when:e=>{const w=doc.when[e.i];return w?
-    `when: ${w.conds.map(c=>`${c.f}${c.le?"<=":">="}${c.v}`).join(" ")} -> ${w.node}`:null;},
-  raw:e=>e.v};
-/* 拼 " | k: v" 尾巴。节点头第一段不带前导竖线（`<x> bg: a | anim: b`），行内的都带。 */
-function kvTail(pairs,first){
-  const ps=pairs.filter(([k,v])=>v!==undefined&&v!==null&&v!=="").map(([k,v])=>`${k}: ${v}`);
-  if(!ps.length)return "";
-  return first?" "+ps.join(" | "):" | "+ps.join(" | ");}
-function toDlg(){
-  let s="";const seen=new Set();
-  (doc.headRaw||[]).forEach(e=>{const f=HEADLINE[e.k];if(!f)return;
-    const line=f(e);if(line!=null){s+=line+"\n";seen.add(e.k);}});
-  if(!seen.has("trader"))s=HEADLINE.trader()+"\n"+s;      /* 兜底：headRaw 缺了也不能少 */
-  if(!seen.has("start"))s+=HEADLINE.start()+"\n";
-  for(const[nm,n]of Object.entries(doc.nodes)){
-    /* bg / anim / bgm / audio 都要吐回去——漏掉哪个，作者存一次就丢一个字段 */
-    s+=`\n<${nm}>`+kvTail([["bg",n.bg],["anim",n.anim],["bgm",n.bgm]],true)+"\n";
-    n.narr.forEach(b=>{if(b.text)s+=`> ${b.text}`+kvTail([["bg",b.bg],["anim",b.anim],["audio",b.audio]])+"\n";});
-    if(n.npc)s+=n.npc+kvTail([["audio",n.audio]])+"\n";
-    n.opts.forEach(o=>{const d=[];
-      if(o.setst)d.push(`setstatus: ${o.setst.q}`);
-      if(o.act)d.push(`${o.act.kind}: ${o.act.q}${o.act.label?" "+o.act.label:""}`);
-      if(o.gate)d.push(`${o.gate.kind}: ${o.gate.q}=${o.gate.s.map(x=>STATUS[x]).join("/")}`);
-      if(o.standing)d.push(`standing: ${o.standing.d>0?"+":""}${o.standing.d}`);
-      if(o.once)d.push("once"); if(o.always)d.push("always");
-      s+=`- ${o.t}`+(o.to?` -> ${o.to}`:"")+(d.length?` | ${d.join(", ")}`:"")+"\n";});
-    if(n.jump)s+=`-> ${n.jump}\n`;}
-  return s;}
+/* 前端不再自己拼 .dlg 文本 —— 那份 toDlg() 已经删掉了。
+   它当年丢过：节点体里的注释、旁白上的 anim、setstatus 的状态值、
+   standing 的商人 id、同一选项上的第二条门控。
+   现在**唯一的写手是 C# 的 DialogWriter**，前端只把模型发过去。 */
+const docJson=()=>({
+  trader:doc.trader,name:doc.name,start:doc.start,first:doc.first,
+  tab:doc.tab,tabS:doc.tabS,
+  headRaw:(doc.headRaw||[]).map(e=>({k:e.k,i:e.i||0,v:e.v||null})),
+  when:doc.when,triggers:doc.triggers,alias:doc.alias,aliasOrder:doc.aliasOrder,
+  nodes:Object.entries(doc.nodes).map(([nm,n])=>({
+    name:nm,bg:n.bg,anim:n.anim,bgm:n.bgm,npc:n.npc,audio:n.audio,jump:n.jump,
+    narr:n.narr,opts:n.opts,
+    lead:n.lead,npcLead:n.npcLead,jumpLead:n.jumpLead,tail:n.tail})),
+});
+/* 判"脏"比的是模型快照，不是生成的文本 —— 文本已经不在前端手上了 */
+const docSnap=()=>JSON.stringify(docJson());
 function stat(){const bad=[];
   Object.entries(doc.nodes).forEach(([n,d])=>{
     [...d.opts.map(o=>o.to),d.jump].forEach(to=>{
@@ -1254,12 +1565,17 @@ function markDirty(v){
   const e=$("saved");if(!e)return;
   e.textContent=v?T("unsaved"):(filePath?T("saved_ok"):"");
   e.className="saved "+(v?"dirty":"");}
-function autosave(){markDirty(toDlg()!==savedText);}   /* 不再写 localStorage 草稿，只和已保存内容比对 */
+function autosave(){markDirty(docSnap()!==savedText);}   /* 只和上次载入/保存时的模型快照比对 */
+/* 源码由服务端渲染：看到的就是按下保存会写进文件的那份文本，不会有"预览和实存不一样"这种事 */
 function openSrc(sel){
-  $("srcPre").value=toDlg();
   $("srcNote").textContent=`${T("src_gen")} · ${doc.warn.length?doc.warn.length+" "+T("src_warn"):T("src_nowarn")}`;
   $("srcwrap").classList.add("on");
-  if(sel){const t=$("srcPre");t.readOnly=false;t.focus();t.select();t.readOnly=true;}}
+  $("srcPre").value="…";
+  api("/api/dlg/render",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(docJson())})
+    .then(d=>{$("srcPre").value=d.text;
+      if(sel){const t=$("srcPre");t.readOnly=false;t.focus();t.select();t.readOnly=true;}})
+    .catch(e=>{$("srcPre").value=String(e.message);});}
 function saveDlg(){
   if(!filePath){note(T("save_nofile"),"dirty");return;}
   /* .dlg.demo 是插件带的示例，游戏只读 *.dlg —— 存回 .demo 等于白改，这里拦一下 */
@@ -1268,9 +1584,10 @@ function saveDlg(){
     if(!confirm(T("demo_save").replace("{0}",real)))return;
     filePath=real; const fp=$("fpath"); if(fp)fp.textContent=real;
   }
-const text=toDlg();
-  api("/api/dlg?path="+encodeURIComponent(filePath),{method:"POST",body:text})
-    .then(()=>{savedText=text;markDirty(false);note(T("saved_ok"),"hot");})
+  const snap=docSnap();
+  api("/api/dlg?path="+encodeURIComponent(filePath),
+    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(docJson())})
+    .then(()=>{savedText=snap;markDirty(false);note(T("saved_ok"),"hot");})
     .catch(e=>note(T("save_fail")+" "+e.message,"dirty"));}
 /* 离开页面前拦一下——没有草稿兜底了，改了不存就是真丢 */
 addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
@@ -1286,6 +1603,7 @@ function render(){
       relaid=false;setTimeout(relayout,20);};       /* 宽度变了就按新长宽比重排一次 */
     wireGraph();wireSplit();refresh();setTimeout(relayout,30);
     markDirty(dirty);
+  }else if(page==="quest"){m.innerHTML=questPage();wireQuest();
   }else if(page==="set"){m.innerHTML=setPage();wireSettings();
   }else{const p=PAGES.find(x=>x.id===page);
     m.innerHTML=`<div class="setwrap">
@@ -1321,7 +1639,7 @@ function wireSettings(){
   $("segTheme").querySelectorAll("button").forEach(b=>b.onclick=()=>{setTheme(b.dataset.v);render();});
   $("segLang").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     lang=b.dataset.v;try{localStorage.setItem("visitapi.ef3.lang",lang);}catch(_){}
-    document.documentElement.lang=lang==="zh"?"zh-CN":"en";applyStatic();render();savedText=toDlg();markDirty(false);});
+    document.documentElement.lang=lang==="zh"?"zh-CN":"en";applyStatic();render();savedText=docSnap();markDirty(false);});
 }
 $("srcClose").onclick=()=>$("srcwrap").classList.remove("on");
 $("srcDl").onclick=()=>{tryDownload($("srcPre").value);note(T("saved_dl")+" "+fileName(),"hot");};
@@ -1360,7 +1678,7 @@ $("srcCopy").onclick=()=>{const t=$("srcPre");
 addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveDlg();}
   if(e.key==="Escape")$("srcwrap").classList.remove("on");});
-applyStatic();render();savedText=toDlg();markDirty(false);   /* 初始基线：刚开页面不算"改过" */
+applyStatic();render();savedText=docSnap();markDirty(false);   /* 初始基线：刚开页面不算"改过" */
 /* 开局就把「打开」弹出来。界面里那份是空白起手模板，不是从磁盘读的——
    不主动提示的话，用户会以为看到的就是自己的文件（我自己就先掉进去过）。 */
 let WS={};
@@ -1408,15 +1726,20 @@ function listDir(dir){
     p.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>listDir(b.dataset.d));
     p.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>loadDoc(b.dataset.f));
   }).catch(e=>note(String(e.message),"dirty"));}
-function loadDoc(path){
+/* gotoNode：打开后直接停在某个节点上。任务编辑器"点挂接行跳过来"就靠它 */
+function loadDoc(path,gotoNode){
   if(dirty&&!confirm(T("confirm_discard")))return;
   api("/api/dlg?path="+encodeURIComponent(path)).then(d=>{
     doc=parseDlg(d.text);filePath=d.path;relaid=false;savedText="";
-    TRIG=triggerEntries();cur=doc.start in doc.nodes?doc.start:Object.keys(doc.nodes)[0];
+    TRIG=triggerEntries();
+    cur=gotoNode&&doc.nodes[gotoNode]?gotoNode
+        :doc.start in doc.nodes?doc.start:Object.keys(doc.nodes)[0];
     beat=doc.nodes[cur]?doc.nodes[cur].narr.length:0;
-    hide();render();savedText=toDlg();markDirty(false);
+    hide();render();savedText=docSnap();markDirty(false);
   }).catch(e=>note(String(e.message),"dirty"));}
 /* 浮层：复用 .pop，但定位在屏幕中上方，不跟着某个按钮走 */
 function place2(html){
   const p=$("pop");p.innerHTML=html;p.classList.add("on");
   p.style.left=Math.max(12,(innerWidth-360)/2)+"px";p.style.top="76px";return p;}</script>
+
+<script src="/ui/quest.js"></script>

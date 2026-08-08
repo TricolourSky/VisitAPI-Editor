@@ -26,7 +26,20 @@ internal static class DialogHeaderParser
         });
         switch (key)
         {
-            case "trader": t.DisplayName = Regex.Match(v, "\"(.*)\"").Groups[1].Value; break;
+            // `trader: <id> "名字"` —— 名字进 DisplayName；id 只在调用方没给的时候才用这里的。
+            //
+            // 插件是拿文件名当 trader id 传进来的，那条路径的行为一个字都不能变（所以调用方优先）。
+            // 但**调用方不传 id 时必须认这一行**：不认的话 Parse(text, null) 之后再 Write，
+            // 头一行就会写成 `trader:  "SORA"` —— id 被洗掉，文件直接废。
+            // 编辑器这边就是这么用的，第一次接对话挂接时正好踩到。
+            case "trader":
+                t.DisplayName = Regex.Match(v, "\"(.*)\"").Groups[1].Value;
+                if (string.IsNullOrEmpty(t.TraderId))
+                {
+                    var id = Regex.Match(v, @"^\s*(\S+)").Groups[1].Value;
+                    if (id.Length > 0 && !id.StartsWith("\"")) t.TraderId = id;
+                }
+                break;
             case "start": t.Start = v; break;
             case "first": t.First = v; break;
             case "actor": t.Actor = v; break;

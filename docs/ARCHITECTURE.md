@@ -1,128 +1,133 @@
-# 架构说明 / Architecture
+# Architecture
 
-给想读代码或改代码的人。全部源码只有 12 个文件，不到 1500 行。
+**English** · [中文](ARCHITECTURE.zh-CN.md)
 
 ---
 
-## 一句话
+## In one line
 
-一个 ASP.NET Core 自托管服务端，把一个单页界面端出去；界面在浏览器里跑，
-所有文件读写都通过本地接口回到服务端做。
+A single-file exe that starts a loopback-only web server and serves an editor UI embedded inside itself.
+It reads and writes `.dlg` scripts and SPT quest files on your disk.
 
-```
-浏览器（界面 + .dlg 解析/回写的 JS 实现）
-   ↕  HTTP 127.0.0.1，带每次运行随机生成的令牌
-服务端（VisitAPI.Server）
-   ↕  文件系统，路径锁死在工作区内
-<EFT>\BepInEx\config\VisitAPI\   ← 和游戏插件读的是同一个目录
-```
+## Three projects
 
-## 三个工程
-
-| 工程 | 目标框架 | 做什么 |
+| Project | Target | What it does |
 |---|---|---|
-| `VisitAPI.Dlg` | netstandard2.0 | `.dlg` 的解析与回写。**和游戏插件共用这份源码** |
-| `VisitAPI.Server` | net10.0 (Web SDK) | 服务端 + 界面（界面嵌成资源打进 exe） |
-| `VisitAPI.Quests` | net10.0 | SPT 任务模型，占位，尚未动工 |
+| `VisitAPI.Dlg` | netstandard2.0 | `.dlg` parsing and writing. **Shared with the game plugin.** |
+| `VisitAPI.Quests` | net10.0 | Quests / locales read-write, validation, read-only SPT_Data, quest↔dialogue hooks |
+| `VisitAPI.Server` | net10.0 (Web) | Self-hosted server + the UI, embedded as resources |
 
-### 为什么 `VisitAPI.Dlg` 是 netstandard2.0
+### Why `VisitAPI.Dlg` is netstandard2.0
 
-它要同时被两边吃下：编辑器是 net10.0，游戏插件是 net472（跑在 Unity 的 Mono 里）。
-`netstandard2.0` 是唯一同时被这两个接受的目标；`netstandard2.1` 不支持 net472。
+It has to be consumable by **both** sides:
 
-⚠️ `netstandard2.0` 的**默认语言版本是 C# 7.3**，而解析器用了 `= new()`(C#9) 和文件级
-namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVersion>`。
+- The editor is net10.0
+- The game plugin is net472, running under Unity's Mono
 
-### 插件是"链源码"而不是"引用 DLL"
+netstandard2.0 is the only target both accept. Note that it defaults to C# 7.3, so the csproj sets
+`<LangVersion>latest</LangVersion>` explicitly — without it you get confusing errors on modern syntax.
 
-插件的 csproj 里是：
+### The plugin links the *sources*, not a DLL
 
-```xml
-<Compile Include="..\..\VisitAPI Editor\src\VisitAPI.Dlg\*.cs" LinkBase="Dialog\Shared" />
-```
+The plugin's csproj pulls these files in with `<Compile Include="..\..\VisitAPI Editor\src\VisitAPI.Dlg\*.cs" />`
+rather than referencing the compiled library. Two reasons:
 
-**这是有意的，别顺手改成 ProjectReference。** 理由：插件是发给玩家的，走引用就变成两个 DLL，
-玩家少拷一个就炸；而且 netstandard2.0 程序集跑在 Unity 的 Mono 下要多担一层风险。
-链源码零运行时风险，且源码依然只有一份，两边不可能解析不一致。
+1. The plugin stays a **single-DLL** drop-in; no extra assembly to ship or version
+2. It avoids running a netstandard2.0 assembly under Unity's Mono, which has been a source of trouble
 
-代价：两个项目目录耦合了（这个目录改名会让插件编不过）。
+The point of sharing at all: the editor and the game can **never** disagree about what a script means.
+"Looks right in the preview, wrong in game" is the exact failure this design rules out.
 
-## 服务端
+## Server
 
-`Program.cs` 五件事：挑空闲端口、端出界面、心跳、开浏览器、报构建时间。
+- **Loopback only.** Binds `127.0.0.1`, never `0.0.0.0`. This process can read and write your disk;
+  exposing it to the LAN would be handing that out.
+- **Dynamic port**, picked at startup by binding `:0` and releasing it.
+- **Per-run random token**, injected into the page as `<meta name="tok">` and required by every
+  `/api/*` call. Other sites can't read our page cross-origin, so they can't obtain it.
+- **Path jail.** Every path must resolve inside the workspace (or the quest DB); `..` is rejected.
+- **Heartbeat.** The page pings every 10s; after 40s of silence the server exits.
+  It deliberately does *not* let the page signal "I'm closing" — `pagehide` also fires on F5,
+  which killed the server on every refresh when we tried it.
+- **UI is embedded** in the exe as resources (`ui/index.html`, `ui/quest.css`, `ui/quest.js`).
+  Single-file publishing does not carry a `wwwroot` folder along, so embedding is the reliable route.
 
-- **端口**：绑 `:0` 让系统分配，记下号再放掉
-- **只绑 `127.0.0.1`**。绝不能绑 `0.0.0.0` —— 那等于把"随便读写你硬盘"开放给整个局域网
-- **心跳**：界面每 10 秒 `/api/ping`，服务端 40 秒没动静就自杀
-  ⚠️ 不要改成"页面关闭时主动发退出信号"：`pagehide` **按 F5 刷新时也会触发**，
-  那样用户一刷新服务端就死、页面再也加载不出来（踩过）
-- **`--no-browser`**：不自动开浏览器。自动化测试必须用，否则弹出的标签页会一直替它报到，心跳超时永远测不出来
+## Endpoints
 
-`Workspace.cs` 两道安全闸：
-
-1. **令牌** —— 每次启动生成随机串注入页面，`/api/*` 全部校验。恶意网页跨域读不到我们的 HTML，
-   就拿不到令牌。`<img>`/`<video>` 的 src 带不了自定义头，所以 `/media` 的令牌走查询串
-2. **路径牢笼** —— 任何路径都 `Path.GetFullPath` 后检查是否落在工作区内
-
-工作区来源优先级：`--root=` > 自动探测（从 exe 往上找 `BepInEx\config\VisitAPI`）> 上次填过的
-（记在 exe 旁边的 `visitapi-editor.txt`，不用浏览器 localStorage —— 清一次数据就没了）。
-
-## 接口
-
-| 接口 | 说明 |
+| Endpoint | Notes |
 |---|---|
-| `GET /` | 界面（会把令牌注入成 `<meta name="tok">`） |
-| `GET /api/ping` | 心跳，唯一不验令牌的接口 |
-| `POST /api/quit` | 退出 |
-| `GET/POST /api/workspace` | 读/设工作区，顺带回构建时间与素材目录是否存在 |
-| `GET /api/list?dir=` | 列子目录与剧本文件（`.dlg` 与 `.dlg.demo`） |
-| `GET/POST /api/dlg?path=` | 读/写剧本。写之前自动留 `.bak` |
-| `GET /api/assets` | `{bg:[], audio:[]}` 两个素材目录的清单 |
-| `GET /media?path=&t=` | 素材本体。**开了 Range 处理**，否则浏览器不给播 mp4 |
+| `GET /` | The UI (token injected as `<meta name="tok">`) |
+| `GET /ui/{name}` | The rest of the embedded UI assets |
+| `GET /api/ping` | Heartbeat — the only endpoint that skips the token |
+| `POST /api/quit` | Shut down |
+| `GET/POST /api/workspace` | Read/set the `.dlg` workspace; also reports the build stamp |
+| `GET /api/list?dir=` | List folders and script files (`.dlg` and `.dlg.demo`) |
+| `GET /api/dlg?path=` | Read a script verbatim |
+| `POST /api/dlg?path=` | Write a script. **Takes a model, not text** — see below. Writes a `.bak` first |
+| `POST /api/dlg/render` | Render without saving (what "View .dlg" shows) |
+| `GET /api/assets` | `{bg:[], audio:[]}` |
+| `GET /media?path=&t=` | Media bytes. **Range processing is on**, or browsers refuse to play mp4 |
+| `GET /api/quests` | Quests + locales + traders + maps + validation + a stamp |
+| `POST /api/quests` | Write back per file. The stamp acts as an optimistic lock (409 on mismatch) |
+| `GET /api/quests/items` | Item table (4288 rows; separate call, fetched on demand) |
+| `GET/POST /api/quests/roots` `/root` | List / choose where quests are stored |
+| `GET /api/quests/links` | Scan every `.dlg` for quest↔option hooks and triggers |
+| `POST /api/quests/link` | Attach/detach a hook. **This edits the `.dlg`, via `DialogWriter`** |
+| `POST /api/quests/trader-ok` | Mark a trader as known (for mods not installed / not updated yet) |
 
-## 回写保真
+## Faithful round-trip
 
-`.dlg` 是人手写的，回写绝不能把作者的排版和注释洗掉。做法：
+`.dlg` files are handwritten. Saving must not wash away the author's formatting or comments:
 
-- `DialogTree.HeadRaw` 按原顺序记下文件头**每一行**（含注释）；回写时重放：
-  注释原文照抄，可编辑的行从模型重新生成
-- 节点体里的注释挂到"它后面那个元素"的 `Lead` 上（节点/旁白/台词/选项/跳转各一份，加节点尾 `Tail`）
-- `DialogTrigger.Raw` 存触发器原文，回写优先照抄
-  ⚠️ **将来支持编辑触发器时，改完必须把 `Raw` 置 null**，否则回写吐旧内容
-- 别名反查：解析时别名已被换成真 ID，回写要查回去
+- `DialogTree.HeadRaw` records **every** header line in order (comments included); on write it is
+  replayed — comments copied verbatim, editable lines regenerated from the model
+- Comments inside a node attach to the element that follows them (`Lead` on node / narration / npc line /
+  option / jump, plus `Tail` at the end of a node)
+- `DialogTrigger.Raw` keeps the trigger line verbatim and the writer prefers it.
+  ⚠️ **If trigger editing is ever added, whatever changes a field must set `Raw` to null**, or the
+  writer will emit the stale line.
+- Quest aliases are mapped back to their names, so `quest sora = 5043…` doesn't turn into bare ids below
+- Anything the parser can't understand degrades to verbatim rather than being regenerated
 
-## ⚠️ 已知的架构债：现在有两个 writer
+## There is only one writer
 
-`VisitAPI.Dlg` 里有 C# 的 `DialogWriter`，界面 JS 里有 `toDlg()`。**保存走的是 JS 那个，
-C# 那个目前没人调用。**
+**`.dlg` text is produced solely by the C# `DialogWriter`.** The front-end POSTs a model and never
+assembles strings itself.
 
-这正是抽共享库要防的"两套实现迟早不一致"，而且已经发作过一次：JS 版曾经漏吐
-`anim:` / `bgm:` / `audio:`，导致存一次就丢字段（C# 版是对的）。
+This is a lesson, not a preference. The UI used to carry its own JS `toDlg()` alongside the C# one, and
+it measurably dropped: comments inside nodes, `anim` on narration lines, the value of `setstatus`, the
+trader id on `standing`, and a second gate on the same option. Two writing implementations drift, and
+the cost of drift is somebody else's script.
 
-**建议**：保存改成界面把模型发给服务端、由 `DialogWriter` 落盘，让 C# 版成为唯一真相。
-在那之前，**改任何一边的写逻辑都必须同步改另一边。**
+Quest json applies the same principle differently: **everything stays a `JsonNode` and only fields we
+understand are touched.** There is deliberately no strongly-typed model, so fields we never modelled
+(`arenaLocations`, `gameModes`, …) cannot be silently dropped on a deserialize→serialize round trip.
 
-## 界面
+### Two known normalisations (not data loss)
 
-单个 `wwwroot/index.html`，无构建步骤、无框架、无依赖。里面包含：
+1. `DialogWriter` emits one blank line before each node, so **blank-line placement** may differ from the
+   original (the count does not)
+2. `setstatus: x=AvailableForFinish` is written as `setstatus: x` — 3 is the parser's default, so the
+   two are equivalent
 
-- 一份对齐 `DialogParser.cs` 的 JS 解析器（同一份文本，两边解析出同一张图）
-- 画布预览、节点图（自绘贝塞尔连线 + 拖拽缩放）、分拍页签、中英双语、深浅双主题
+## UI
 
-界面在 csproj 里被嵌成资源（`LogicalName="ui/..."`），单文件发布时才不会掉。
+One page, no framework, no build step. `index.html` carries the shell and the dialogue editor;
+`quest.css` / `quest.js` carry the quest editor.
 
-⚠️ 本地用 `file://` 直接打开这个 HTML 时，Chrome 会**猜编码**，没有 `<meta charset="utf-8">`
-会猜成 GBK → 中文字符串字面量变乱码 → 报 `SyntaxError` 却指向一行完全正常的代码。
-通过服务端访问时响应头带 charset，不会踩到。
+- All interface text goes through a `T("key")` lookup against two tables (zh / en). Server-side messages
+  are returned as **codes plus arguments**, never prose, so a new language is a new table and no C# change.
+- Two different "languages" exist and are deliberately separate variables: `lang` is the interface
+  language; `qlang` is which language of *content* you are currently writing.
+- Theme is a `data-theme` attribute on `<html>`; every colour is a custom property, so nothing needs to
+  know whether it is currently light or dark.
 
-## 界面设计规则
+## UI design rules
 
-风格取自《明日方舟：终末地》的 AIC 工业终端。四条铁律：
+Four rules the whole interface follows:
 
-1. **形状** — 斜切（-11°）只给挂牌类（按钮、标签、芯片）；容器类一律直角；**零圆角**
-2. **厚度** — 静止态纯平，阴影和高光**只在 hover / active 时发生**
-3. **颜色** — 柠檬黄 `#F2E205` = 当前项 / 主操作；橙 = 入口 / 告警；青 = 触发器入口；其余石墨灰阶
-4. **信息** — 能承载数据的地方不放装饰：头部条码 = 每根线一个节点，左缘索引条 = 每根刻度一条故事线，
-   节点角标 = 选项数
-
-画布里的游戏对话框版式照搬塔科夫原生，但配色改成了中性黑，交互色跟外面统一。
+1. **Shear (`-11°`) only on tag-like elements** — spec chips, type badges. Never on buttons or panels.
+2. **Flat at rest.** Depth (shadow) appears only on hover or for the current item.
+3. **Lemon yellow `#F2E205` means "current" or "primary action"** — nothing else. Orange is for warnings.
+4. **If it can carry data, don't make it decoration.** The chain graph's `LV.n` rail is prerequisite
+   depth; the dot on a tab means that tab has content.

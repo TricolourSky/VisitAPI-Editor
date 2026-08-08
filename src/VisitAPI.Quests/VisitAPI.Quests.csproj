@@ -5,8 +5,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>VisitAPI.Quests</AssemblyName>
     <RootNamespace>VisitAPI.Quests</RootNamespace>
   </PropertyGroup>
+
+  <!-- 任务和对话之间那根线要读写 .dlg，所以引共享库；解析和回写都只有它一份实现 -->
+  <ItemGroup>
+    <ProjectReference Include="..\VisitAPI.Dlg\VisitAPI.Dlg.csproj" />
+  </ItemGroup>
 
 </Project>

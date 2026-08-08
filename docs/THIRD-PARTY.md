@@ -1,39 +1,48 @@
-# 第三方素材说明 / Third-party assets
+# Third-party assets
 
-## ⚠️ 发布前请确认这一条
-
-`src/VisitAPI.Server/wwwroot/index.html` 里内嵌了 **5 个 base64 PNG 图标**（共约 5.5 KB）：
-
-| 用途 | 出处 |
-|---|---|
-| 说话 / 接取任务 / 完成任务 / 离开 / 交易 | 从《逃离塔科夫》的对话界面图集里提取 |
-
-它们出现在预览里的选项行左侧，作用是让预览和游戏里看到的一致。
-
-**这是从游戏里提取的美术资源。** SPT 模组圈普遍会这么做，社区也基本接受，
-但严格说它们不属于本项目，**是否随源码公开发布由你决定**。
-
-两个选择：
-
-1. **照旧发布** —— 和绝大多数 SPT 模组一致，预览保持完全还原
-2. **换成自绘图标** —— 用内联 SVG 重画 5 个同义图标，彻底不含第三方资源，
-   代价是预览里的图标不再和游戏一模一样
-
-需要换的话说一声，改动只在 `index.html` 的 `const ICON={...}` 一处。
+**English** · [中文](THIRD-PARTY.zh-CN.md)
 
 ---
 
-## 不随源码发布的东西
+## ⚠️ Please read this before publishing
 
-`.gitignore` 已排除：
+`src/VisitAPI.Server/wwwroot/index.html` embeds **5 base64 PNG icons** (about 5.5 KB in total):
 
-- **`mockups/`** —— 4 版界面原型留档。其中 `*.built.html` 每个约 5 MB，内嵌了游戏截图与角色美术；
-  `bg/` 同理。这些是第三方美术资源，只在本地留档，不进仓库。
-- **`Memory.MD`** —— 开发流水账，含本机绝对路径与大量内部推理，不适合公开。
-  想公开的话把 `.gitignore` 里那一行删掉即可。
-- **`dist/`** —— 构建产物。发布时作为 GitHub Release 的附件上传，不进仓库历史。
+| Used for | Origin |
+|---|---|
+| Talk / Accept quest / Complete quest / Leave / Trade | Extracted from Escape from Tarkov's dialogue UI atlas |
 
-## 剧本与素材
+They appear to the left of option rows in the preview, so that what you see here matches what you see
+in game.
 
-仓库里**不含任何 `.dlg` 剧本、背景图、音频**。这些是各模组作者自己的内容，
-放在玩家本机的 `<EFT>\BepInEx\config\VisitAPI\` 下，工具只是读写它们。
+**These are art assets extracted from the game.** Doing so is common in the SPT modding scene and
+broadly accepted there, but strictly speaking they are not part of this project, so **whether to ship
+them with the source is your call**.
+
+Two options:
+
+1. **Ship as-is** — same as the vast majority of SPT mods; the preview stays fully faithful
+2. **Replace with hand-drawn icons** — redraw the 5 icons as inline SVG, so no third-party asset
+   remains, at the cost of the preview icons no longer matching the game exactly
+
+If you want them replaced, say so — the change is confined to a single `const ICON={...}` in
+`index.html`.
+
+---
+
+## What is deliberately not published with the source
+
+Already excluded by `.gitignore`:
+
+- **`mockups/`** — four generations of UI prototypes kept for reference. Each `*.built.html` is around
+  5 MB and embeds game screenshots and character art; `bg/` likewise. Third-party art — kept locally,
+  never committed.
+- **`Memory.MD`** — the development log. Contains absolute paths from this machine and a lot of internal
+  reasoning; not suitable for publication. Delete that line from `.gitignore` if you want it public.
+- **`dist/`** — build output. Uploaded as a GitHub Release asset rather than living in repository history.
+
+## Scripts and media
+
+The repository contains **no `.dlg` scripts, background images or audio**. Those belong to individual
+mod authors, live under `<EFT>\BepInEx\config\VisitAPI\` on the player's own machine, and this tool
+only reads and writes them.

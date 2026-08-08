@@ -1,3 +1,5 @@
+using VisitAPI.Dialog;
+
 namespace VisitAPI.Server;
 
 /// <summary>文件相关的接口。全部要求带令牌，全部走 Workspace 的路径牢笼。</summary>
@@ -92,17 +94,22 @@ public static class FileApi
             return Results.Json(new { path, text = File.ReadAllText(full) });
         });
 
-        app.MapPost("/api/dlg", async (string path, HttpRequest req) =>
+        // 存盘：**收模型，不收文本**。文本一律由 DialogWriter 生成 ——
+        // .dlg 只有一个写手，前端那份 toDlg() 已经退役（它会丢注释和好几个字段）。
+        app.MapPost("/api/dlg", (string path, DlgJson.Doc doc) =>
         {
             var full = ws.Resolve(path);
-            if (full == null) return Results.BadRequest(new { error = "路径越界" });
-            using var r = new StreamReader(req.Body);
-            var text = await r.ReadToEndAsync();
+            if (full == null) return Results.BadRequest(new { error = "bad_path" });
+            var text = DialogWriter.Write(DlgJson.ToTree(doc));
             // 覆盖前先留一份 .bak：这是别人几十小时写的剧本，存错一次就毁了
             if (File.Exists(full)) File.Copy(full, full + ".bak", true);
             File.WriteAllText(full, text);
-            return Results.Json(new { ok = true, bytes = text.Length });
+            return Results.Json(new { ok = true, bytes = text.Length, text });
         });
+
+        // 只渲染不落盘：界面上"查看 .dlg"要看的就是这份将要写进文件的文本
+        app.MapPost("/api/dlg/render", (DlgJson.Doc doc) =>
+            Results.Json(new { text = DialogWriter.Write(DlgJson.ToTree(doc)) }));
     }
 
     public record RootReq(string Path);
