@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <!--TOKEN-->
-<title>AIC CONSOLE — VisitAPI Editor v4</title>
+<link rel="icon" href="/ui/favicon.ico">
+<title>AIC CONSOLE — VisitAPI Editor</title>
 
 <!--
   v5：不再用手编的样例，直接吃 SORA 的真实 .dlg（90726f6a656374536f726132.dlg）。
@@ -50,6 +51,11 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
+/* ⚠️ 这份页面**没有 <!doctype html>**，浏览器跑在 quirks mode 里，而 quirks mode 有一条老规矩：
+   **<table> 不继承外面的字体**，它退回默认的 16px。于是说明页里表格的字比正文明显大一号。
+   补一个 doctype 是"正确"的修法，但整套界面都是在 quirks mode 下调出来的，
+   一改渲染模式全站都要重新对一遍——不值得。这里让表格显式继承就够了。 */
+table{font:inherit;color:inherit}
 body{background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:14px;
   line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font-family:inherit;color:inherit}
@@ -139,6 +145,59 @@ svg{display:block}
   border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11.5px var(--mono)}
 .pop .fld input:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
 .pop .hint{font-size:10.5px;line-height:1.6;color:var(--ink-3)}
+.pop .fld select{width:100%;box-sizing:border-box;padding:.28rem .4rem;background:var(--panel);
+  border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11.5px var(--mono)}
+/* 触发点：一行一条，点开就是那条的表单 */
+.trrow{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;border:0;cursor:pointer;
+  background:var(--panel-3);color:var(--ink-2);padding:.3rem .5rem;margin-bottom:2px;font-size:11.5px}
+.trrow:hover{background:var(--y);color:var(--y-ink)}
+.trrow b{font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trrow span{margin-left:auto;font:8.5px/1 var(--mono);opacity:.6}
+.trxyz{display:flex;gap:.3rem}.trxyz .fld{flex:1 1 0;min-width:0}
+/* 节点标题上的 ⋮：平时压暗，鼠标到这张卡上才亮，免得每张卡上都戳着一个点 */
+.ghead .grole{margin-left:.35rem;font-style:normal;cursor:pointer;opacity:.35;padding:0 .15rem}
+.gnode:hover .ghead .grole{opacity:.8}
+.ghead .grole:hover{opacity:1;color:var(--y)}
+.gnode[data-start="1"] .ghead .grole:hover,.gnode[data-entry="1"] .ghead .grole:hover{color:inherit}
+/* 旧版剧本的提示：橙色，和"未实现/要注意"是同一套颜色语言 */
+.cart div.old k,.cart div.old v{color:var(--o)}
+.cprow{margin-bottom:.55rem}
+.cprow b{display:block;font-size:11.5px;color:var(--o)}
+.cprow .cpline{font:10.5px/1.5 var(--mono);color:var(--ink-3);margin:.1rem 0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cprow span{display:block;font-size:11px;line-height:1.6;color:var(--ink-2)}
+
+/* ══ 新手引导 ══
+   四块半透明的遮罩围出一个"洞"，洞里那个元素保持原样、且**照样能点**
+   （遮罩自己 pointer-events:none，只有气泡吃鼠标）。 */
+.tourwrap{position:fixed;inset:0;z-index:180;pointer-events:none}
+.tourhole{position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,.62),inset 0 0 0 2px var(--y);
+  border-radius:1px}
+.tourtip{position:fixed;z-index:181;pointer-events:auto;max-width:320px;
+  background:var(--panel);box-shadow:0 0 0 1px var(--line-2),0 18px 44px rgba(0,0,0,.6);
+  padding:.7rem .8rem}
+.tourtip b{display:block;font-size:13px;color:var(--y);margin-bottom:.28rem}
+.tourtip span{display:block;font-size:12px;line-height:1.7;color:var(--ink-2)}
+.touracts{display:flex;align-items:center;gap:.4rem;margin-top:.6rem}
+.touracts i{font-style:normal;font:9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3);margin-right:auto}
+
+/* ══ 程序内弹窗 ══ 盖住整屏，居中一个盒子。浏览器自带的那三个太出戏 */
+.mdwrap{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center}
+.mdbox{min-width:320px;max-width:min(520px,92vw);background:var(--panel);
+  box-shadow:0 0 0 1px var(--line-2),0 28px 66px rgba(0,0,0,.7)}
+.mdhead{display:flex;align-items:center;gap:.6rem;padding:.55rem .9rem;
+  border-bottom:1px solid var(--line);background:var(--panel-2);
+  font:10px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2)}
+.mdhead .slab{width:4px;height:16px;background:var(--y);flex:0 0 auto}
+.mdbody{padding:.9rem;font-size:12.5px;line-height:1.7;color:var(--ink)}
+.mdin{width:calc(100% - 1.8rem);margin:0 .9rem;box-sizing:border-box;padding:.4rem .5rem;
+  background:var(--panel-3);border:0;box-shadow:inset 0 0 0 1px var(--line-2);
+  color:var(--ink);font:12.5px var(--mono)}
+.mdin:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
+.mdacts{display:flex;justify-content:flex-end;gap:.4rem;padding:.9rem}
+.btn.warn{background:var(--o);color:#170A03}
+.btn.warn:hover{filter:brightness(1.1)}
 .hdr .sp{flex:1 1 auto}
 #bars{align-self:center;display:flex;align-items:flex-end;gap:2px;height:22px;padding:0 1.1rem}
 #bars i{display:block;width:1px;height:100%;background:var(--ink-3)}
@@ -437,6 +496,44 @@ svg{display:block}
 .abspec v.good{color:var(--ok)} .abspec v.bad{color:var(--o)}
 @media (max-width:1080px){.abspec{display:none}}
 
+/* ══ 使用说明页 ══
+   骨架直接复用介绍页的 .abwrap/.abhero/.abmark，省得再养一套装饰。
+   折叠用原生 <details>：不用自己管开合状态，键盘和读屏软件也天然能用。 */
+.hpwrap{flex:1 1 auto;min-height:0;overflow:auto;padding:1.5rem 2.1rem 2rem;display:flex;flex-direction:column}
+.hpin{position:relative;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.hpgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:start}
+@media (max-width:1080px){.hpgrid{grid-template-columns:minmax(0,1fr)}}
+.hpcol{display:flex;flex-direction:column;gap:.55rem;min-width:0}
+.hphd{font:9.5px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--y);
+  display:flex;align-items:center;gap:.5rem;margin:.4rem 0 .1rem}
+.hphd i{font-style:normal;color:var(--ink-3);letter-spacing:.1em}
+.hphd::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
+.hpcard{background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.hpcard>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.6rem;
+  padding:.6rem .85rem;font-size:13px;font-weight:700;color:var(--ink)}
+.hpcard>summary::-webkit-details-marker{display:none}
+/* 三角自己画：原生标记在不同浏览器上大小不一，和这套界面也不搭 */
+.hpcard>summary::before{content:"";flex:0 0 auto;width:0;height:0;
+  border-left:5px solid var(--ink-3);border-top:4px solid transparent;border-bottom:4px solid transparent;
+  transition:transform .12s}
+.hpcard[open]>summary::before{transform:rotate(90deg);border-left-color:var(--y)}
+.hpcard>summary:hover{color:var(--y)}
+.hpcard>summary span{margin-left:auto;font:8.5px/1 var(--mono);letter-spacing:.18em;color:var(--ink-3)}
+.hpcard[open]>summary{border-bottom:1px solid var(--line)}
+.hpbody{padding:.7rem .95rem .9rem;font-size:12.5px;line-height:1.75;color:var(--ink-2)}
+.hpbody p{margin:0 0 .6rem} .hpbody p:last-child{margin-bottom:0}
+.hpbody b{color:var(--ink)}
+.hpbody ul{margin:0 0 .6rem;padding-left:1.1rem} .hpbody li{margin:.2rem 0}
+.hpbody code{font:11.5px var(--mono);background:var(--panel-3);padding:.05rem .3rem;color:var(--tech)}
+/* 例子整段横向可滚：剧本行可能很长，绝不让它把整页顶出横向滚动条 */
+.hpcode{font:11.5px/1.7 var(--mono);background:var(--panel-3);color:var(--ink);
+  padding:.6rem .7rem;margin:0 0 .6rem;overflow-x:auto;white-space:pre;
+  border-left:2px solid var(--y)}
+.hptab{width:100%;border-collapse:collapse;margin:0 0 .6rem;display:block;overflow-x:auto}
+.hptab td{border-top:1px solid var(--line);padding:.32rem .5rem;vertical-align:top}
+.hptab tr:first-child td{border-top:0}
+.hptab td:first-child{white-space:nowrap;width:1%;color:var(--ink)}
+
 /* 两栏。三栏试过——内容摊不满，每张卡下半截都空着，比留白还难看。
    两栏让每列的自然高度接近一屏，不用靠拉伸凑。 */
 .abgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
@@ -602,12 +699,14 @@ const ICON={talk:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7
   quit:"data:image/png;base64,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",trade:"data:image/png;base64,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"};
 let ASSETS={bg:[],audio:[]};   /* 真实素材清单，开局从 /api/assets 拉；原型时代内嵌 base64 的做法已废弃 */
 const mediaUrl=(n,sub)=>"/media?path="+encodeURIComponent((sub||"backgrounds")+"/"+n)+"&t="+encodeURIComponent(TOK);
-const SRC=`trader: 000000000000000000000000 "新商人"
+/* 起手模板**跟着界面语言走**。以前这段是写死的中文，界面切成英文之后
+   预览里还是"新商人/一个选项"，看着像半成品。 */
+const srcText=()=>`trader: 000000000000000000000000 "${T("new_trader")}"
 start: root
 
 <root>
-在这里写商人说的第一句话。
-- 一个选项 -> @close`;
+${T("new_npc")}
+- ${T("new_opt2")} -> @close`;
 const $=i=>document.getElementById(i);
 /* 实心块面图标——终末地的图标是厚实的剪影，细描边一上就露怯。
    带挖空的（info/help/gear）用 fill-rule=evenodd 在同一条路径里挖。 */
@@ -628,6 +727,238 @@ const I18N={zh:{
   nav_back:"还原备份",nav_help:"使用说明",nav_settings:"设置",
   nav_toggle:"折叠 / 展开侧栏",nav_aria:"模块",
   st0:"未解锁",st1:"可接取",st2:"进行中",st3:"可提交",st4:"已完成",st5:"已失败",
+
+  /* ══ 使用说明页 ══ 一张卡一件事，标题点一下收起。写给不写代码的人看，所以先说"是什么"再说"怎么写"。 */
+  hp_lede:"从零开始，把一段对话和一条任务做出来",
+  hp_sec_dlg:"对话编辑",hp_sec_q:"任务编辑",
+  hp_tip:"点标题可以收起这张卡",
+  hp_all_open:"全部展开",hp_all_shut:"全部收起",
+
+  g_intro:"先搞清楚：这东西是干什么的、你需要装什么",
+  g_intro_b:`<p>这个编辑器做两件事，<b>互相独立，你可以只用其中一件</b>：</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>写对话</b></td><td>让游戏里的商人跟玩家说话、给选项、走分支。<b>需要装 VisitAPI 插件</b>——真正把对话演出来的是它，编辑器只是帮你把剧本写对</td></tr>
+      <tr><td><b>写任务</b></td><td>做出来的是<b>标准 SPT 任务文件</b>，<b>不需要 VisitAPI</b>，任何会读任务的模组都能用</td></tr>
+    </tbody></table>
+    <p>一段对话就是一个<b>文本文件</b>，后缀 <code>.dlg</code>，一个商人一份。
+      放在 <code>&lt;EFT&gt;\\BepInEx\\config\\VisitAPI\\</code> 下面——编辑器开起来会自己找这个目录，
+      找不到就问你一次，之后记住。</p>
+    <p>你不需要会写代码。<code>.dlg</code> 里就三样东西：<b>谁在说话</b>、<b>说什么</b>、<b>玩家能回什么</b>。
+      下面第二张卡就是从零到能在游戏里看见的全过程。</p>`,
+
+  g_first:"五分钟：做出第一段能在游戏里看见的对话",
+  g_first_b:`<p>照着走一遍，中间不需要理解任何术语。</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>1</b></td><td>左边侧栏进<b>对话编辑</b>，点右上角<b>打开</b>。如果你还没有任何 <code>.dlg</code>，先随便建一个空文本文件，改名叫 <code>mytrader.dlg</code> 放进上面那个目录</td></tr>
+      <tr><td><b>2</b></td><td>右边流程图上点 <b>＋</b> 加一个节点，双击它的标题改个名字（用英文，比如 <code>hello</code>）</td></tr>
+      <tr><td><b>3</b></td><td>点这个节点，左边预览里就能直接写<b>商人说的话</b>和<b>玩家的选项</b>——你看到的就是游戏里的样子</td></tr>
+      <tr><td><b>4</b></td><td>节点标题上的 <b>⋮</b> → <b>设为入口</b>。意思是"玩家点「对话」时从这一屏开始"</td></tr>
+      <tr><td><b>5</b></td><td>顶栏那格 <b>trader</b> 要是空的或者不对，说明文件头缺了商人 id——见下一张卡</td></tr>
+      <tr><td><b>6</b></td><td>点<b>保存 .DLG</b>。进游戏找那个商人，界面上会多一个「<b>对话</b>」按钮</td></tr>
+    </tbody></table>
+    <p>写出来的文件大概长这样，一共六行：</p>
+    <pre class="hpcode">trader: 54cb50c76803fa8b248b4571 "Prapor"
+start: hello
+
+&lt;hello&gt;
+你来了。有什么事？
+- 随便看看。 -&gt; @trade
+- 没事，走了。</pre>
+    <p>第一行是<b>这段对话属于哪个商人</b>（那串 24 位的东西是商人 id，
+      在任务编辑器的商人列表里能看到，也可以直接抄游戏自带的）。
+      第二行说<b>从哪一屏开始</b>。下面就是那一屏本身。</p>
+    <p>看不到「对话」按钮？多半是这三件事之一：插件没装、商人 id 写错了、
+      或者文件头写了 <code>tab:</code> 把按钮限制住了（顶栏那格 <b>tab</b> 点开就能改）。</p>`,
+
+  g_file:"一份 .dlg 就是一个商人的一段对话",
+  g_file_b:`<p>一个商人一份文件，放在 <code>&lt;EFT&gt;\\BepInEx\\config\\VisitAPI\\</code> 下面，
+    双击「打开」就能选。</p>
+    <p>编辑器左边是<b>预览</b>——你写的字在游戏对话框里长什么样，当场就能看见；右边是<b>流程图</b>，
+    整段故事有几条岔路一眼看完。</p>
+    <p>保存时<b>只有你改过的那几行会变</b>，注释、空行、你排的版都原样留着。每次覆盖前还会留一份 .bak。</p>`,
+
+  g_node:"节点：玩家看到的一屏",
+  g_node_b:`<p>一个<b>节点</b>就是玩家看到的一屏对话。里面按顺序放三样东西，都可以省：</p>
+    <ul>
+      <li><b>旁白</b>（<code>&gt;</code> 开头）——环境描写。可以写好几条，一条一屏，玩家点一下翻一条</li>
+      <li><b>商人说的话</b>——一个节点只有一句</li>
+      <li><b>选项</b>（<code>-</code> 开头）——玩家能点的话，想给几条给几条</li>
+    </ul>
+    <pre class="hpcode">&lt;root&gt; bg: shopfront.png
+&gt; 门开了一条缝，屋里没开灯。
+你来了。
+- 看看你有什么货。 -&gt; @trade
+- 我先走了。</pre>
+    <p>读法：背景是 shopfront.png → 先出一条旁白 → 商人说「你来了。」 → 给两个选项。</p>`,
+
+  g_name:"节点的名字：名字就是地址",
+  g_name_b:`<p>尖括号里那个名字（上面那个 <code>root</code>）<b>只在文件里用，玩家永远看不见</b>。
+    随便起，<code>root</code>、<code>first_meeting</code>、<code>A1</code> 都行，只要不重复。</p>
+    <p>它唯一的作用是<b>给跳转当地址</b>：选项后面写 <code>-&gt; A1</code>，就是跳到 <code>&lt;A1&gt;</code> 那一屏。</p>
+    <p><b>名字只用英文字母、数字、下划线、点、减号。</b>中文名字这个编辑器读不出来（那个节点会整个丢掉），
+      所以别用——玩家反正也看不见这个名字。</p>
+    <p>另外有四行会点名某个节点，写在文件最上面：</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>start:</code></td><td>进对话默认从哪个节点开始。一般就叫 root</td></tr>
+      <tr><td><code>first:</code></td><td><b>只有第一次见这个商人</b>才走这个节点，见过一次以后再也不走</td></tr>
+      <tr><td><code>when:</code></td><td>按等级 / 好感换一个入口。<b>写在前面的先匹配</b>，一条都不满足就用 start:</td></tr>
+      <tr><td><code>tab:</code></td><td>不是节点——它决定商人界面上那个「对话」按钮<b>出不出现</b></td></tr>
+    </tbody></table>
+    <pre class="hpcode">start: root
+first: first_meeting
+when: level&gt;=4 -&gt; root_high
+when: level&gt;=2 -&gt; root_low
+tab: if 65f0e1c2a4b39d7e8c120001=已完成</pre>
+    <p>读法：那条任务完成之后，商人界面上才会出现「对话」按钮；第一次见面走 first_meeting；
+      以后等级 ≥4 走 root_high，≥2 走 root_low，都不够就走 root。</p>`,
+
+  g_special:"哪些节点是特殊的（root 其实不是）",
+  g_special_b:`<p><code>&lt;root&gt;</code> <b>不是关键字</b>，它只是大家习惯用的名字。真正说了算的是文件头
+    <code>start:</code> 那一行——写成 <code>start: 开场</code>，入口就是 <code>&lt;开场&gt;</code>，
+    这时候叫 root 的那个节点反而没人进得去。</p>
+    <p>真正"位置特殊"的是下面这几种。<b>特殊的不是名字，是有东西指着它</b>：</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>入口节点</b></td><td><code>start:</code> 指的那个。玩家点「对话」默认从这儿开始</td></tr>
+      <tr><td><b>初见节点</b></td><td><code>first:</code> 指的那个。<b>只有第一次见这个商人</b>才走，而且只有点「对话」这条路会走——从触发点进来不算</td></tr>
+      <tr><td><b>分层入口</b></td><td><code>when:</code> 按等级/好感换的那几个。<code>root_high</code> / <code>root_low</code> 这种名字只是好认，不是规则</td></tr>
+      <tr><td><b>触发点节点</b></td><td><code>trigger: … node X</code> 指的那个。玩家在藏身处/战局里走过去打开的就是它</td></tr>
+      <tr><td><b>孤儿节点</b></td><td>没有任何选项跳到它，上面几样也没指过它——玩家永远看不到。流程图会把它标出来</td></tr>
+    </tbody></table>
+    <p><code>@start</code> 回到的是 <b><code>when:</code> / <code>start:</code> 算出来的那个入口</b>：
+      这次是 <code>root_high</code> 进来的，回的就是 root_high。从触发点进来的那次也一样——
+      它回的是入口，不是触发点指定的那个节点。</p>
+    <pre class="hpcode">start: root
+first: first_meeting
+when: level&gt;=4 -&gt; root_high
+
+&lt;first_meeting&gt;   ← 初见走这里
+&lt;root&gt;            ← 平时走这里
+&lt;root_high&gt;       ← 等级够了走这里
+&lt;C&gt;               ← 只有触发点 node C 能进来
+&lt;废弃的节点&gt;       ← 没人指它，玩家看不到（流程图会标出来）</pre>`,
+
+  g_trig:"触发点：不点商人也能开始说话",
+  g_trig_b:`<p>除了在商人界面点「对话」，还可以让玩家<b>走到某个位置</b>就能开口——藏身处的某个房间、
+    战局里的某个角落。这就是文件头的 <code>trigger:</code> 行。</p>
+    <p>顶栏那个 <b>trigger</b> 格点开就能加、能改、能删（数字是当前有几条）。一条包含：</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>类型</b></td><td><code>hideout</code> 藏身处 / <code>raid</code> 战局</td></tr>
+      <tr><td><b>地点</b></td><td>藏身处填区域名（<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…）；战局填地图名，<code>*</code> 表示任何地图</td></tr>
+      <tr><td><b>坐标</b></td><td>游戏里的世界坐标 <code>(x, y, z)</code></td></tr>
+      <tr><td><b>打开哪个节点</b></td><td>不填就用 <code>start:</code> 那个入口</td></tr>
+      <tr><td><b>多近才出现</b></td><td>距离，米。默认 3</td></tr>
+      <tr><td><b>朝向容差</b></td><td>战局里还要"看着它"才出提示，这个值越大越好瞄</td></tr>
+      <tr><td><b>任务门控</b></td><td>只在某个任务处于某状态时才出现，写成 <code>任务id=状态</code></td></tr>
+      <tr><td><b>提示语</b></td><td>玩家看到的那行字，不填就是「对话」</td></tr>
+    </tbody></table>
+    <pre class="hpcode">trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node C dist 3.5 if 65f0e1c2…=Started "找他聊聊"</pre>
+    <p>读法：任务在「进行中」的时候，走到藏身处情报中心那个点 3.5 米内，会出现「找他聊聊」，
+      点了从 <code>&lt;C&gt;</code> 开始说。</p>
+    <p><b>坐标怎么来</b>：目前得在游戏里量。改完保存时，<b>只有你动过的那一条会被重写</b>，
+      其余的连小数点后几位都原样不动。</p>`,
+
+  g_jump:"选项跳到哪：几个固定去处",
+  g_jump_b:`<p>选项后面的 <code>-&gt;</code> 写节点名，就是跳到那一屏。除此之外有几个固定写法：</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>（不写）</code></td><td>说完就把对话关掉</td></tr>
+      <tr><td><code>@close</code> <code>@leave</code></td><td>同上，只是写出来更清楚</td></tr>
+      <tr><td><code>@trade</code></td><td>关掉对话，切到商人的<b>交易</b>页</td></tr>
+      <tr><td><code>@services</code></td><td>关掉对话，切到<b>服务</b>页</td></tr>
+      <tr><td><code>@tasks</code></td><td>关掉对话，切到<b>任务</b>页</td></tr>
+      <tr><td><code>@visit</code></td><td>跳到这个商人<b>原版自带</b>的那段对话</td></tr>
+      <tr><td><code>@start</code></td><td>回到本次对话的入口，重新来一遍</td></tr>
+    </tbody></table>
+    <p>⚠️ 跳到一个不存在的名字，游戏里的表现是<b>直接关掉对话</b>。编辑器会在流程图上把这种断头路标出来。</p>`,
+
+  g_act:"选项还能顺手做事",
+  g_act_b:`<p>在选项后面加一个 <code>|</code>，就能挂上动作，多个用逗号隔开：</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>accept:</code></td><td>点了就<b>接下</b>这个任务</td></tr>
+      <tr><td><code>complete:</code></td><td>点了就<b>交掉</b>这个任务</td></tr>
+      <tr><td><code>handover:</code></td><td>上交物品（后面可以跟一句提示，比如「建筑材料」）</td></tr>
+      <tr><td><code>setstatus:</code></td><td>直接把某个任务改成某个状态，不走接取/交付流程</td></tr>
+      <tr><td><code>standing:</code></td><td>加减好感，<code>+0.05</code> 这样写</td></tr>
+      <tr><td><code>if:</code> / <code>ifnot:</code></td><td>什么时候<b>才</b>显示 / 什么时候<b>不</b>显示这条选项</td></tr>
+      <tr><td><code>once</code></td><td>这条选项一辈子只能点一次</td></tr>
+      <tr><td><code>always</code></td><td>永远显示，见下面那条</td></tr>
+    </tbody></table>
+    <pre class="hpcode">- 这活我接了。 -&gt; A4 | accept: 65f0e1c2a4b39d7e8c120001
+- 东西给你。 | handover: job1 建筑材料, standing: +0.05
+- 我们聊过这个了。 | ifnot: job1=未解锁, once</pre>
+    <p><b>最容易被绊一下的一条</b>：只写了 <code>accept:</code> / <code>handover:</code> / <code>complete:</code>
+      而没写 <code>if:</code> 时，系统会<b>自动</b>补一条门控——接取的选项只在任务「可接取」时出现、
+      上交只在「进行中」、交付只在「可提交」。所以"我明明写了，游戏里怎么不显示"，
+      多半是任务还没到那个状态。想让它一直显示，加 <code>always</code>。</p>`,
+
+  g_media:"背景、音乐、语音摆在哪一级",
+  g_media_b:`<p>三样东西挂的位置不一样，别放错了：</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>bg:</code></td><td>背景图/视频。节点上写一次管整屏；<b>每条旁白也能各写一个</b>，用来分镜</td></tr>
+      <tr><td><code>bgm:</code></td><td>音乐。<b>只能写在节点上</b>，进这个节点就换</td></tr>
+      <tr><td><code>audio:</code></td><td>语音。跟着<b>某一句话</b>走：商人台词一条、每条旁白一条</td></tr>
+    </tbody></table>
+    <p>素材放这两个目录：背景 <code>backgrounds\\</code>、声音 <code>audio\\</code>，都在工作区下面。
+      编辑器里挑得到的，游戏里就一定找得到——两边读的是同一个目录。</p>`,
+
+  g_scene:"场景与演员：scene: 和 actor:",
+  g_scene_b:`<p>前面那张卡讲的 <code>bg:</code> 是<b>一张平面的背景图或视频</b>。
+    <code>scene:</code> 是另一回事——它在对话背后<b>真的加载一个 3D 房间</b>，就是原版"拜访商人"那种。
+    顶栏的 <b>scene</b> 那一格点开就能填。</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>scene: auto</code></td><td>用<b>这个商人自己的</b>房间（按商人 id 去找房间包）</td></tr>
+      <tr><td><code>scene: 别的名字</code></td><td>指定用哪个房间包</td></tr>
+      <tr><td>不写这一行</td><td>不加载 3D 房间，就是对话框 ＋ <code>bg:</code> 那张图</td></tr>
+    </tbody></table>
+    <p><b>什么时候真的会加载</b>——这三条都得成立，缺一样就自动跳过（不会报错，只是没有房间）：</p>
+    <ul>
+      <li>是从<b>商人界面点「对话」</b>进来的。<b>触发点进来的不加载</b>，任务那边跳过来的也不加载</li>
+      <li><b>不在战局里</b>。战局里只有对话框</li>
+      <li>装了<b>场景包</b>（<code>bundles\\vendors\\</code> 下面有这个商人的房间包）。没装就退回没有房间的样子</li>
+    </ul>
+    <p><b><code>actor:</code> 现在还没用上。</b>文件里写得下、编辑器存得住、也不会被吃掉，
+      但插件那边目前<b>没有任何地方读它</b>——先占个位子。同理 <code>anim:</code> 也还没有入口。
+      3D 房间里到底能摆哪些人、能播哪些动作，要等插件那边把原生房间的构成分析完才知道，
+      所以这两处编辑器都<b>不给下拉</b>：给一串猜出来的选项等于骗人。</p>`,
+
+  g_q_what:"任务编辑：写出来的是标准 SPT 任务",
+  g_q_what_b:`<p>这一页做出来的是<b>普通的 SPT 任务文件</b>（<code>db\\quests\\*.json</code> 加
+    <code>db\\locales\\*.json</code>），<b>不依赖 VisitAPI</b>，别的模组照样能用。</p>
+    <p>但要知道一件事：<b>SPT 不会自己去某个目录捡任务</b>，得有一个服务端模组去读。
+      所以「存到哪」由你定：装了 VisitAPI-Server 就存进它的 <code>db\\quests</code>；
+      也可以存进别的模组；或者先存着，以后自己写加载器。</p>
+    <p>物品、地图、商人的清单直接读游戏自带数据，不用背那串 24 位的 id。</p>`,
+
+  g_q_tabs:"四个页签，按玩家的时间顺序排",
+  g_q_tabs_b:`<table class="hptab"><tbody>
+      <tr><td><b>任务卡</b></td><td>玩家看到的那一面：名字、描述、目标、奖励、接取条件</td></tr>
+      <tr><td><b>对话</b></td><td>这条任务挂在哪句台词上（见下一张卡）</td></tr>
+      <tr><td><b>失败</b></td><td>什么情况算失败、失败了扣什么</td></tr>
+      <tr><td><b>属性</b></td><td>能不能重做、失败后能不能重接这类开关</td></tr>
+    </tbody></table>
+    <p>右边还有一张<b>任务链图</b>：每张卡是一个任务，从卡上拖一条线到另一张卡，就是「先做完这个才能接那个」。
+      成环、自己连自己、重复连，都会被拦住。</p>`,
+
+  g_q_obj:"目标怎么写",
+  g_q_obj_b:`<p>目标用人话显示：写出来是「击杀 5 个野人（立交桥）」，不是 <code>CounterCreator</code>。
+    点行末的 <code>⋮</code> 改数量、换物品、换地图。</p>
+    <p>要求更细的话，同一个菜单里有<b>高级设置</b>：必须战局中找到（FiR）、耐久区间、必须一局内完成、
+      限时、区域 id、放置耗时、击杀距离和时段。这些字段是把原版一千多条任务条件挨个扫过一遍挑出来的，
+      都是原版真在用的。</p>
+    <p>武器型号、命中部位那类是列表，暂时没做入口——面板里也照实写着，不会让你以为填了就生效。</p>`,
+
+  g_q_link:"把任务挂到对话上（两步）",
+  g_q_link_b:`<p>玩家要点哪句话才接到这个任务？在「对话」页签里两步搞定：</p>
+    <ul><li>先挑一个 <code>.dlg</code> 里的节点</li><li>再挑那个节点下面的哪条选项</li></ul>
+    <p>挂完那条 <code>.dlg</code> 会被就地改一行——只改那一行，注释和排版一个字不动。
+      挂接行点一下能直接跳到对话编辑器，并且<b>正好停在那个节点上</b>。</p>`,
+
+  g_q_save:"文案、校验、保存",
+  g_q_save_b:`<p>任务里存的是<b>文案 key</b>，真正的文字在 locales 里。编辑器帮你把这层挡掉了——
+    你看到和改的都是文字。右上角能切「你在写哪种语言的文案」，那和界面语言是两回事。</p>
+    <p>保存前会跑一遍校验：没目标、完成邮件是空的、前置任务不存在、id 重复、商人找不到……
+      只提示，不拦着你存。</p>
+    <p>保存用<b>指纹</b>防冲突：文件在编辑器外面被改过（手改、装模组、开了两个窗口），
+      它会先问一句，不会默默盖掉别人的改动。每次覆盖前照样留 .bak。</p>`,
   hdr_nodes:"节点",hdr_trigs:"触发器",sec_viewport:"视口 / VIEWPORT",sec_graph:"流程 / FLOW",
   tip_bars:"每一竖线是一个节点：橙=入口，青=触发器入口",tip_fold:"收起视口，让流程图占满",tip_rail:"章节索引：点刻度跳到那条故事线",
   btn_src:"查看 .dlg",btn_save:"保存 .dlg",btn_open:"打开",
@@ -642,9 +973,73 @@ const I18N={zh:{
   m_root:"选择工作区",root_ok:"确定",
   root_hint:"没自动找到 EFT。填 .dlg 所在的目录（一般是 <EFT>\\BepInEx\\config\\VisitAPI），填一次就会记住。",
   tip_head:"点这里改文件头的 scene: / actor:",m_head:"这份剧本的场景与演员",
+  tip_trig:"点这里编辑触发点：玩家走到哪能打开这段对话",
+  tip_tab:"点这里改：商人界面上那个「对话」按钮什么时候出现",
+  tip_role:"这个节点的身份：入口 / 初见 / 分层入口",
+  tip_compat:"这份剧本里有旧版（4.0.13）的写法，点开看要改哪几处",
+  m_role:"节点 <{0}> 的身份",
+  m_role_start:"设为入口（start:）",m_role_first:"设为初见（first:）",
+  m_role_when:"＋ 加一条分层入口（when:）",m_role_whens:"指向它的 when:",
+  m_role_ask:"什么条件下从这个节点进？写法：level>=4 或 standing>=0.5（可以写两个，空格隔开）",
+  m_role_bad:"没看懂这个条件。只认 level 和 standing，比如 level>=4",
+  m_role_d:"入口＝玩家点「对话」默认从哪儿开始；初见只走一次；分层入口按等级/好感换一个开场。",
+  m_tab:"「对话」按钮什么时候出现",
+  m_tab_off:"一直显示",m_tab_on:"看任务",
+  m_tab_q:"任务 id",m_tab_st:"这些状态下才显示",
+  m_tab_d:"文件头的 tab: 行。不限制＝商人界面上一直有「对话」按钮；看任务＝那个任务处于选中的状态时才出现。",
+  cp_title:"这份剧本有 {0} 处旧版写法",
+  cp_n:"{0} 处",
+  cp_note:"4.1 是从零重做的，下面这几处**语法没变、意思变了或者读不出来**——文件照样能打开、不报错，进游戏才发现不对。",
+  cp_trader_order:"trader: 的名字写在 id 前面了",
+  cp_trader_order_fix:"4.1 要求 id 在前：trader: <商人id> \"名字\"。照现在这样，引号里那串会被当成商人 id。",
+  cp_tab_always:"tab: 后面不是 if …",
+  cp_tab_always_fix:"4.0.13 支持 tab: always，4.1 不认了（会被静默忽略）。想一直显示就把这一行删掉；想按任务控制就写 tab: if <任务id>=<状态>。",
+  cp_hideout_offset:"藏身处触发器的坐标：老版是相对区域的偏移",
+  cp_hideout_offset_fix:"4.1 这三个数是**世界坐标**。数字一样但位置完全不同，得在游戏里重新量一次。",
+  cp_trig_offset:"触发器里用了 offset 参数",
+  cp_trig_offset_fix:"4.1 没有这个参数了，把它删掉，坐标直接写世界坐标。",
+  cp_npc_multiline:"一个节点里写了不止一行商人台词",
+  cp_npc_multiline_fix:"4.0.13 会把它们拼成一段，4.1 **只留最后一行**，前面的存一次就没了。拆成几个节点，或者把它们并成一行。",
+  cp_pipe_space:"竖线两边没有空格",
+  cp_pipe_space_fix:"4.1 按「 | 」（前后各一个空格）分段。写成 a|b 会被当成一整段文字。",
+  cp_arrow_space:"箭头两边没有空格",
+  cp_arrow_space_fix:"4.1 按「 -> 」（前后各一个空格）认跳转。写成 文字->目标 会被当成选项文字的一部分。",
+  m_trig:"触发点",m_trig_none:"这份剧本还没有触发点。",m_trig_new:"＋ 新建一个",
+  m_trig_del:"删掉这一条",m_trig_back:"返回列表",m_trig_delask:"删掉这个触发点？",
+  m_trig_one:"触发点 {0}",
+  m_trig_d:"文件头的 trigger: 行。玩家走到坐标附近（战局里还要看着它）按一下，就打开这段对话。",
+  m_tr_place:"地点",m_tr_node:"打开哪个节点",m_tr_node_no:"（用 start: 那个入口）",
+  m_tr_dist:"多近才出现（米）",m_tr_radius:"朝向容差（越大越好瞄）",
+  m_tr_free:"单独一个提示（不并进区域菜单）",
+  m_tr_gate:"任务门控 任务id=状态",m_tr_prompt:"提示语",m_tr_prompt_ph:"不填就是「对话」",
+  m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…）；raid＝战局，地点填地图名，* 表示任何地图。坐标是游戏里的世界坐标，改过的那一行才会被重写，别的原样不动。",
   m_head_d:"写进文件头的 scene: / actor:。留空就不写这一行。能填什么取决于游戏里有哪些原生房间与角色，还在摸底，所以这里不给下拉。",
+  md_title:"VISITAPI EDITOR",md_ok:"确定",md_cancel:"取消",
+  set_tour:"新手引导",set_tour_d:"第一次进对话页和任务页时，会带着你把能点的地方过一遍。想再看一次就点这里。",
+  /* 新手引导：一步一句，说清"这是什么、点它会怎样" */
+  tr_next:"下一个",tr_done:"知道了",tr_skip:"跳过",tr_restart:"重看新手引导",
+  tr_open:"先打开一份剧本",tr_open_d:"点这里，从你的文件夹里挑一个 .dlg 文件。还没有的话，随便建个空的文本文件，把名字改成 mytrader.dlg 就行。",
+  tr_head:"给这段对话配个房间",tr_head_d:"能指定一个 3D 房间当背景，就是原版去拜访商人时看到的那种。不填也行，那就只有一个对话框。",
+  tr_trig:"让玩家走过去就能说上话",tr_trig_d:"不用点商人界面。在藏身处或者战局里走到你指定的位置，地上就会冒出一个「对话」的提示。在这儿加、改、删。",
+  tr_tab:"什么时候能看到「对话」按钮",tr_tab_d:"默认一直都有。也可以设成「做完某个任务之后才出现」。",
+  tr_stage:"这里就是游戏里的样子",tr_stage_d:"商人说的话、玩家能点的选项，都直接在这儿打字。你在这看到什么样，进游戏就是什么样。点背景能换图。",
+  tr_beat:"一屏可以说好几句",tr_beat_d:"像过场那样一句一句往下翻，玩家点一下出一句。每一句都能配自己的背景图和配音。",
+  tr_add:"加一屏",tr_add_d:"一屏就是玩家看到的一个画面（我们管它叫「节点」）。双击标题能改名字——名字只有你自己看得见，用英文和数字就行。",
+  tr_role:"让这一屏当开头",tr_role_d:"点标题上的 ⋮。可以把它设成玩家点「对话」时最先看到的那一屏；也可以设成只有第一次见面才走这里；还能按玩家等级或者好感度换不同的开场。",
+  tr_bars:"整份剧本长什么样",tr_bars_d:"一根竖线就是一屏。橙色的是开头，青色的是走过去触发的。点一下就跳到那一屏。",
+  tr_src:"看看真正会写进文件的内容",tr_src_d:"这里显示的，就是你点保存之后文件里的样子。",
+  tr_save:"保存",tr_save_d:"写回原来那个文件。动手之前先备份一份，你写的注释和排版一个字都不会被改。",
+  tr_q_pane:"四个页签",tr_q_pane_d:"按玩家的经历排：先看到任务卡 → 从哪句话接到 → 怎么算失败 → 一些开关。",
+  tr_q_new:"做一个新任务",tr_q_new_d:"先选存到哪个文件（可以现起一个名字），再选是哪个商人给的。那串长长的编号会自动生成，不用你管。",
+  tr_q_img:"任务卡上的那张图",tr_q_img_d:"点一下能挑游戏自带的图标，或者你自己模组文件夹里的图。",
+  tr_q_obj:"加一条要玩家做的事",tr_q_obj_d:"杀几个人、交几件东西、去哪个地方……写出来就是一句人话，不是一堆代码。",
+  tr_q_dots:"改这一行",tr_q_dots_d:"点这个 ⋮ 能改数量、换物品、换地图。里面还有「高级设置」，比如东西必须是战局里捡到的、或者必须一局之内做完。",
+  tr_q_graph:"任务之间的先后",tr_q_graph_d:"一张卡片是一个任务。从一张卡拖一条线到另一张，意思就是「先做完这个，才能接那个」。",
+  tr_q_mail:"商人发的信和玩家说的话",tr_q_mail_d:"接到任务、做完、失败的时候，商人各发一封信；还有玩家自己说的那几句。",
+  tr_q_save:"保存",tr_q_save_d:"写回任务文件。要是你在编辑器外面动过这些文件，它会先问你一句，不会闷头把你的改动盖掉。",
+  new_trader:"新商人",new_npc:"在这里写商人说的第一句话。",new_opt2:"一个选项",
   no_file:"（未打开文件）",unsaved:"有未保存改动",saved_ok:"已保存",
-  save_nofile:"还没打开文件，先点「打开」",save_fail:"保存失败:",confirm_discard:"当前改动还没保存，确定丢弃吗？",
+  save_nofile:"还没打开文件，先点「打开」",save_fail:"保存失败：",confirm_discard:"当前改动还没保存，确定丢弃吗？",
 tip_save:"导出为 .dlg 文件（Ctrl+S）",
   bg_set:"点这里设置背景",bg_missing:"（素材未找到）",
   tip_split:"拖动改变节点图高度",
@@ -680,7 +1075,7 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   ab_d_dlg:"编 .dlg 剧本：台词、分支、背景图/视频、语音、BGM，右边实时预览加整张流程图。要装 VisitAPI 插件，游戏里才读得到。",
   ab_d_quest:"编 SPT 任务：目标、奖励、四封邮件、失败分支、任务链，还能把任务挂到对话的某个选项上。不需要 VisitAPI。",
   ab_d_back:"从自动留下的 .bak 里挑一份还原回去。还没开始做。",
-  ab_d_help:"一步一步的使用说明。还没开始做——在那之前先看这一页。",
+  ab_d_help:"对话和任务怎么写，一张卡讲一件事，都配了例子。",
   ab_env:"ENVIRONMENT",
   ab_e_ws:"工作区（剧本）",ab_e_ws_d:".dlg、背景图、音频都从这里读",
   ab_e_q:"任务库",ab_e_q_d:"任务和文案写到这个目录下的 quests / locales",
@@ -731,6 +1126,13 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   q_root_bad:"这个目录用不了：{0}",
   q_root_none:"没扫到 SPT 的 mods 目录。可以直接在下面填一个路径。",
   q_root_cur:"当前：{0}",
+  /* 空任务库的落脚页——新模组的正常起点，不是错误 */
+  q_e_new_title:"这个任务库还是空的",
+  q_e_new_note:"里面一条任务都没有。新做的模组本来就是这样，从建第一条开始就行——文件名你自己起，编辑器会替你建出来。",
+  q_e_new_do:"接下来可以",
+  q_e_new_step:"建第一条任务（先挑放哪个文件、再挑挂哪个商人）",
+  q_e_new_move:"存错地方了？换一个任务库位置",
+  q_e_new_reload:"刚在外面放了任务文件？重新读一遍",
   qa_stale:"这些文件在编辑器外面被改过了。你现在保存会覆盖掉那些改动 —— 建议先重新载入。",
   qa_bad_name:"文件名不合法：{0}",
   qa_broken_locale:"文案文件 {0} 读不动，先修好它再保存。为了不清空你的文案，这次没有写盘。",
@@ -888,6 +1290,254 @@ en:{
   nav_back:"Backups",nav_help:"Help",nav_settings:"Settings",
   nav_toggle:"Collapse / expand sidebar",nav_aria:"Sections",
   st0:"Locked",st1:"Available",st2:"Started",st3:"Ready to hand in",st4:"Success",st5:"Failed",
+
+  /* ══ Guide ══ one card per idea, click a title to fold it away. */
+  hp_lede:"From nothing to a working conversation and a working quest",
+  hp_sec_dlg:"Dialogue",hp_sec_q:"Quests",
+  hp_tip:"Click a title to fold the card",
+  hp_all_open:"Expand all",hp_all_shut:"Collapse all",
+
+  g_intro:"First: what this is, and what you need installed",
+  g_intro_b:`<p>This editor does two jobs. They are <b>independent — you can use just one</b>:</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>Dialogue</b></td><td>makes a trader talk to the player, offer choices, branch. <b>Needs the VisitAPI plugin</b> — that's what actually performs the conversation; the editor only helps you write it correctly</td></tr>
+      <tr><td><b>Quests</b></td><td>produces <b>plain SPT quest files</b> and <b>does not need VisitAPI</b>. Any mod that loads quests can use them</td></tr>
+    </tbody></table>
+    <p>One conversation is one <b>text file</b> ending in <code>.dlg</code>, one per trader, kept in
+      <code>&lt;EFT&gt;\\BepInEx\\config\\VisitAPI\\</code>. The editor looks for that folder on start-up;
+      if it can't find it, it asks once and then remembers.</p>
+    <p>You don't need to write code. A <code>.dlg</code> holds three things: <b>who is talking</b>,
+      <b>what they say</b>, and <b>what the player can say back</b>. The next card walks the whole way
+      from nothing to seeing it in game.</p>`,
+
+  g_first:"Five minutes: a conversation you can see in game",
+  g_first_b:`<p>Follow it once. You don't have to understand any of the terms yet.</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>1</b></td><td>Sidebar → <b>Dialogue</b>, then <b>Open</b> at the top right. If you have no <code>.dlg</code> at all, make an empty text file called <code>mytrader.dlg</code> in the folder above</td></tr>
+      <tr><td><b>2</b></td><td>On the flow graph, click <b>＋</b> to add a node, then double-click its title to name it (plain letters, e.g. <code>hello</code>)</td></tr>
+      <tr><td><b>3</b></td><td>Click the node and type the <b>trader's line</b> and the <b>player's options</b> straight into the preview on the left — what you see is what the game shows</td></tr>
+      <tr><td><b>4</b></td><td>The <b>⋮</b> on the node title → <b>Make it the entry</b>. That means "this is the screen Talk starts on"</td></tr>
+      <tr><td><b>5</b></td><td>If the <b>trader</b> cell in the top bar is empty or wrong, the header is missing a trader id — see the next card</td></tr>
+      <tr><td><b>6</b></td><td>Hit <b>Save .DLG</b>. In game, that trader's screen now has a <b>Talk</b> button</td></tr>
+    </tbody></table>
+    <p>What you just wrote is about six lines:</p>
+    <pre class="hpcode">trader: 54cb50c76803fa8b248b4571 "Prapor"
+start: hello
+
+&lt;hello&gt;
+So you're here. What do you want?
+- Just looking. -&gt; @trade
+- Nothing. I'm off.</pre>
+    <p>Line one says <b>which trader this conversation belongs to</b> (the 24-character thing is the
+      trader id — the quest editor's trader list shows them, or copy one from a stock trader).
+      Line two says <b>which screen to start on</b>. The rest is that screen.</p>
+    <p>No Talk button in game? Almost always one of three things: the plugin isn't installed, the trader id
+      is wrong, or the header has a <code>tab:</code> line gating the button (the <b>tab</b> cell in the top
+      bar edits it).</p>`,
+
+  g_file:"One .dlg file is one trader's conversation",
+  g_file_b:`<p>One file per trader, kept in <code>&lt;EFT&gt;\\BepInEx\\config\\VisitAPI\\</code>.
+    Click <b>Open</b> and pick one.</p>
+    <p>The left half is a <b>live preview</b> — what you type, in Tarkov's own dialogue box, as you type it.
+    The right half is the <b>flow graph</b>: every branch of the story at a glance.</p>
+    <p>Saving changes <b>only the lines you actually changed</b>. Your comments, blank lines and layout come
+    back exactly as you left them, and a .bak is written before every overwrite.</p>`,
+
+  g_node:"A node is one screen of dialogue",
+  g_node_b:`<p>A <b>node</b> is one screenful. It holds up to three things, in this order, all optional:</p>
+    <ul>
+      <li><b>Narration</b> (lines starting with <code>&gt;</code>) — scene-setting. Write several and the
+        player taps through them one at a time</li>
+      <li><b>What the trader says</b> — one line per node</li>
+      <li><b>Options</b> (lines starting with <code>-</code>) — what the player can say back, as many as you like</li>
+    </ul>
+    <pre class="hpcode">&lt;root&gt; bg: shopfront.png
+&gt; The door opens a crack. No lights inside.
+So you came.
+- Show me what you've got. -&gt; @trade
+- I'll be going.</pre>
+    <p>Reads as: background shopfront.png → one line of narration → the trader says "So you came." → two options.</p>`,
+
+  g_name:"Node names are addresses",
+  g_name_b:`<p>The name in angle brackets (<code>root</code> above) is <b>only ever used inside the file — the
+    player never sees it</b>. Call them whatever you like: <code>root</code>, <code>first_meeting</code>,
+    <code>A1</code>. They just have to be unique.</p>
+    <p>Their one job is to be <b>the address a jump points at</b>: an option ending in <code>-&gt; A1</code>
+    takes the player to <code>&lt;A1&gt;</code>.</p>
+    <p><b>Stick to letters, digits, underscore, dot and dash.</b> This editor cannot read a name with
+      non-Latin characters in it (the whole node is dropped), so don't use them — the player never sees
+      the name anyway.</p>
+    <p>Four header lines name a node. They go at the top of the file:</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>start:</code></td><td>where the conversation begins. Usually a node called root</td></tr>
+      <tr><td><code>first:</code></td><td>used <b>only the first time</b> this player meets this trader, never again</td></tr>
+      <tr><td><code>when:</code></td><td>swap the entry by level / standing. <b>First match wins</b>; if none match, start: is used</td></tr>
+      <tr><td><code>tab:</code></td><td>not a node — it decides whether the trader screen shows the <b>Talk button</b> at all</td></tr>
+    </tbody></table>
+    <pre class="hpcode">start: root
+first: first_meeting
+when: level&gt;=4 -&gt; root_high
+when: level&gt;=2 -&gt; root_low
+tab: if 65f0e1c2a4b39d7e8c120001=Success</pre>
+    <p>Reads as: the Talk button only appears once that quest is done; the first meeting goes to
+      first_meeting; after that level ≥4 goes to root_high, ≥2 to root_low, anything else to root.</p>`,
+
+  g_special:"Which nodes are special (root isn't one of them)",
+  g_special_b:`<p><code>&lt;root&gt;</code> is <b>not a keyword</b> — it's just the name everyone happens to use.
+    What actually decides is the <code>start:</code> line in the header. Write <code>start: opening</code>
+    and the entry is <code>&lt;opening&gt;</code>; the node called root becomes unreachable.</p>
+    <p>These are the ones that really do hold a special position. <b>It isn't the name that's special —
+    it's that something points at them</b>:</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>Entry node</b></td><td>the one <code>start:</code> names. Clicking Talk begins here</td></tr>
+      <tr><td><b>First-meeting node</b></td><td>the one <code>first:</code> names. Used <b>only the first time</b> — and only on the Talk path; coming in from a trigger point doesn't count</td></tr>
+      <tr><td><b>Tiered entries</b></td><td>the ones <code>when:</code> swaps in by level / standing. Names like <code>root_high</code> / <code>root_low</code> are a convention, not a rule</td></tr>
+      <tr><td><b>Trigger node</b></td><td>the one <code>trigger: … node X</code> names — what opens when the player walks up to a spot</td></tr>
+      <tr><td><b>Orphans</b></td><td>no option jumps to it and none of the above names it — the player can never see it. The flow graph marks these</td></tr>
+    </tbody></table>
+    <p><code>@start</code> returns to <b>the entry that <code>when:</code> / <code>start:</code> resolved to</b>:
+      if this run came in through <code>root_high</code>, that's where it goes back to. Same when the player
+      arrived via a trigger point — it returns to the entry, not to the node the trigger named.</p>
+    <pre class="hpcode">start: root
+first: first_meeting
+when: level&gt;=4 -&gt; root_high
+
+&lt;first_meeting&gt;   ← first meeting comes here
+&lt;root&gt;            ← normally comes here
+&lt;root_high&gt;       ← high enough level comes here
+&lt;C&gt;               ← only a trigger with node C reaches this
+&lt;leftover_node&gt;   ← nothing points at it; unreachable (the graph flags it)</pre>`,
+
+  g_trig:"Trigger points: starting a conversation without the trader screen",
+  g_trig_b:`<p>Besides clicking Talk on the trader screen, you can let the player <b>walk up to a spot</b> and
+    start talking — a room in the hideout, a corner of a map. That's a <code>trigger:</code> line in the header.</p>
+    <p>The <b>trigger</b> cell in the top bar opens the editor: add, change, delete (the number is how many
+    there are). One trigger holds:</p>
+    <table class="hptab"><tbody>
+      <tr><td><b>Type</b></td><td><code>hideout</code> or <code>raid</code></td></tr>
+      <tr><td><b>Place</b></td><td>hideout: an area name (<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…); raid: a map name, <code>*</code> for any map</td></tr>
+      <tr><td><b>Position</b></td><td>world coordinates <code>(x, y, z)</code></td></tr>
+      <tr><td><b>Which node</b></td><td>leave empty to use the <code>start:</code> entry</td></tr>
+      <tr><td><b>How close</b></td><td>distance in metres. Default 3</td></tr>
+      <tr><td><b>Aim tolerance</b></td><td>in a raid the player also has to look at it; bigger is easier to hit</td></tr>
+      <tr><td><b>Quest gate</b></td><td>only show while a quest is in a given status: <code>questId=status</code></td></tr>
+      <tr><td><b>Prompt</b></td><td>the line the player sees; defaults to "Talk"</td></tr>
+    </tbody></table>
+    <pre class="hpcode">trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node C dist 3.5 if 65f0e1c2…=Started "Talk to him"</pre>
+    <p>Reads as: while that quest is started, walking within 3.5 m of that spot in the Intelligence Center
+      shows "Talk to him", and picking it starts at <code>&lt;C&gt;</code>.</p>
+    <p><b>Where do coordinates come from</b>: you have to read them off in game for now. When you save,
+      <b>only the line you edited is rewritten</b> — the others keep every decimal exactly as typed.</p>`,
+
+  g_jump:"Where an option can go",
+  g_jump_b:`<p>Put a node name after <code>-&gt;</code> to jump there. A few names are reserved:</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>(nothing)</code></td><td>say the line, then close the conversation</td></tr>
+      <tr><td><code>@close</code> <code>@leave</code></td><td>the same thing, spelled out</td></tr>
+      <tr><td><code>@trade</code></td><td>close, and switch to the trader's <b>Trade</b> tab</td></tr>
+      <tr><td><code>@services</code></td><td>close, and switch to <b>Services</b></td></tr>
+      <tr><td><code>@tasks</code></td><td>close, and switch to <b>Tasks</b></td></tr>
+      <tr><td><code>@visit</code></td><td>jump into this trader's <b>own stock</b> conversation</td></tr>
+      <tr><td><code>@start</code></td><td>back to the entry node and around again</td></tr>
+    </tbody></table>
+    <p>⚠️ Jumping to a name that doesn't exist <b>closes the conversation</b> in game. The editor marks
+      those dead ends on the flow graph.</p>`,
+
+  g_act:"Options can do things too",
+  g_act_b:`<p>Add a <code>|</code> after an option and hang actions off it, comma-separated:</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>accept:</code></td><td><b>takes</b> the quest</td></tr>
+      <tr><td><code>complete:</code></td><td><b>hands in</b> the quest</td></tr>
+      <tr><td><code>handover:</code></td><td>hand over items (an optional label follows, e.g. "Building materials")</td></tr>
+      <tr><td><code>setstatus:</code></td><td>force a quest into a status, skipping the accept/hand-in flow</td></tr>
+      <tr><td><code>standing:</code></td><td>change standing, written like <code>+0.05</code></td></tr>
+      <tr><td><code>if:</code> / <code>ifnot:</code></td><td>when this option <b>does</b> / <b>doesn't</b> show</td></tr>
+      <tr><td><code>once</code></td><td>can be picked exactly once, ever</td></tr>
+      <tr><td><code>always</code></td><td>always show — see below</td></tr>
+    </tbody></table>
+    <pre class="hpcode">- I'll take the job. -&gt; A4 | accept: 65f0e1c2a4b39d7e8c120001
+- Here's your stuff. | handover: job1 Building materials, standing: +0.05
+- We've been over this. | ifnot: job1=Locked, once</pre>
+    <p><b>The one that trips people up</b>: if you write <code>accept:</code> / <code>handover:</code> /
+      <code>complete:</code> without an <code>if:</code>, a gate is added <b>automatically</b> — the accept
+      option only shows while the quest is available, hand-over only while it's started, hand-in only when
+      it's ready. So "I wrote it and it isn't there" is usually the quest not being in that state yet.
+      Add <code>always</code> if you want it shown regardless.</p>`,
+
+  g_media:"Where backgrounds, music and voice attach",
+  g_media_b:`<p>The three attach at different levels — this is easy to get wrong:</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>bg:</code></td><td>image or video. On the node it covers the whole screen;
+        <b>each narration line can carry its own</b>, which is how you cut between shots</td></tr>
+      <tr><td><code>bgm:</code></td><td>music. <b>Node level only</b> — entering the node changes the track</td></tr>
+      <tr><td><code>audio:</code></td><td>voice. Belongs to <b>one spoken line</b>: the trader's line, or one narration line</td></tr>
+    </tbody></table>
+    <p>Files live in two folders under the workspace: <code>backgrounds\\</code> and <code>audio\\</code>.
+      Anything you can pick here will resolve in game — the plugin reads the very same folders.</p>`,
+
+  g_scene:"Scene and actor: scene: and actor:",
+  g_scene_b:`<p>The <code>bg:</code> from the previous card is <b>a flat image or video</b>.
+    <code>scene:</code> is a different thing — it <b>actually loads a 3D room</b> behind the conversation,
+    the one stock Tarkov uses when you visit a trader. The <b>scene</b> cell in the top bar edits it.</p>
+    <table class="hptab"><tbody>
+      <tr><td><code>scene: auto</code></td><td>use <b>this trader's own</b> room (looked up by trader id)</td></tr>
+      <tr><td><code>scene: some_name</code></td><td>use that particular room pack</td></tr>
+      <tr><td>no line at all</td><td>no 3D room — just the dialogue box and whatever <code>bg:</code> says</td></tr>
+    </tbody></table>
+    <p><b>When it actually loads</b> — all three have to hold, and if any doesn't it is skipped silently
+      (no error, you simply get no room):</p>
+    <ul>
+      <li>the player came in by <b>clicking Talk on the trader screen</b>. <b>Trigger points don't load it</b>, and neither does jumping in from the quest editor</li>
+      <li><b>not in a raid</b>. In a raid you only get the dialogue box</li>
+      <li>the <b>scene pack is installed</b> (a room pack for this trader under <code>bundles\\vendors\\</code>). Without it, you fall back to no room</li>
+    </ul>
+    <p><b><code>actor:</code> is not wired up yet.</b> You can write it, the editor keeps it and never eats it,
+      but <b>nothing in the plugin reads it</b> today — it's a placeholder. Same for <code>anim:</code>,
+      which has no editor entry at all. Which characters a room can hold and which animations they can play
+      depends on work still going on in the plugin repo, so neither field offers a dropdown:
+      a list of guesses would be a lie.</p>`,
+
+  g_q_what:"Quests: what comes out is a plain SPT quest",
+  g_q_what_b:`<p>This page writes <b>ordinary SPT quest files</b> (<code>db\\quests\\*.json</code> plus
+    <code>db\\locales\\*.json</code>). It <b>does not need VisitAPI</b>; any mod can use them.</p>
+    <p>One thing to know: <b>SPT does not pick quests up from a folder on its own</b> — a server mod has to
+    read them. So where they go is your call: with VisitAPI-Server installed, its own <code>db\\quests</code>;
+    or another mod's folder; or keep them and write a loader later.</p>
+    <p>Item, map and trader lists come from the game's own data, so nobody has to memorise 24-character ids.</p>`,
+
+  g_q_tabs:"Four tabs, in the order the player meets them",
+  g_q_tabs_b:`<table class="hptab"><tbody>
+      <tr><td><b>Quest card</b></td><td>the side the player sees: name, description, objectives, rewards, accept conditions</td></tr>
+      <tr><td><b>Dialogue</b></td><td>which line of dialogue hands this quest out (next card)</td></tr>
+      <tr><td><b>Failure</b></td><td>what counts as failing, and what it costs</td></tr>
+      <tr><td><b>Properties</b></td><td>switches like restartable, or can-be-retaken-after-failure</td></tr>
+    </tbody></table>
+    <p>To the right is the <b>chain graph</b>: one card per quest. Drag from one card to another and that's a
+      prerequisite. Loops, self-links and duplicates are refused.</p>`,
+
+  g_q_obj:"Writing objectives",
+  g_q_obj_b:`<p>Objectives read as plain language — "kill 5 scavs (Interchange)", not <code>CounterCreator</code>.
+    The <code>⋮</code> at the end of a row changes the count, the item, the map.</p>
+    <p>For finer control the same menu has <b>Advanced</b>: found-in-raid, durability range, one-raid-only,
+      time limit, zone id, plant time, kill distance and time of day. Those fields come from a survey of all
+      thousand-plus conditions in the stock quests — they're what the game actually uses.</p>
+    <p>Weapon models and body parts are list-valued and have no editor yet. The panel says so rather than
+      letting you think a value took effect.</p>`,
+
+  g_q_link:"Hooking a quest onto dialogue (two clicks)",
+  g_q_link_b:`<p>Which line does the player have to pick to get this quest? Two steps on the Dialogue tab:</p>
+    <ul><li>pick a node in a <code>.dlg</code></li><li>pick which option under that node</li></ul>
+    <p>Attaching rewrites <b>one line</b> of that <code>.dlg</code> in place — comments and layout untouched.
+      Clicking a hook row jumps you to the dialogue editor and <b>lands on that exact node</b>.</p>`,
+
+  g_q_save:"Text, validation, saving",
+  g_q_save_b:`<p>A quest file stores <b>text keys</b>; the actual words live in the locales. The editor hides that
+    layer — you see and edit the words. The switch at the top right picks <b>which language you are writing
+    in</b>, which is a different thing from the interface language.</p>
+    <p>Saving runs a validation pass: no objectives, empty completion mail, missing prerequisite, duplicate id,
+      unknown trader… It tells you; it doesn't stop you.</p>
+    <p>Saving is guarded by a <b>fingerprint</b>: if the files changed outside the editor (by hand, by a mod,
+      by a second window) it asks first instead of quietly overwriting someone's work. A .bak is written every time.</p>`,
   hdr_nodes:"nodes",hdr_trigs:"triggers",sec_viewport:"VIEWPORT",sec_graph:"FLOW",
   tip_bars:"One tick per node — orange = entry, teal = trigger entry",tip_fold:"Collapse the viewport, give the flow full width",tip_rail:"Chapter index — click a tick to jump to that thread",
   btn_src:"View .dlg",btn_save:"Save .dlg",btn_open:"Open",
@@ -902,7 +1552,71 @@ en:{
   m_root:"Choose workspace",root_ok:"OK",
   root_hint:"Couldn't find EFT automatically. Enter the folder holding your .dlg files (usually <EFT>\\BepInEx\\config\\VisitAPI). It will be remembered.",
   tip_head:"Edit the scene: / actor: header lines",m_head:"Scene and actor for this script",
+  tip_trig:"Edit trigger points — where the player can open this conversation",
+  tip_tab:"When the Talk button shows up on the trader screen",
+  tip_role:"This node's role: entry / first meeting / tiered entry",
+  tip_compat:"This script uses some 4.0.13 syntax — click to see what needs changing",
+  m_role:"Role of node <{0}>",
+  m_role_start:"Make it the entry (start:)",m_role_first:"Make it the first meeting (first:)",
+  m_role_when:"＋ Add a tiered entry (when:)",m_role_whens:"when: rules pointing here",
+  m_role_ask:"Under what condition should this node be the entry? Like level>=4 or standing>=0.5 (two are fine, space-separated)",
+  m_role_bad:"Couldn't read that condition. Only level and standing, e.g. level>=4",
+  m_role_d:"Entry = where Talk starts. First meeting runs once. Tiered entries swap the opening by level or standing.",
+  m_tab:"When the Talk button appears",
+  m_tab_off:"Always",m_tab_on:"Depends on a quest",
+  m_tab_q:"Quest id",m_tab_st:"Show while in these statuses",
+  m_tab_d:"The tab: line in the header. Always = the trader screen always shows Talk. Otherwise it only appears while that quest is in one of the chosen statuses.",
+  cp_title:"This script has {0} bits of old-version syntax",
+  cp_n:"{0} spots",
+  cp_note:"4.1 was rebuilt from scratch. The lines below either **read differently now or don't read at all** — the file still opens without an error, and you only find out in game.",
+  cp_trader_order:"trader: has the name before the id",
+  cp_trader_order_fix:"4.1 wants the id first: trader: <traderId> \"Name\". As written, the quoted text is taken as the trader id.",
+  cp_tab_always:"tab: is not followed by if …",
+  cp_tab_always_fix:"4.0.13 supported tab: always; 4.1 ignores it silently. Delete the line to always show Talk, or write tab: if <questId>=<status>.",
+  cp_hideout_offset:"Hideout trigger coordinates used to be an offset",
+  cp_hideout_offset_fix:"In 4.1 these three numbers are **world coordinates**. Same numbers, completely different spot — measure them again in game.",
+  cp_trig_offset:"The trigger uses the offset parameter",
+  cp_trig_offset_fix:"4.1 dropped it. Remove the word and put world coordinates in the brackets.",
+  cp_npc_multiline:"More than one trader line in a single node",
+  cp_npc_multiline_fix:"4.0.13 joined them; 4.1 **keeps only the last one** and the rest are gone the first time you save. Split into several nodes, or merge them into one line.",
+  cp_pipe_space:"No spaces around the pipe",
+  cp_pipe_space_fix:"4.1 splits on \" | \" (a space on each side). Written as a|b it is read as one piece of text.",
+  cp_arrow_space:"No spaces around the arrow",
+  cp_arrow_space_fix:"4.1 reads jumps as \" -> \" (a space on each side). Written as text->target it becomes part of the option text.",
+  m_trig:"Trigger points",m_trig_none:"This script has no trigger points yet.",m_trig_new:"＋ Add one",
+  m_trig_del:"Delete this one",m_trig_back:"Back to the list",m_trig_delask:"Delete this trigger point?",
+  m_trig_one:"Trigger point {0}",
+  m_trig_d:"A trigger: line in the file header. Walk near the spot (and look at it, in a raid), press use, and this conversation opens.",
+  m_tr_place:"Place",m_tr_node:"Which node to open",m_tr_node_no:"(the start: entry)",
+  m_tr_dist:"How close (metres)",m_tr_radius:"Aim tolerance (bigger = easier to hit)",
+  m_tr_free:"Its own prompt (don't merge into the area menu)",
+  m_tr_gate:"Quest gate  questId=status",m_tr_prompt:"Prompt",m_tr_prompt_ph:"defaults to \"Talk\"",
+  m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…); raid = in a raid, place is a map name, * means any map. Coordinates are world coordinates. Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
   m_head_d:"Written to the file header as scene: / actor:. Leave empty to omit the line. What you can put here depends on which built-in rooms and characters the game has — still being mapped out, so no dropdown yet.",
+  md_title:"VISITAPI EDITOR",md_ok:"OK",md_cancel:"Cancel",
+  set_tour:"Guided tour",set_tour_d:"The first time you open the dialogue and quest pages, it walks you through what you can click. Replay it here.",
+  /* Guided tour: one step, one sentence — what it is and what happens if you click it */
+  tr_next:"Next",tr_done:"Got it",tr_skip:"Skip",tr_restart:"Replay the tour",
+  tr_open:"Start by opening a script",tr_open_d:"Click here and pick a .dlg from your folder. Don't have one? Make an empty text file and rename it to mytrader.dlg — that's all it takes.",
+  tr_head:"Give the conversation a room",tr_head_d:"You can put a 3D room behind it — the one you see when you visit a trader in the stock game. Leave it empty and you just get the dialogue box.",
+  tr_trig:"Let the player walk up and talk",tr_trig_d:"No trader screen needed. Walk to a spot you pick in the hideout or a raid and a Talk prompt appears on the ground. Add, change and remove them here.",
+  tr_tab:"When the Talk button shows up",tr_tab_d:"Always, by default. Or set it to \"only after they finish a certain quest\".",
+  tr_stage:"This is what the game will look like",tr_stage_d:"Type the trader's line and the options the player can pick, right here. What you see is what you get in game. Click the background to change it.",
+  tr_beat:"One screen can say several things",tr_beat_d:"Line by line, like a cutscene — the player taps for the next one. Each line can have its own background picture and voice clip.",
+  tr_add:"Add a screen",tr_add_d:"A screen is one thing the player sees (we call it a node). Double-click the title to rename it — the name is only for you, so letters and digits are fine.",
+  tr_role:"Make this the opening screen",tr_role_d:"Click the ⋮ on the title. You can make this the first thing the player sees when they press Talk, or make it happen only the very first time you meet, or swap the opening by player level or standing.",
+  tr_bars:"The shape of the whole script",tr_bars_d:"One bar per screen. Orange ones are openings, teal ones are reached by walking up to a spot. Click one to jump there.",
+  tr_src:"See what actually goes in the file",tr_src_d:"This is exactly what the file will look like after you hit Save.",
+  tr_save:"Save",tr_save_d:"Writes back to the same file. It makes a backup first, and it never touches the comments or the layout you wrote.",
+  tr_q_pane:"Four tabs",tr_q_pane_d:"In the order the player runs into them: the quest card → which line hands it out → what counts as failing → a few switches.",
+  tr_q_new:"Make a new quest",tr_q_new_d:"First pick which file it goes in (you can name a new one), then which trader gives it out. The long id is generated for you.",
+  tr_q_img:"The picture on the quest card",tr_q_img_d:"Click it to pick one of the game's own icons, or a picture from your own mod folder.",
+  tr_q_obj:"Add something for the player to do",tr_q_obj_d:"Kill this many, hand over that, go somewhere… it reads like a sentence, not like code.",
+  tr_q_dots:"Change this line",tr_q_dots_d:"The ⋮ changes the count, the item, the map. There's also Advanced in there — things like \"must be found in raid\" or \"has to be done in one raid\".",
+  tr_q_graph:"Which quest comes first",tr_q_graph_d:"One card is one quest. Drag a line from one card to another and it means \"finish this one before you can take that one\".",
+  tr_q_mail:"The trader's mails and the player's lines",tr_q_mail_d:"A mail from the trader when the quest is taken, finished and failed — plus the few lines the player says.",
+  tr_q_save:"Save",tr_q_save_d:"Writes the quest files back. If you changed them outside the editor, it asks you first instead of overwriting your work.",
+  new_trader:"New trader",new_npc:"Write the trader's first line here.",new_opt2:"An option",
   no_file:"(no file open)",unsaved:"Unsaved changes",saved_ok:"Saved",
   save_nofile:"No file open — click Open first",save_fail:"Save failed:",confirm_discard:"You have unsaved changes. Discard them?",
 tip_save:"Export as a .dlg file (Ctrl+S)",
@@ -937,7 +1651,7 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   ab_d_dlg:"Edit a .dlg script: lines, branches, backgrounds and video, voice, music — live preview on the right plus the whole flow graph. Needs the VisitAPI plugin for the game to read it.",
   ab_d_quest:"Edit SPT quests: objectives, rewards, all four mails, the failure branch, quest chains, and which dialogue option hands a quest out. VisitAPI not required.",
   ab_d_back:"Roll a file back to one of the .bak copies this tool leaves behind. Not started yet.",
-  ab_d_help:"A step-by-step guide. Not started yet — until then, this page is it.",
+  ab_d_help:"How to write dialogue and quests — one card per idea, each with an example.",
   ab_env:"ENVIRONMENT",
   ab_e_ws:"Workspace (scripts)",ab_e_ws_d:".dlg files, backgrounds and audio are read from here",
   ab_e_q:"Quest DB",ab_e_q_d:"Quests and text are written to quests / locales under this folder",
@@ -985,6 +1699,13 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   q_root_bad:"Can't use that folder: {0}",
   q_root_none:"No SPT mods folder found. Type a path below instead.",
   q_root_cur:"Current: {0}",
+  /* Landing page for an empty quest library — a normal starting point, not an error */
+  q_e_new_title:"This quest library is empty",
+  q_e_new_note:"There isn't a single quest in it yet. That's just how a new mod starts — make the first one. You pick the file name; the editor creates it for you.",
+  q_e_new_do:"What you can do",
+  q_e_new_step:"Create the first quest (pick a file, then a trader)",
+  q_e_new_move:"Wrong folder? Point the editor somewhere else",
+  q_e_new_reload:"Just dropped quest files in from outside? Read them again",
   qa_stale:"These files changed outside the editor. Saving now would overwrite those changes — reload first.",
   qa_bad_name:"Invalid file name: {0}",
   qa_broken_locale:"Locale file {0} can't be read. Nothing was written, so your text is safe — fix the file first.",
@@ -1290,7 +2011,7 @@ let filePath=null, dirty=false, savedText="";
 /* savedText = 上次载入/保存时的文本。判断"脏"靠跟它比对，
    而不是"refresh 跑过就算改过"——切页面、切语言也会 refresh，那样会一直误报未保存。 */
 /* 起手先用内置样例把界面撑起来；真文件由「打开」面板载入后 loadDoc() 换掉 */
-let doc=parseDlg(SRC);
+let doc=parseDlg(srcText());
 
 /* ══ 入口节点：start / first / when 目标 / trigger 的 node 参数 ══
    —— trigger 入口最容易被漏掉：SORA 剧本里 C/D/D4/D10 全靠藏身处触发点进入，
@@ -1441,6 +2162,10 @@ function dlgPage(){
         <div><k>trader</k><v>${esc(doc.name||"?")}</v></div>
         <div class="edit" data-head title="${T('tip_head')}"><k>scene</k><v>${esc(doc.scene||"—")}</v></div>
         <div class="edit" data-head title="${T('tip_head')}"><k>actor</k><v>${esc(doc.actor||"—")}</v></div>
+        <div class="edit" data-trig title="${T('tip_trig')}"><k>trigger</k><v>${doc.triggers.length}</v></div>
+        <div class="edit" data-tab title="${T('tip_tab')}"><k>tab</k><v>${doc.tab?T("m_tab_on"):T("m_tab_off")}</v></div>
+        ${COMPAT.length?`<div class="edit old" data-compat title="${esc(T('tip_compat'))}">
+          <k>4.0.13</k><v>${TF("cp_n",COMPAT.length)}</v></div>`:""}
         <div><k>${T("hdr_nodes")}</k><v id="fmeta">${Object.keys(doc.nodes).length}</v></div>
       </div>
       <div id="bars" title="${T('tip_bars')}"></div>
@@ -1632,13 +2357,17 @@ function drawGraph(){
       data-start="${name===doc.start?1:0}" data-entry="${entries.has(name)?1:0}"
       data-trig="${TRIG.has(name)?1:0}"
       style="left:${n.x}px;top:${n.y}px">
-      <div class="ghead" data-drag="${name}" title="${T('tip_rename')}">&lt;${name}&gt;${bad?'<span class="w">⚠</span>':""}<em>${n.opts.length?"×"+n.opts.length:"END"}</em></div>
+      <div class="ghead" data-drag="${name}" title="${T('tip_rename')}">&lt;${name}&gt;${bad?'<span class="w">⚠</span>':""}<em>${n.opts.length?"×"+n.opts.length:"END"}</em><i class="grole" data-role="${name}" title="${esc(T('tip_role'))}">⋮</i></div>
       ${showPeek&&n.npc?`<div class="gpeek">${esc(n.npc.slice(0,26))}${n.npc.length>26?"…":""}</div>`:""}
       <div class="sockin"></div>${rows}${jrow}</div>`;}).join("");
   $("gnodes").querySelectorAll(".gnode").forEach(el=>{
     el.onmousedown=e=>{if(e.target.closest(".ghead"))startDrag(e,el.dataset.n);};
     el.onclick=()=>{if(!dragged){cur=el.dataset.n;beat=doc.nodes[cur].narr.length;refresh();}};
-    el.querySelector(".ghead").ondblclick=e=>{e.stopPropagation();editName(el.dataset.n);};});
+    el.querySelector(".ghead").ondblclick=e=>{e.stopPropagation();editName(el.dataset.n);};
+    /* ⋮ 要吃掉 mousedown，否则会被当成"拖节点"，菜单还没弹出来卡片就跟着走了 */
+    const r=el.querySelector(".grole");
+    r.onmousedown=e=>e.stopPropagation();
+    r.onclick=e=>{e.stopPropagation();roleMenu(e.currentTarget,el.dataset.n);};});
   drawEdges();}
 /* 双击节点标题改名：改完要把所有指向它的引用一起改掉，否则整条线断链 */
 function editName(old){
@@ -1815,6 +2544,231 @@ function headMenu(e){
     i.onblur=put;});
   $("hScene").focus();
 }
+/* ══ 旧版（4.0.13）剧本的兑存检查 ══
+   4.1 是从零重做的，`.dlg` 的写法有几处**语法一样、意思变了**——那种最阴，
+   文件照样能打开、照样不报错，进游戏才发现不对。这里逐行扫一遍，把要动的地方摆出来。
+
+   每一条都是对着两边的解析器核过的（老的在 VisitAPI Framework\Client\Dialog\DialogScriptParser.cs）：
+   凡是"新解析器读不出来"或"读出来但意思变了"的，才进这张表。 */
+/* 藏身处触发器那条是**软**的：4.0.13 和 4.1 的写法一模一样，光看这一行分不出来
+   （老的是相对区域的偏移，新的是世界坐标）。所以它只在"这份文件已经确定是旧版"时才提——
+   否则每份 4.1 的剧本都会被冤枉一次，那种狼来了的提示没人会看第二遍。 */
+const COMPAT_SOFT=["hideout_offset"];
+function compatScan(text){
+  const out=[],lines=text.replace(/\r\n/g,"\n").split("\n");
+  let inNode=false,plain=0,plainAt=0;
+  const add=(ln,raw,k)=>out.push({ln,raw:raw.trim(),k});
+  lines.forEach((raw,idx)=>{
+    const ln=idx+1,line=raw.trim();
+    if(!line||line[0]==="#"||line.startsWith("//"))return;
+    if(/^<[\w.\-]+>/.test(line)){inNode=true;plain=0;return;}
+    if(!inNode){
+      /* 老写法两种顺序都认，新的只认 id 在前 —— 名字在前会把 "名字" 当成商人 id */
+      const tr=/^trader\s*:\s*(.*)$/i.exec(line);
+      if(tr&&/^"/.test(tr[1].trim()))add(ln,line,"trader_order");
+      /* 老的支持 tab: always，新的只认 tab: if …，写 always 会被静默丢掉 */
+      const tb=/^tab\s*:\s*(.*)$/i.exec(line);
+      if(tb&&!/^if\s/i.test(tb[1].trim()))add(ln,line,"tab_always");
+      if(/^trigger\s*:/i.test(line)){
+        /* 藏身处触发器：老版那三个数是**相对区域的偏移**，新版是**世界坐标**。
+           数字一样、位置完全不同，而且两边都不会报错——这条最容易翻车 */
+        if(/^trigger\s*:\s*hideout\b/i.test(line)&&/\([^)]*\)/.test(line))add(ln,line,"hideout_offset");
+        if(/\boffset\b/i.test(line))add(ln,line,"trig_offset");
+      }
+      return;
+    }
+    /* 节点体：老版一个节点可以写好几行商人台词（会拼起来），新版**只留最后一行** */
+    if(line.startsWith(">")||line.startsWith("- ")||line.startsWith("->")){plain=0;return;}
+    plain++; if(plain===1)plainAt=ln;
+    if(plain===2)add(plainAt,lines[plainAt-1],"npc_multiline");
+  });
+  /* 分隔符：老版按 `|` 和 `,` 字符切，新版认的是前后带空格的 " | "。
+     ⚠️ 不能见到竖线就报 —— 台词里本来就可能有「要么A|要么B」这种写法，
+     那不是分隔符，报出来就是冤枉。所以只认**竖线后面紧跟着一个已知指令**的情况。 */
+  const DIRECTIVE=/\|\s*(accept|complete|handover|setstatus|standing|if|ifnot|once|always|bg|anim|bgm|audio)\b/;
+  lines.forEach((raw,idx)=>{
+    const line=raw.trim();
+    if(!line||line[0]==="#"||line.startsWith("//"))return;
+    if(DIRECTIVE.test(line)&&!/\s\|\s/.test(line))add(idx+1,line,"pipe_space");
+    if(/^-\s/.test(line)&&/->/.test(line)&&!/\s->\s/.test(line))add(idx+1,line,"arrow_space");
+  });
+  /* 一条"硬"证据都没有＝这就是份 4.1 的剧本，软提示一律不提 */
+  const hard=out.some(c=>!COMPAT_SOFT.includes(c.k));
+  return (hard?out:out.filter(c=>!COMPAT_SOFT.includes(c.k))).sort((a,b)=>a.ln-b.ln);
+}
+let COMPAT=[];
+function compatPane(el){
+  const rows=COMPAT.map(c=>`<div class="cprow"><b>${T("cp_"+c.k)}</b>
+    <div class="cpline">${c.ln}: ${esc(c.raw.slice(0,70))}${c.raw.length>70?"…":""}</div>
+    <span>${T("cp_"+c.k+"_fix")}</span></div>`).join("");
+  placeAt(el,`<h4>${TF("cp_title",COMPAT.length)}</h4>
+    <div class="hint" style="margin-bottom:.5rem">${T("cp_note")}</div>${rows}`);
+}
+
+/* ══ 触发点（文件头的 trigger: 行）══
+   玩家走到哪、看着哪儿按一下，就打开这段对话。任务编辑器那边只能看不能改
+   （它改的是任务，不是剧本），所以入口只能在这里。
+
+   **只重写被改过的那一行**，别的原文照抄：坐标是作者手填的，重新格式化会把
+   `0.09` 印成 `0.090000003576`，数值没变但文件被改花了（见 DialogTrigger.Raw 的注释）。
+   所以这里全程按字符串处理，不 parseFloat。 */
+const TRIG_RE=/^\s*(\S+)\s+(\S+)\s*\(([^)]*)\)\s*(.*)$/;
+function trigParse(line){
+  const m=TRIG_RE.exec(line||""); if(!m)return null;
+  const xyz=m[3].split(",").map(s=>s.trim());
+  const t={kind:m[1].toLowerCase(),place:m[2],x:xyz[0]||"0",y:xyz[1]||"0",z:xyz[2]||"0",
+           node:"",dist:"",radius:"",free:false,gate:"",prompt:""};
+  let rest=m[4];
+  const q=rest.match(/"([^"]*)"/); if(q){t.prompt=q[1];rest=rest.replace(q[0],"");}
+  const tok=rest.split(/\s+/).filter(Boolean);
+  for(let i=0;i<tok.length;i++){
+    const k=tok[i].toLowerCase();
+    if(k==="dist")t.dist=tok[++i]||"";
+    else if(k==="radius")t.radius=tok[++i]||"";
+    else if(k==="hit"){t.radius=tok[++i]||"";t.free=true;}   /* hit = 半径 + free 的简写 */
+    else if(k==="node")t.node=tok[++i]||"";
+    else if(k==="if")t.gate=tok[++i]||"";
+    else if(k==="free"||k==="door")t.free=true;
+  }
+  return t;
+}
+/* 生成的顺序照 C# 的 DialogWriter.Trigger 来，两边看起来才是一份东西 */
+const trigLine=t=>[t.kind,t.place||"*",`(${t.x}, ${t.y}, ${t.z})`,
+  t.node?"node "+t.node:"", t.dist?"dist "+t.dist:"", t.radius?"radius "+t.radius:"",
+  t.free?"free":"", t.gate?"if "+t.gate:"", t.prompt?`"${t.prompt}"`:""].filter(Boolean).join(" ");
+const trigDesc=l=>{const t=trigParse(l);
+  return t?`${t.kind} ${t.place}${t.node?" → <"+t.node+">":""}`:l;};
+
+function trigMenu(el){
+  const rows=doc.triggers.map((l,i)=>
+    `<button class="trrow" data-t="${i}"><b>${esc(trigDesc(l))}</b><span>${i+1}</span></button>`).join("");
+  const p=placeAt(el,`<h4>${T("m_trig")}</h4>
+    ${rows||`<div class="hint">${T("m_trig_none")}</div>`}
+    <div class="opts2" style="margin-top:.5rem"><button data-new>${T("m_trig_new")}</button></div>
+    <div class="hint">${T("m_trig_d")}</div>`);
+  p.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>trigEdit(el,+b.dataset.t));
+  p.querySelector("[data-new]").onclick=()=>{
+    /* 新的一条先给能跑的默认值：类型 hideout、坐标 0，其余留空让作者填 */
+    doc.triggers.push(trigLine({kind:"hideout",place:"IntelligenceCenter",x:"0",y:"0",z:"0",
+      node:doc.start,dist:"3",prompt:""}));
+    doc.headRaw.push({k:"trigger",i:doc.triggers.length-1});
+    markDirty(true);trigEdit(el,doc.triggers.length-1);};
+}
+function trigEdit(el,i){
+  const t=trigParse(doc.triggers[i])||{kind:"hideout",place:"",x:"0",y:"0",z:"0",
+    node:"",dist:"",radius:"",free:false,gate:"",prompt:""};
+  const fld=(k,key,ph)=>`<label class="fld"><i>${T(key)}</i>
+    <input data-f="${k}" value="${esc(t[k]??"")}" placeholder="${esc(ph||"")}"></label>`;
+  const p=placeAt(el,`<h4>${TF("m_trig_one",i+1)}</h4>
+    <div class="opts2">${["hideout","raid"].map(k=>
+      `<button data-k="${k}" aria-pressed="${t.kind===k}">${k}</button>`).join("")}</div>
+    ${fld("place","m_tr_place","IntelligenceCenter")}
+    <div class="trxyz">${["x","y","z"].map(a=>
+      `<label class="fld"><i>${a}</i><input data-f="${a}" value="${esc(t[a])}"></label>`).join("")}</div>
+    <label class="fld"><i>${T("m_tr_node")}</i><select data-f="node">
+      <option value="">${T("m_tr_node_no")}</option>
+      ${Object.keys(doc.nodes).map(n=>
+        `<option value="${esc(n)}"${n===t.node?" selected":""}>${esc(n)}</option>`).join("")}
+    </select></label>
+    ${fld("dist","m_tr_dist","3")}
+    ${fld("radius","m_tr_radius","1.2")}
+    <div class="opts2"><button data-free aria-pressed="${!!t.free}">${T("m_tr_free")}</button></div>
+    ${fld("gate","m_tr_gate","5043a1ce…=Started")}
+    ${fld("prompt","m_tr_prompt",T("m_tr_prompt_ph"))}
+    <div class="hint">${T("m_tr_d")}</div>
+    <div class="opts2" style="margin-top:.5rem">
+      <button data-del>${T("m_trig_del")}</button><button data-back>${T("m_trig_back")}</button></div>`);
+  const put=()=>{
+    p.querySelectorAll("[data-f]").forEach(el=>t[el.dataset.f]=el.value.trim());
+    doc.triggers[i]=trigLine(t);markDirty(true);refresh();render();};
+  p.querySelectorAll("[data-f]").forEach(el=>{
+    el.onchange=put;
+    el.onkeydown=ev=>{if(ev.key==="Enter"){put();hide();}};});
+  p.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{t.kind=b.dataset.k;put();trigEdit(el,i);});
+  p.querySelector("[data-free]").onclick=()=>{t.free=!t.free;put();trigEdit(el,i);};
+  p.querySelector("[data-back]").onclick=()=>trigMenu(el);
+  p.querySelector("[data-del]").onclick=async()=>{
+    if(!await confirm2(T("m_trig_delask")))return;
+    doc.triggers.splice(i,1);
+    /* 头行里记的是"第几条触发器"，删一条后面的下标要跟着往前挪，不然回写会串行 */
+    doc.headRaw=doc.headRaw.filter(h=>!(h.k==="trigger"&&h.i===i));
+    doc.headRaw.forEach(h=>{if(h.k==="trigger"&&h.i>i)h.i--;});
+    markDirty(true);refresh();render();hide();};
+}
+
+/* ══ 节点的身份：入口 / 初见 / 分层入口 ══
+   这几样其实是文件头那几行在"指"某个节点。图上早就按身份涂了色
+   （黄=start 橙=其它入口 青=触发点），但一直**看得见改不了**——只能回去手写文件头。
+   现在每个节点标题上多一个 ⋮。 */
+const condText=w=>(w.conds||[]).map(c=>c.f+(c.le?"<=":">=")+c.v).join(" ");
+/* 文件头里没有这一行的话补一条记录，不然 DialogWriter 不知道该在哪儿吐 */
+function ensureHead(k){
+  if(doc.headRaw.some(h=>h.k===k))return;
+  const i=doc.headRaw.findIndex(h=>h.k==="start");
+  doc.headRaw.splice(i<0?doc.headRaw.length:i+1,0,{k,i:0});
+}
+function roleMenu(el,name){
+  const mine=doc.when.map((w,i)=>({w,i})).filter(x=>x.w.node===name);
+  const p=placeAt(el,`<h4>${TF("m_role",name)}</h4>
+    <div class="kindmenu col">
+      <button data-r="start" aria-pressed="${doc.start===name}">${T("m_role_start")}</button>
+      <button data-r="first" aria-pressed="${doc.first===name}">${T("m_role_first")}</button>
+      <button data-r="when">${T("m_role_when")}</button>
+    </div>
+    ${mine.length?`<h4>${T("m_role_whens")}</h4>`+mine.map(x=>
+      `<button class="trrow" data-w="${x.i}"><b>${esc(condText(x.w))}</b><span>✕</span></button>`).join(""):""}
+    <div class="hint">${T("m_role_d")}</div>`);
+  const done=()=>{markDirty(true);refresh();render();};
+  p.querySelector('[data-r="start"]').onclick=()=>{doc.start=name;ensureHead("start");done();hide();};
+  p.querySelector('[data-r="first"]').onclick=()=>{
+    doc.first=doc.first===name?null:name; if(doc.first)ensureHead("first"); done();hide();};
+  p.querySelector('[data-r="when"]').onclick=async()=>{
+    const v=await ask(T("m_role_ask"),"level>=4");
+    if(!v)return;
+    /* 和解析器认的是同一套写法，认不出来就直说，别写一条进去然后神秘失效 */
+    const conds=[...v.matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
+      .map(m=>({f:m[1],le:m[2]==="<=",v:parseFloat(m[3])}));
+    if(!conds.length){await say(T("m_role_bad"));return;}
+    doc.when.push({node:name,conds});
+    doc.headRaw.push({k:"when",i:doc.when.length-1});
+    done();hide();};
+  p.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.w;
+    doc.when.splice(i,1);
+    /* 头行记的是"第几条 when"，删一条后面的下标要往前挪，不然回写会串行 */
+    doc.headRaw=doc.headRaw.filter(h=>!(h.k==="when"&&h.i===i));
+    doc.headRaw.forEach(h=>{if(h.k==="when"&&h.i>i)h.i--;});
+    done();hide();});
+}
+
+/* ══ tab: 商人界面上那个「对话」按钮出不出现 ══
+   不写这一行＝一直显示；写了就只在某个任务处于某些状态时才显示。 */
+function tabMenu(el){
+  const on=!!doc.tab;
+  const p=placeAt(el,`<h4>${T("m_tab")}</h4>
+    <div class="opts2">
+      <button data-t="0" aria-pressed="${!on}">${T("m_tab_off")}</button>
+      <button data-t="1" aria-pressed="${on}">${T("m_tab_on")}</button></div>
+    ${on?`<label class="fld" style="margin-top:.5rem"><i>${T("m_tab_q")}</i>
+      <input id="tabQ" value="${esc(doc.tab||"")}" placeholder="5043a1ce90726f6a536f7286"></label>
+      <h4>${T("m_tab_st")}</h4>
+      <div class="opts2">${shortStatus().map((s,i)=>
+        `<button data-s="${i}" aria-pressed="${(doc.tabS||[]).includes(i)}">${s}</button>`).join("")}</div>`:""}
+    <div class="hint">${T("m_tab_d")}</div>`);
+  const done=()=>{markDirty(true);render();};
+  p.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.t==="1"){doc.tab=doc.tab||T("pick_q");doc.tabS=doc.tabS?.length?doc.tabS:[4];ensureHead("tab");}
+    else {doc.tab=null;doc.tabS=[];}
+    done();tabMenu(el);});
+  const q=$("tabQ");
+  if(q){q.onchange=()=>{doc.tab=q.value.trim()||null;done();};
+        q.onkeydown=e=>{if(e.key==="Enter"){doc.tab=q.value.trim()||null;done();hide();}};}
+  p.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.s,L=(doc.tabS ??= []);
+    const at=L.indexOf(i); if(at<0)L.push(i); else L.splice(at,1);
+    L.sort((a,b)=>a-b); done();tabMenu(el);});
+}
+
 /* 清空＝那一行不写了（DialogWriter 见到 null 就跳过这条头行）。
    文件里本来没有这一行的话，补一条记录插在 start 后面，不然写手不知道该在哪儿吐。 */
 function setHead(k,v){
@@ -1823,6 +2777,114 @@ function setHead(k,v){
   const i=doc.headRaw.findIndex(h=>h.k==="start");
   doc.headRaw.splice(i<0?doc.headRaw.length:i+1,0,{k,i:0});
 }
+/* place() 读的是事件里的 currentTarget —— 那个东西**只在事件派发期间有效**，
+   异步之后（或者从别的回调里）再拿就是 null，place 会当场抛错：
+   innerHTML 已经塞进去了、后面的接线全没跑，于是面板看着正常，按钮一个都不动。
+   触发点面板要在"列表 ↔ 表单"之间来回切，所以自己攥着元素，不攥事件。 */
+const placeAt=(el,html)=>place({currentTarget:el},html);
+
+/* ══ 程序内的弹窗 ══
+   浏览器自带的 prompt / confirm / alert 长着系统的样子，跟这套界面完全不搭，
+   而且 prompt 在某些浏览器里能被用户永久关掉——那样"新建文件"就直接没法用了。
+   自己做一个：三种形态共用一个壳，都返回 Promise。
+   ok(确定) / cancel(取消) 的 id 固定，自动化测试靠它点。 */
+function modal({title,msg,input,noCancel,danger}){
+  return new Promise(res=>{
+    const w=document.createElement("div");w.className="mdwrap";
+    w.innerHTML=`<div class="mdbox">
+      <div class="mdhead"><span class="slab"></span>${esc(title||T("md_title"))}</div>
+      <div class="mdbody">${msg||""}</div>
+      ${input!==undefined?`<input id="mdIn" class="mdin" value="${esc(input)}">`:""}
+      <div class="mdacts">
+        ${noCancel?"":`<button class="btn ghost" id="mdCancel"><span>${T("md_cancel")}</span></button>`}
+        <button class="btn ${danger?"warn":"pri"}" id="mdOk"><span>${T("md_ok")}</span></button>
+      </div></div>`;
+    document.body.appendChild(w);
+    const done=v=>{w.remove();document.removeEventListener("keydown",key,true);res(v);};
+    const okv=()=>input!==undefined?$("mdIn").value:true;
+    const key=e=>{
+      if(e.key==="Escape"){e.stopPropagation();done(noCancel?true:null);}
+      if(e.key==="Enter"&&input!==undefined){e.preventDefault();done(okv());}};
+    document.addEventListener("keydown",key,true);
+    $("mdOk").onclick=()=>done(okv());
+    const c=$("mdCancel"); if(c)c.onclick=()=>done(null);
+    /* 点框外＝取消，和点「取消」一个意思；框里点不到就别响应 */
+    w.onmousedown=e=>{if(e.target===w)done(noCancel?true:null);};
+    const i=$("mdIn"); if(i){i.focus();i.select();}
+  });
+}
+/* ══ 新手引导 ══
+   第一次用的人面对满屏格子和角标，不知道哪些能点。这里按步骤把元素一个个挖出来照亮，
+   旁边浮一句话说它是干什么的。对话页和任务页各一条线。
+
+   规则：
+   - **只照亮真实存在的元素**。目标不在页面上（比如任务页还没载入完）就跳过这一步，
+     绝不画一个指向空气的框——那比不引导更糟
+   - 随时能退出，退出后不再自动弹（记在 localStorage）
+   - 不接管点击：高亮只是"看"，用户想点什么还是点什么 */
+const TOUR={
+  dlg:[["#openBtn","tr_open"],[".cart [data-head]","tr_head"],[".cart [data-trig]","tr_trig"],
+       [".cart [data-tab]","tr_tab"],["#viewport .gamebox","tr_stage"],[".beatbar","tr_beat"],
+       ["#addNode","tr_add"],[".gnode .grole","tr_role"],["#bars","tr_bars"],["#srcBtn","tr_src"],
+       ["#saveBtn","tr_save"]],
+  quest:[["[data-pane]","tr_q_pane"],["#qNew","tr_q_new"],[".tbrief .plate","tr_q_img"],
+         ['[data-add="obj"]',"tr_q_obj"],['[data-menu="obj"]',"tr_q_dots"],["#qgraph","tr_q_graph"],
+         [".mailpane","tr_q_mail"],["#qSave","tr_q_save"]],
+};
+const TOUR_KEY="visitapi.tour.";
+let tourStep=-1,tourList=[],tourKind="";
+function tourStart(kind){
+  tourKind=kind;
+  /* 目标不在就整步跳过：宁可少讲一句，也不能指着空气讲 */
+  tourList=TOUR[kind].filter(([sel])=>document.querySelector(sel));
+  if(!tourList.length)return;
+  tourStep=0;tourDraw();
+}
+function tourEnd(remember){
+  tourStep=-1;
+  document.querySelectorAll(".tourwrap").forEach(e=>e.remove());
+  if(remember)try{localStorage.setItem(TOUR_KEY+tourKind,"1");}catch(_){}
+}
+function tourDraw(){
+  document.querySelectorAll(".tourwrap").forEach(e=>e.remove());
+  if(tourStep<0||tourStep>=tourList.length)return tourEnd(true);
+  const [sel,key]=tourList[tourStep];
+  const el=document.querySelector(sel);
+  if(!el){tourStep++;return tourDraw();}
+  el.scrollIntoView({block:"nearest",inline:"nearest"});
+  const r=el.getBoundingClientRect(),pad=6;
+  const w=document.createElement("div");w.className="tourwrap";
+  const last=tourStep===tourList.length-1;
+  w.innerHTML=`<div class="tourhole" style="left:${r.left-pad}px;top:${r.top-pad}px;
+      width:${r.width+pad*2}px;height:${r.height+pad*2}px"></div>
+    <div class="tourtip" id="tourTip"><b>${T(key)}</b><span>${T(key+"_d")}</span>
+      <div class="touracts">
+        <i>${tourStep+1} / ${tourList.length}</i>
+        <button class="btn ghost" id="tourSkip"><span>${T("tr_skip")}</span></button>
+        <button class="btn pri" id="tourNext"><span>${T(last?"tr_done":"tr_next")}</span></button>
+      </div></div>`;
+  document.body.appendChild(w);
+  /* 气泡贴着目标放，放不下就翻到另一边；两边都放不下就贴屏幕边 */
+  const tip=$("tourTip"),tw=tip.offsetWidth,th=tip.offsetHeight,m=12;
+  let x=r.left,y=r.bottom+pad+8;
+  if(y+th>innerHeight-m)y=Math.max(m,r.top-pad-8-th);
+  tip.style.left=Math.max(m,Math.min(x,innerWidth-tw-m))+"px";
+  tip.style.top=y+"px";
+  $("tourNext").onclick=()=>{tourStep++;tourDraw();};
+  $("tourSkip").onclick=()=>tourEnd(true);
+}
+/* 窗口一变，洞就对不上了——高亮框会飘到边上，指着一块空地。重画一次就好 */
+addEventListener("resize",()=>{if(tourStep>=0)tourDraw();});
+/* 进某一页时，如果这条线还没走过，就自动开一次 */
+function tourMaybe(kind){
+  if(tourStep>=0)return;
+  try{ if(localStorage.getItem(TOUR_KEY+kind))return; }catch(_){}
+  setTimeout(()=>{if(page===(kind==="dlg"?"dlg":"quest"))tourStart(kind);},600);
+}
+
+const ask=(msg,def,title)=>modal({title,msg:esc(msg),input:def??""});
+const say=(msg,title)=>modal({title,msg:esc(msg),noCancel:true});
+const confirm2=(msg,title)=>modal({title,msg:esc(msg),danger:true}).then(v=>v===true);
 function hide(){$("pop").classList.remove("on");}
 addEventListener("mousedown",e=>{if(!$("pop").contains(e.target)&&!e.target.closest(".kebab,.jump,.bglayer"))hide();});
 
@@ -1857,12 +2919,12 @@ function openSrc(sel){
     .then(d=>{$("srcPre").value=d.text;
       if(sel){const t=$("srcPre");t.readOnly=false;t.focus();t.select();t.readOnly=true;}})
     .catch(e=>{$("srcPre").value=String(e.message);});}
-function saveDlg(){
+async function saveDlg(){
   if(!filePath){note(T("save_nofile"),"dirty");return;}
   /* .dlg.demo 是插件带的示例，游戏只读 *.dlg —— 存回 .demo 等于白改，这里拦一下 */
   if(/\.dlg\.demo$/i.test(filePath)){
     const real=filePath.replace(/\.demo$/i,"");
-    if(!confirm(T("demo_save").replace("{0}",real)))return;
+    if(!await confirm2(T("demo_save").replace("{0}",real)))return;
     filePath=real; const fp=$("fpath"); if(fp)fp.textContent=real;
   }
   const snap=docSnap();
@@ -1878,6 +2940,9 @@ function render(){
     $("bglayer").onclick=e=>bgMenu(e);
     $("srcBtn").onclick=()=>openSrc(false);
     document.querySelectorAll("[data-head]").forEach(b=>b.onclick=headMenu);
+    document.querySelectorAll("[data-trig]").forEach(b=>b.onclick=e=>trigMenu(e.currentTarget));
+    document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=e=>tabMenu(e.currentTarget));
+    document.querySelectorAll("[data-compat]").forEach(b=>b.onclick=e=>compatPane(e.currentTarget));
     $("saveBtn").onclick=saveDlg;
     $("openBtn").onclick=openPicker;
     $("vfold").onclick=()=>{
@@ -1885,12 +2950,14 @@ function render(){
       relaid=false;setTimeout(relayout,20);};       /* 宽度变了就按新长宽比重排一次 */
     wireGraph();wireSplit();refresh();setTimeout(relayout,30);
     markDirty(dirty);
+    tourMaybe("dlg");        /* 第一次进这一页时带着走一遍 */
     /* 第一次进对话页就把「打开」弹出来：画布上那份是空白起手模板，不是从磁盘读的，
        不提示的话用户会以为看到的就是自己的文件（我自己先掉进去过） */
     if(!picked&&!filePath){picked=true;openPicker();}
-  }else if(page==="quest"){m.innerHTML=questPage();wireQuest();
+  }else if(page==="quest"){m.innerHTML=questPage();wireQuest();tourMaybe("quest");
   }else if(page==="about"){m.innerHTML=aboutPage();wireAbout();
   }else if(page==="set"){m.innerHTML=setPage();wireSettings();
+  }else if(page==="help"){m.innerHTML=helpPage();wireHelp();
   }else{const p=PAGES.find(x=>x.id===page);
     m.innerHTML=`<div class="setwrap">
       <div class="secline"><div class="slab"></div>
@@ -1911,7 +2978,7 @@ function abLoad(){
   Promise.all([get("/api/workspace"),get("/api/quests/roots")])
     .then(r=>ABENV={ws:r[0]||{},q:r[1]||{}})
     .then(()=>{abWait=false;if(page==="about")render();});}
-const AB_READY=["dlg","quest"];
+const AB_READY=["dlg","quest","help"];
 const AB_REPO="https://github.com/TricolourSky/VisitAPI-Editor";
 function aboutPage(){
   abLoad();const e=ABENV||{},ws=e.ws||{},q=e.q||{};
@@ -2020,6 +3087,38 @@ function wireAbout(){
   document.querySelectorAll("#main [data-ws]").forEach(b=>
     b.onclick=()=>{ABENV=null;picked=true;page="dlg";render();openPicker();});}
 
+/* ══ 使用说明页 ══
+   写给不写代码的人看：一张卡讲一件事，先说"是什么"再说"怎么写"，每条规则尽量配一段真能跑的例子。
+   用原生 <details> 做折叠——不用自己写状态，键盘和读屏软件也天然能用。
+   两栏：左边对话、右边任务。这一页全是字，单栏在宽屏上会拉出很长的行，读着累。 */
+const GUIDE={
+  dlg:[["g_intro","G01"],["g_first","G02"],["g_file","G03"],["g_node","G04"],["g_name","G05"],
+       ["g_special","G06"],["g_jump","G07"],["g_act","G08"],["g_trig","G09"],["g_media","G10"],["g_scene","G11"]],
+  q:[["g_q_what","G12"],["g_q_tabs","G13"],["g_q_obj","G14"],["g_q_link","G15"],["g_q_save","G16"]],
+};
+function helpPage(){
+  /* 每一栏第一张默认展开：一进来就有东西看，不至于面对一排关着的标题 */
+  const card=([k,ref],i)=>`<details class="hpcard"${i===0?" open":""}>
+    <summary title="${T("hp_tip")}"><b>${T(k)}</b><span>REF.${ref}</span></summary>
+    <div class="hpbody">${T(k+"_b")}</div></details>`;
+  const col=(secKey,list)=>`<div class="hpcol"><div class="hphd">${T(secKey)}<i>${list.length}</i></div>
+    ${list.map(card).join("")}</div>`;
+  return `<div class="hpwrap"><div class="hpin">
+    <div class="abhero"><div class="abhead"><div class="slab"></div>
+      <div><h1>${T("nav_help")}</h1><div class="lede">// SEC.${secNo("help")} · ${T("hp_lede")}</div></div>
+      <div class="acts">
+        <button class="btn ghost" id="gOpen"><span>${T("hp_all_open")}</span></button>
+        <button class="btn ghost" id="gShut"><span>${T("hp_all_shut")}</span></button>
+      </div></div><div class="tape"></div></div>
+    <div class="hpgrid">${col("hp_sec_dlg",GUIDE.dlg)}${col("hp_sec_q",GUIDE.q)}</div>
+    <div class="abmark">VISITAPI EDITOR <i>SEC.${secNo("help")}</i></div>
+  </div></div>`;}
+function wireHelp(){
+  hide();
+  const all=v=>document.querySelectorAll("#main .hpcard").forEach(d=>d.open=v);
+  $("gOpen").onclick=()=>all(true);
+  $("gShut").onclick=()=>all(false);}
+
 /* ══ 设置页 ══ */
 function setPage(){
   const seg=(id,items,cur)=>`<div class="seg" id="${id}">`+items.map(it=>
@@ -2039,14 +3138,27 @@ function setPage(){
         ${seg("segLang",[{v:"zh",t:"中文"},{v:"en",t:"English"}],lang)}</div>
     </div>
 
+    <div class="card"><div class="chead">GUIDE<span>DEVICE TYPE.G003 · IPX3</span></div>
+      <div class="row"><div class="lbl"><b>${T("set_tour")}</b><span>${T("set_tour_d")}</span></div>
+        <button class="btn ghost" id="tourAgain"><span>${T("tr_restart")}</span></button></div>
+    </div>
+
     <div class="card note"><div class="chead">NOTE<span>REF.N000</span></div><div class="row"><div class="lbl">
       <b>${T("set_note_t")}</b><span>${T("set_note_d")}</span></div></div></div>
   </div>`;}
 function wireSettings(){
+  /* 忘掉"走过了"的记号，回到对话页就会重新带一遍 */
+  $("tourAgain").onclick=()=>{
+    try{Object.keys(TOUR).forEach(k=>localStorage.removeItem(TOUR_KEY+k));}catch(_){}
+    page="dlg";render();};
   $("segTheme").querySelectorAll("button").forEach(b=>b.onclick=()=>{setTheme(b.dataset.v);render();});
   $("segLang").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     lang=b.dataset.v;try{localStorage.setItem("visitapi.ef3.lang",lang);}catch(_){}
-    document.documentElement.lang=lang==="zh"?"zh-CN":"en";applyStatic();render();savedText=docSnap();markDirty(false);});
+    document.documentElement.lang=lang==="zh"?"zh-CN":"en";
+    /* 还没打开过任何文件、也没动过手 → 起手模板重新按新语言生成。
+       打开过文件就绝不动：那是人家的剧本，不能因为切了个界面语言就被换掉。 */
+    if(!filePath&&!dirty)doc=parseDlg(srcText());
+    applyStatic();render();savedText=docSnap();markDirty(false);});
 }
 $("srcClose").onclick=()=>$("srcwrap").classList.remove("on");
 $("srcDl").onclick=()=>{tryDownload($("srcPre").value);note(T("saved_dl")+" "+fileName(),"hot");};
@@ -2171,15 +3283,19 @@ function listDir(dir){
     p.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>loadDoc(b.dataset.f));
   }).catch(e=>note(String(e.message),"dirty"));}
 /* gotoNode：打开后直接停在某个节点上。任务编辑器"点挂接行跳过来"就靠它 */
-function loadDoc(path,gotoNode){
-  if(dirty&&!confirm(T("confirm_discard")))return;
+async function loadDoc(path,gotoNode){
+  if(dirty&&!await confirm2(T("confirm_discard")))return;
   api("/api/dlg?path="+encodeURIComponent(path)).then(d=>{
     doc=parseDlg(d.text);filePath=d.path;relaid=false;savedText="";
     TRIG=triggerEntries();
+    COMPAT=compatScan(d.text);                       /* 旧版写法自动认一下 */
     cur=gotoNode&&doc.nodes[gotoNode]?gotoNode
         :doc.start in doc.nodes?doc.start:Object.keys(doc.nodes)[0];
     beat=doc.nodes[cur]?doc.nodes[cur].narr.length:0;
     hide();render();savedText=docSnap();markDirty(false);
+    /* 打开就直接摊开说：这种"能打开、不报错、进游戏才发现不对"的东西，
+       等用户自己去点一个角标是不现实的 */
+    if(COMPAT.length){const b=document.querySelector("[data-compat]");if(b)compatPane(b);}
   }).catch(e=>note(String(e.message),"dirty"));}
 /* 浮层：挂在「打开」按钮底下。
    以前是硬算屏幕中上方的，结果面板飘在左上角、离触发它的按钮十万八千里，

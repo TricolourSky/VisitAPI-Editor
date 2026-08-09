@@ -58,6 +58,16 @@
 .trow{position:relative;display:flex;align-items:center;gap:.6rem;margin:0 .9rem 2px;
   padding:.5rem .7rem;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
 .trow:hover{background:var(--panel-3)}
+/* 行里的按钮/输入框以前没人管，落到浏览器默认样式上——浅色主题下是一颗灰色系统按钮，
+   跟这一屏完全不搭（选任务库那一页最明显，用户一眼就看出来了）。 */
+.trow .add{margin-left:auto;flex:0 0 auto;border:0;cursor:pointer;
+  background:var(--panel-3);color:var(--ink-2);font:11px/1 var(--mono);letter-spacing:.06em;
+  padding:.34rem .7rem;box-shadow:inset 0 0 0 1px var(--line-2)}
+.trow .add:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
+.trow input.tt{flex:1 1 auto;min-width:0;background:var(--panel);border:0;outline:0;
+  color:var(--ink);font:12.5px/1.6 var(--mono);padding:.34rem .5rem;
+  box-shadow:inset 0 0 0 1px var(--line-2)}
+.trow input.tt:focus{box-shadow:inset 0 0 0 1px var(--y)}
 .trow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line-2)}
 .trow.gate{padding:.34rem .7rem .34rem .8rem}
 .trow.gate::before{background:var(--tech)}

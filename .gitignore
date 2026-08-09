@@ -32,6 +32,8 @@ SORA.png
 # tests/ 里只该有脚本和那份很小的 FakeEFT / dbsnap / dlgsnap 夹具，跑一次生成的都不进仓库。
 # test-noplugin 每次从零搭的"裸机"
 tests/BareEFT/
+# test-empty 每次从零搭的空任务库
+tests/EmptyDb/
 # 指向真 SPT 数据库的目录联接（几百 MB，git 会跟着联接爬进去）
 tests/FakeEFT/SPT_Runtime/SPT_Data/database/
 # 探针写回结果用的文件

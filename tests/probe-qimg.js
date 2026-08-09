@@ -5,6 +5,14 @@ const ok=(n,c,x)=>L.push((c?"PASS ":"FAIL ")+n+(x?" ["+String(x).slice(0,90)+"]"
 addEventListener("error",e=>L.push("WINDOW-ERROR "+e.message+" @ "+(e.filename||"").split("/").pop()+":"+e.lineno));
 addEventListener("unhandledrejection",e=>L.push("REJECT "+(e.reason&&e.reason.message||e.reason)));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+/* 程序内弹窗：填值/确认都点它自己的按钮（以前是把 window.prompt/confirm 换掉） */
+const mdWait=async()=>{for(let i=0;i<40&&!document.querySelector(".mdwrap");i++)await wait(50);
+  return document.querySelector(".mdwrap");};
+const mdFill=async v=>{await mdWait();const i=document.getElementById("mdIn");if(i)i.value=v;
+  document.getElementById("mdOk").click();await wait(120);};
+const mdOk=async()=>{await mdWait();document.getElementById("mdOk").click();await wait(120);};
+/* 新手引导会盖一层遮罩，测试里一律先关掉（记号写进 localStorage 就不会再弹） */
+try{Object.keys(TOUR).forEach(k=>localStorage.setItem(TOUR_KEY+k,"1"));}catch(_){}
 (async()=>{
 try{
   page="quest"; render();

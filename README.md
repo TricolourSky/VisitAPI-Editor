@@ -30,6 +30,9 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
 - **Chapter rail** — one tick per independent story thread, click to jump
 - **Beat editing** — multiple narration beats per node, each with its own background and voice
 - **Audio** — music (per node) and voice (per beat), with preview
+- **Trigger points** — where in the hideout or a raid the player can walk up and start talking; edited from the top bar, and only the line you touch gets rewritten
+- **Node roles** — make a node the entry, the first-meeting screen, or a level/standing-gated entry, from the node itself
+- **Opening a 4.0.13 script** flags what 4.1 reads differently — including the ones that still parse but mean something else
 - **Faithful round-trip** — saving does not reformat your file, eat your comments, or flatten your blank lines (see below)
 
 **Quests**
@@ -49,11 +52,18 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
   kill distance and time of day — the fields stock quests actually use, surveyed from all 1000+ of their conditions
 - **Validation** — no objectives, empty completion mail, missing prerequisite, duplicate id, unknown trader… 13 rules
 
-There is also an **About page** (the first item in the sidebar, and where the editor opens): what each
-module can and cannot do yet, plus the live paths it resolved on this machine.
+There is also a **Guide** page — one foldable card per idea, in plain language, each with an example you
+can copy: what a node is, what node names are for, where an option can jump, what an option can do on
+the way, and the same treatment for quests.
 
-Shared: dark/light themes, English/Chinese UI (the interface language is separate from the language
-you're writing your text in).
+And an **About page** (the first item in the sidebar, and where the editor opens): what each module can
+and cannot do yet, plus the live paths it resolved on this machine.
+
+The first time you open the dialogue and quest pages there's a short **guided tour**: it highlights what
+you can actually click, one step at a time. Replay it from Settings.
+
+Shared: dark/light themes, English/Chinese UI (picked from your system language on first run; the
+interface language is separate from the language you're writing your text in).
 
 ### Install
 
@@ -157,7 +167,7 @@ framework-dependent executable.
 Tests live in [tests/](tests/) — PowerShell plus a headless browser, no framework to install:
 
 ```powershell
-.\tests\run-all.ps1      # 404 checks
+.\tests\run-all.ps1      # 563 checks
 ```
 
 They need a real SPT install for its item/map/trader tables; see [tests/README.md](tests/README.md).
@@ -186,11 +196,13 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - [x] SPT quest editor (create / edit / delete / save · chain graph · validation · no VisitAPI needed)
 - [x] Quest ↔ dialogue hooks, with cross-file jump
 - [x] Quest card art, picked from SPT's own icons or your mod's folder
+- [x] `scene:` / `actor:` controls in the dialogue editor
+- [x] Trigger points, and setting a node as the entry / first meeting / tiered entry
+- [x] A guide inside the app, and a guided tour of what you can click
+- [x] Opening a 4.0.13 script points out what 4.1 reads differently
 - [ ] Bot outfit swapping
 - [ ] Chapter/campaign authoring
-- [x] `scene:` / `actor:` controls in the dialogue editor
 - [ ] Restore from the `.bak` copies the editor leaves behind
-- [ ] A step-by-step guide inside the app
 
 ---
 

@@ -5,6 +5,14 @@ const ok=(n,c,x)=>L.push((c?"PASS ":"FAIL ")+n+(x?" ["+String(x).slice(0,90)+"]"
 addEventListener("error",e=>L.push("WINDOW-ERROR "+e.message+" @ "+(e.filename||"").split("/").pop()+":"+e.lineno));
 addEventListener("unhandledrejection",e=>L.push("REJECT "+(e.reason&&e.reason.message||e.reason)));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+/* 程序内弹窗：填值/确认都点它自己的按钮（以前是把 window.prompt/confirm 换掉） */
+const mdWait=async()=>{for(let i=0;i<40&&!document.querySelector(".mdwrap");i++)await wait(50);
+  return document.querySelector(".mdwrap");};
+const mdFill=async v=>{await mdWait();const i=document.getElementById("mdIn");if(i)i.value=v;
+  document.getElementById("mdOk").click();await wait(120);};
+const mdOk=async()=>{await mdWait();document.getElementById("mdOk").click();await wait(120);};
+/* 新手引导会盖一层遮罩，测试里一律先关掉（记号写进 localStorage 就不会再弹） */
+try{Object.keys(TOUR).forEach(k=>localStorage.setItem(TOUR_KEY+k,"1"));}catch(_){}
 const txt=()=>document.getElementById("main").innerText;
 (async()=>{
 try{
@@ -82,14 +90,15 @@ try{
   /* ── 模块表：照实说哪些没做 ── */
   const rows=document.querySelectorAll(".abrow");
   ok("每个模块一行", rows.length===PAGES.length, rows.length+" / "+PAGES.length);
-  ok("两个可进入的模块", document.querySelectorAll(".abrow [data-go]").length===2,
+  /* 数字跟着 AB_READY 走，别再写死 —— 每做完一个模块就要来改一次断言，改漏了就是假绿 */
+  ok("可进入的模块数＝AB_READY", document.querySelectorAll(".abrow [data-go]").length===AB_READY.length,
      [...document.querySelectorAll(".abrow [data-go]")].map(b=>b.dataset.go).join(","));
-  ok("三个标未实现", [...document.querySelectorAll(".abrow .abst")].filter(
-     e=>e.textContent.trim()===T("ab_todo")).length===3);
+  ok("其余的都标未实现", [...document.querySelectorAll(".abrow .abst")].filter(
+     e=>e.textContent.trim()===T("ab_todo")).length===PAGES.length-AB_READY.length-1);  /* -1 = 本页 */
   ok("当前页标你在这", document.querySelectorAll(".abrow .abst.on").length===1);
   ok("没做的模块不给按钮", !document.querySelector('.abrow [data-go="cloth"]'));
-  ok("dlg 和 quest 才是亮的",
-     [...rows].filter(r=>r.dataset.on==="1").length===3);   /* dlg + quest + 本页 */
+  ok("只有做完的模块是亮的",
+     [...rows].filter(r=>r.dataset.on==="1").length===AB_READY.length+1);   /* 做完的 + 本页 */
 
   /* ── 环境卡：读的是真路径 ── */
   const paths=[...document.querySelectorAll(".abpath")].map(e=>e.textContent.trim());

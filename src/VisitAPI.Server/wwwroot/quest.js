@@ -136,7 +136,11 @@ function questPage(){
   if(!QD){questLoad();return shell(`<div class="tempty" style="margin:2rem">${T("q_load")}</div>`);}
   /* 没指定任务库不是死胡同：直接把"选一个位置"的界面摆出来 */
   if(!QD.ok)return shell(rootPane());
-  if(!qcur)return shell(`<div class="tempty" style="margin:2rem">${T("q_e_obj")}</div>`);
+  /* 任务库是空的（刚建的模组、或者刚指到一个空目录）。
+     **这里以前是个死胡同**：只摆一句话（还摆错了——`q_e_obj` 是任务卡里"这条任务没写目标"的提示），
+     整个工具栏都不渲染，于是「＋新建」按钮根本不存在，用户在这一页什么也做不了。
+     空库是新模组的正常起点，得给出口。 */
+  if(!qcur)return shell(emptyPane());
 
   const q=qq(), errs=QD.issues||[], ids=Object.keys(QD.quests);
   const paneFn={link:linkPane,fail:failPane,prop:propPane}[qpane]||cardPane;
@@ -503,6 +507,7 @@ function qwireGraph(){
 function wireQuest(){
   hide();          /* 对话页起手会自动弹"打开 .dlg"面板，切过来得把它收掉 */
   if(QD&&!QD.ok){wireRoot();return;}
+  if(QD?.ok&&!qcur){wireEmpty();return;}      /* 空库那一页也有三个按钮要接线 */
   if(!QD?.ok||!qcur)return;
   const q=qq(), M=$("main");
   qwirePanes();qwireGraph();qgraph();
@@ -512,8 +517,8 @@ function wireQuest(){
   $("qvtoggle").onclick=()=>$("qvpanel").classList.toggle("on");
   M.querySelectorAll(".vrow[data-e]").forEach(r=>r.onclick=()=>{
     if(r.dataset.e&&QD.quests[r.dataset.e]){qcur=r.dataset.e;render();}});
-  $("qReload").onclick=()=>{
-    if(qdirty()&&!confirm(T("q_confirm_reload")))return;
+  $("qReload").onclick=async()=>{
+    if(qdirty()&&!await confirm2(T("q_confirm_reload")))return;
     QD=null;render();};
   $("qSave").onclick=()=>questSave(false);
 
@@ -757,7 +762,7 @@ function qRowMenu(kind,i,btn){
     if(kind==="obj"&&i>0)items.push({a:"up",n:T("q_a_up")});
   }
   items.push({a:"del",n:T("q_a_del")});
-  qMenu(btn,"q_m_row",items,null,a=>{
+  qMenu(btn,"q_m_row",items,null,async a=>{
     if(a==="item"){hide();pickItem(it=>{
       if(kind==="rew"){const iid=(row.items&&row.items[0]&&row.items[0]._id)||NEWID();
         row.items=[{_id:iid,_tpl:it.id,upd:{StackObjectsCount:+row.value||1}}];row.target=iid;}
@@ -768,10 +773,12 @@ function qRowMenu(kind,i,btn){
       Object.keys(QD.quests).filter(x=>x!==qcur).map(x=>({a:x,n:qname(QD.quests[x])})),
       inner.target,v=>{inner.target=v;hide();qtouch();render();});return;}
     if(a==="adv"){advMenu(btn,advOf(row,inner));return;}
-    if(a==="num"){const v=prompt(T("q_ask_num"),row.value??1);if(v!=null)row.value=+v||1;}
-    if(a==="val"){const v=prompt(T("q_ask_val"),row.value??1);
+    if(a==="num"){hide();const v=await ask(T("q_ask_num"),String(row.value??1));
+      if(v!=null){row.value=+v||1;qtouch();render();}return;}
+    if(a==="val"){hide();const v=await ask(T("q_ask_val"),String(row.value??1));
       if(v!=null){row.value=String(v);
-        if(row.items&&row.items[0])row.items[0].upd={StackObjectsCount:+v||1};}}
+        if(row.items&&row.items[0])row.items[0].upd={StackObjectsCount:+v||1};
+        qtouch();render();}return;}
     if(a==="up"&&i>0)L.splice(i-1,0,L.splice(i,1)[0]);
     if(a==="del"){
       /* gates() 把信赖等级过滤掉了，所以这里的下标要换算回真实数组 */
@@ -1134,13 +1141,46 @@ function wireSockets(){
   });
 }
 
+/* 空任务库的落脚页：说清楚这里是空的、指的是哪个目录，然后给三个出口
+   （建第一条 / 换个位置 / 重读）。照 rootPane 那套排版走。 */
+function emptyPane(){
+  return `<div class="tool" style="padding-bottom:1rem">
+    <div class="thead"><span class="slab"></span><h3 contenteditable="false">${T("q_e_new_title")}</h3>
+      <span class="sp"></span><span class="spec"><s>empty</s></span></div>
+    <div class="tnote">${T("q_e_new_note")}</div>
+    <div class="thint">${TF("q_root_cur",esc(QD.dir||"—"))}</div>
+    <div class="tsec"><h5>${T("q_e_new_do")}</h5></div>
+    <div class="trow goal">
+      <span class="tag"><s>01</s></span>
+      <span class="tt">${T("q_e_new_step")}</span>
+      <button class="add" id="qNewEmpty">${T("q_g_add")}</button>
+    </div>
+    <div class="trow">
+      <span class="tag"><s>02</s></span>
+      <span class="tt">${T("q_e_new_move")}</span>
+      <button class="add" id="qRootAgain">${T("q_root_use")}</button>
+    </div>
+    <div class="trow">
+      <span class="tag"><s>03</s></span>
+      <span class="tt">${T("q_e_new_reload")}</span>
+      <button class="add" id="qReloadEmpty">${T("q_reload")}</button>
+    </div>
+  </div>`;
+}
+function wireEmpty(){
+  /* 新建走的是和图上「＋」完全同一条路：先问文件（空库时只有"新建文件"一项）、再问商人 */
+  $("qNewEmpty").onclick=e=>newQuest(e.currentTarget);
+  $("qRootAgain").onclick=()=>{QROOTS=null;QD={ok:false,dir:QD.dir};render();};
+  $("qReloadEmpty").onclick=()=>{QD=null;render();};
+}
+
 /* ── 新建任务 ── 先问放哪个文件，再问挂哪个商人；id 自动生成，文案先给一句占位 */
 function newQuest(btn){
   const files=[...new Set(Object.values(QD.owner))].sort();
-  qMenu(btn,"q_m_file",[...files.map(f=>({a:f,n:f})),{a:"__new",n:T("q_m_newfile")}],null,f=>{
+  qMenu(btn,"q_m_file",[...files.map(f=>({a:f,n:f})),{a:"__new",n:T("q_m_newfile")}],null,async f=>{
     hide();
     if(f==="__new"){
-      let v=prompt(T("q_ask_file"),"my_quests.json");
+      let v=await ask(T("q_ask_file"),"my_quests.json");
       if(!v)return;
       if(!v.endsWith(".json"))v+=".json";
       f=v;
@@ -1172,10 +1212,10 @@ function createQuest(file,traderId){
 }
 
 /* ── 删除任务 ── 连带清掉它的文案，和别的任务里指向它的前置条件 */
-function delQuest(){
+async function delQuest(){
   if(!qcur)return;
   const q=qq(), nm=qname(q);
-  if(!confirm(TF("q_del_ask",nm)))return;
+  if(!await confirm2(TF("q_del_ask",nm)))return;
   let cleaned=0;
   for(const [oid,other] of Object.entries(QD.quests)){
     if(oid===qcur)continue;
@@ -1219,9 +1259,7 @@ function rootPane(){
       </div>`).join(""):`<div class="tempty">${T("q_root_none")}</div>`}
     <div class="tsec"><h5>${T("q_root_manual")}</h5></div>
     <div class="trow">
-      <input id="qRootIn" class="tt" style="background:var(--panel);border:0;outline:0;color:var(--ink);
-        font:12.5px/1.6 var(--ui);padding:.3rem .5rem;box-shadow:inset 0 0 0 1px var(--line-2)"
-        value="${esc(QROOTS.eft?QROOTS.eft+"\\SPT_Runtime\\user\\mods\\我的任务\\db":"")}">
+      <input id="qRootIn" class="tt" value="${esc(QROOTS.eft?QROOTS.eft+"\\SPT_Runtime\\user\\mods\\我的任务\\db":"")}">
       <button class="add" id="qRootGo">${T("q_root_use")}</button>
     </div>
   </div>`;
@@ -1236,7 +1274,7 @@ function setRoot(path){
     body:JSON.stringify({path})})
     .then(()=>{QROOTS=null;QD=null;render();})       /* 换了库就整个重载，别拿旧数据往新目录写 */
     .catch(e=>{const s=$("qsaved");if(s)s.textContent=TF("q_root_bad",String(e.message).slice(0,60));
-      alert(TF("q_root_bad",String(e.message).slice(0,120)));});
+      say(TF("q_root_bad",String(e.message).slice(0,120)));});
 }
 
 /* ══════════════ 选商人 ══════════════
@@ -1283,12 +1321,12 @@ function traderMenu(btn){
   let y=r.bottom+4; if(y+h>innerHeight-m)y=Math.max(m,r.top-h-4);
   p.style.left=Math.max(m,Math.min(x,innerWidth-w-m))+"px";
   p.style.top=y+"px";
-  p.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
+  p.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{
     let v=b.dataset.a;
     if(v==="__id"){
-      v=(prompt(T("q_ask_trader"),q.traderId||"")||"").trim();
+      v=((await ask(T("q_ask_trader"),q.traderId||""))||"").trim();
       if(!v)return;
-      if(!/^[0-9a-fA-F]{24}$/.test(v)){alert(TF("q_bad_id",v));return;}
+      if(!/^[0-9a-fA-F]{24}$/.test(v)){await say(TF("q_bad_id",v));return;}
     }
     setTrader(q,v); hide(); qtouch(); render();
   });

@@ -73,8 +73,8 @@
   const victim=qcur;
   QD.quests[A].conditions.AvailableForStart.push({conditionType:"Quest",id:NEWID(),
     target:victim,status:[4],dynamicLocale:false,visibilityConditions:[]});
-  window.confirm=()=>true;                            /* 无头环境没人点确认 */
-  document.getElementById("qDel").click(); await wait(60);
+  /* 删除会问一句：现在是程序内弹窗，点它自己的确定 */
+  document.getElementById("qDel").click(); await mdOk();
   ok("删掉了", !QD.quests[victim]);
   ok("别的任务里指向它的前置被清掉", !qprereq(A).includes(victim), qprereq(A).join(",")||"（空）");
   ok("它的文案也清掉了", !QD.locales.ch[victim+" name"]&&!QD.locales.en[victim+" name"]);

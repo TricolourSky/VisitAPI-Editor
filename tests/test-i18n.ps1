@@ -40,6 +40,17 @@ foreach ($c in @("no_quest_db","stale","bad_name","broken_locale")) {
 # 光靠肉眼看是发现不了的，必须机器查。
 $keysOf = { param($blk) ([regex]::Matches($blk,'(?m)(?:^|[,{])\s*(q[_a-zA-Z0-9]*)\s*:') |
             ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique }
+# 上面那个只抓 q* 开头的（任务界面）。**整张表**也得对齐：
+# T() 在英文缺键时会静默回落到中文，漏翻不会报错，只会在英文界面里冒出一句中文。
+# 键的写法：行首或逗号后面跟 `名字:`，值可能是 "…" 也可能是 `…`（多行模板串）。
+$allKeysOf = { param($blk) ([regex]::Matches($blk,'(?m)(?:^|[,{])\s*([a-z][_a-zA-Z0-9]*)\s*:\s*(?:"|`)') |
+               ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique }
+$zhAll = & $allKeysOf $zh
+$enAll = & $allKeysOf $en
+$missEn = @($zhAll | Where-Object { $enAll -notcontains $_ })
+$missZh = @($enAll | Where-Object { $zhAll -notcontains $_ })
+Ok "两张表的每一个键都对得上" ($missEn.Count -eq 0 -and $missZh.Count -eq 0) `
+   "中文 $($zhAll.Count) / 英文 $($enAll.Count)$(if($missEn){'  英文缺: '+($missEn -join ',')})$(if($missZh){'  中文缺: '+($missZh -join ',')})"
 $zhK = & $keysOf $zh
 $enK = & $keysOf $en
 $onlyZh = @($zhK | Where-Object { $enK -notcontains $_ })
@@ -74,6 +85,76 @@ $r = Family 'const (?:OBJ_KINDS|REW_KINDS|GATE_KINDS)=\[([^\]]+)\]' "q_k_" @("")
 Ok "目标/奖励/门槛的类型名都有中英" ($r[1].Count -eq 0) "$($r[0].Count) 种$(if($r[1]){'  缺: '+($r[1] -join ',')})"
 $r = Family 'const SWITCHES=\[([^\]]+)\]' "q_sw_" @("","_d")
 Ok "属性开关的名字和说明都有中英" ($r[1].Count -eq 0) "$($r[0].Count) 个$(if($r[1]){'  缺: '+($r[1] -join ',')})"
+
+# ⚠️ 类名撞车：index.html 的内联样式和 quest.css 共用一个全局命名空间，而 quest.css 后加载会赢。
+# 踩过一次：说明页用了 .gcol，正好撞上任务链图的层级标尺（position:absolute;width:1px），
+# 整页塌成"一列单字"，而当时的界面测试全是绿的（它们只数元素、不量宽度）。
+$css = [regex]::Match($html, '(?s)<style>(.*?)</style>').Groups[1].Value
+$qcss = [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\quest.css")
+$classOf = { param($blk) ([regex]::Matches($blk, '(?m)^\s*\.([a-zA-Z][\w-]*)[\s,{:>\[]') |
+             ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique }
+$inline = & $classOf $css
+$quest  = & $classOf $qcss
+# 有意共用的（任务页照抄对话页那套皮，quest.css 里只是往上加，不是另起一套）
+$shared = @("card","chead","row","lbl","btn","ghost","pri","seg","note","alt","tape","slab","rule","cart",
+            "main","hdr","acts","sp","saved","stat","pop","opts2","kindmenu","secline","setwrap","lede","ic",
+            "stagepane","telem")
+$clash = @($inline | Where-Object { $quest -contains $_ -and $shared -notcontains $_ })
+Ok "内联样式和 quest.css 没有意外撞名" ($clash.Count -eq 0) `
+   $(if($clash){"撞了: "+($clash -join ', ')}else{"内联 $($inline.Count) 个 / quest.css $($quest.Count) 个"})
+
+# 使用说明页的卡片：GUIDE 表里只写标题键，正文键是 键+"_b" 拼出来的，静态扫不到
+$guide = [regex]::Match($html, '(?s)const GUIDE=\{(.*?)\n\};').Groups[1].Value
+$gKeys = ([regex]::Matches($guide, '"(g_[a-z_]+)"') | ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique
+# 这里用 Contains 而不是上面那份 $zhK：那个只抓 q* 开头的键（任务界面用的），g_* 抓不到
+$missG = @()
+foreach ($k in $gKeys) {
+  foreach ($sfx in @("","_b")) {
+    if (-not $zh.Contains("$k$sfx`:")) { $missG += "$k$sfx(中)" }
+    if (-not $en.Contains("$k$sfx`:")) { $missG += "$k$sfx(英)" }
+  }
+}
+Ok "使用说明每张卡都有中英标题和正文" ($gKeys.Count -ge 10 -and $missG.Count -eq 0) `
+   "$($gKeys.Count) 张$(if($missG){'  缺: '+($missG -join ',')})"
+# 正文是直接当 HTML 塞进页面的，标签必须成对，不然整页会被一个没闭合的标签吃掉
+$bad = @()
+foreach ($k in $gKeys) {
+  foreach ($tbl in @(@{n='中';v=$zh}, @{n='英';v=$en})) {
+    $m = [regex]::Match($tbl.v, [regex]::Escape("$k`_b:``") + '(.*?)``,', 'Singleline')
+    if (-not $m.Success) { continue }
+    $b = $m.Groups[1].Value
+    foreach ($tag in @('p','ul','li','table','tbody','tr','td','code','b','pre')) {
+      $o = ([regex]::Matches($b, "<$tag[ >]")).Count
+      $c = ([regex]::Matches($b, "</$tag>")).Count
+      if ($o -ne $c) { $bad += "$k($($tbl.n))<$tag> $o/$c" }
+    }
+  }
+}
+Ok "说明正文里的标签都是成对的" ($bad.Count -eq 0) $(if($bad){$bad -join ', '}else{"$($gKeys.Count) 张 × 中英"})
+
+# 新手引导：TOUR 表里只写标题键，说明键是 键+"_d" 拼出来的，静态扫不到
+$tour = [regex]::Match($html, '(?s)const TOUR=\{(.*?)\n\};').Groups[1].Value
+$tKeys = ([regex]::Matches($tour, '"(tr_[a-z_]+)"') | ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique
+$missT = @()
+foreach ($k in $tKeys) {
+  foreach ($sfx in @("","_d")) {
+    if (-not $zh.Contains("$k$sfx`:")) { $missT += "$k$sfx(中)" }
+    if (-not $en.Contains("$k$sfx`:")) { $missT += "$k$sfx(英)" }
+  }
+}
+Ok "新手引导每一步都有中英标题和说明" ($tKeys.Count -ge 15 -and $missT.Count -eq 0) `
+   "$($tKeys.Count) 步$(if($missT){'  缺: '+($missT -join ',')})"
+# 引导指的选择器必须在界面代码里真出现过，否则就是指着空气讲
+$src2 = $html + [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\quest.js")
+$sels = [regex]::Matches($tour, '\["([^"]+)","tr_') | ForEach-Object { $_.Groups[1].Value }
+$ghost = @($sels | Where-Object {
+  $id = [regex]::Match($_, '#([\w-]+)').Groups[1].Value
+  $cls = [regex]::Match($_, '\.([\w-]+)').Groups[1].Value
+  $attr = [regex]::Match($_, '\[([\w-]+)').Groups[1].Value
+  -not (($id -and $src2.Contains("`"$id`"")) -or ($cls -and $src2.Contains($cls)) -or ($attr -and $src2.Contains($attr)))
+})
+Ok "引导指的元素在界面代码里都找得到" ($ghost.Count -eq 0) `
+   "$($sels.Count) 个$(if($ghost){'  找不到: '+($ghost -join ', ')})"
 
 # 高级参数的标签键写在 ADV 表里（["字段","类型","键"]），静态扫 T("…") 扫不到，单独查一遍
 $adv = [regex]::Match($js, '(?s)const ADV=\{(.*?)\n\};').Groups[1].Value

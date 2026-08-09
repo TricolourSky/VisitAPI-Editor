@@ -6,6 +6,14 @@ const ok=(n,c,x)=>L.push((c?"PASS ":"FAIL ")+n+(x?" ["+String(x).slice(0,70)+"]"
 addEventListener("error",e=>L.push("WINDOW-ERROR "+e.message+" @ "+(e.filename||"").split("/").pop()+":"+e.lineno));
 addEventListener("unhandledrejection",e=>L.push("REJECT "+(e.reason&&e.reason.message||e.reason)));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+/* 程序内弹窗：填值/确认都点它自己的按钮（以前是把 window.prompt/confirm 换掉） */
+const mdWait=async()=>{for(let i=0;i<40&&!document.querySelector(".mdwrap");i++)await wait(50);
+  return document.querySelector(".mdwrap");};
+const mdFill=async v=>{await mdWait();const i=document.getElementById("mdIn");if(i)i.value=v;
+  document.getElementById("mdOk").click();await wait(120);};
+const mdOk=async()=>{await mdWait();document.getElementById("mdOk").click();await wait(120);};
+/* 新手引导会盖一层遮罩，测试里一律先关掉（记号写进 localStorage 就不会再弹） */
+try{Object.keys(TOUR).forEach(k=>localStorage.setItem(TOUR_KEY+k,"1"));}catch(_){}
 const pop=()=>document.getElementById("pop");
 const pick=t=>{const b=[...pop().querySelectorAll("[data-a]")].find(x=>x.textContent.includes(t));
   if(!b)throw new Error("菜单里没有 "+t+"：["+[...pop().querySelectorAll("[data-a]")].map(x=>x.textContent.trim()).join(" / ")+"]");
@@ -288,8 +296,7 @@ try{
   const victim=qcur;
   QD.quests[A].conditions.AvailableForStart.push({conditionType:"Quest",id:NEWID(),
     target:victim,status:[4],dynamicLocale:false,visibilityConditions:[]});
-  window.confirm=()=>true;                            /* 无头环境没人点确认 */
-  document.getElementById("qDel").click(); await wait(60);
+  document.getElementById("qDel").click(); await mdOk();   /* 删除会问一句，点它自己的确定 */
   ok("删掉了", !QD.quests[victim]);
   ok("别的任务里指向它的前置被清掉", !qprereq(A).includes(victim), qprereq(A).join(",")||"（空）");
   ok("它的文案也清掉了", !QD.locales.ch[victim+" name"]&&!QD.locales.en[victim+" name"]);
@@ -322,9 +329,7 @@ try{
     .flatMap(c=>[c.id,...((c.counter||{}).conditions||[]).map(x=>x.id)]).filter(Boolean);
   const hadCond=vconds.filter(k=>Object.values(QD.locales).some(L2=>k in L2));
   qcur=solo;
-  const realConfirm=window.confirm; window.confirm=()=>true;   /* 删除会问一句，测试里一律点是 */
-  delQuest();
-  window.confirm=realConfirm;
+  delQuest(); await mdOk();                     /* 删除会问一句，点它自己的确定 */
   ok("模型里删掉了", !QD.quests[solo]);
   ok("任务自己的文案清了",
      !Object.values(QD.locales).some(L2=>Object.keys(L2).some(k=>k.startsWith(solo+" "))));
