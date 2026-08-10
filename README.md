@@ -60,7 +60,7 @@ And an **About page** (the first item in the sidebar, and where the editor opens
 and cannot do yet, plus the live paths it resolved on this machine.
 
 The first time you open the dialogue and quest pages there's a short **guided tour**: it highlights what
-you can actually click, one step at a time. Replay it from Settings.
+you can actually click, one step at a time. It runs once; replay it from the Guide page.
 
 Shared: dark/light themes, English/Chinese UI (picked from your system language on first run; the
 interface language is separate from the language you're writing your text in).
@@ -167,7 +167,7 @@ framework-dependent executable.
 Tests live in [tests/](tests/) — PowerShell plus a headless browser, no framework to install:
 
 ```powershell
-.\tests\run-all.ps1      # 563 checks
+.\tests\run-all.ps1      # 567 checks
 ```
 
 They need a real SPT install for its item/map/trader tables; see [tests/README.md](tests/README.md).

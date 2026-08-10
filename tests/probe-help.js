@@ -132,6 +132,20 @@ try{
      document.documentElement.scrollWidth+" / "+innerWidth);
   ok("没有浮层盖着", !document.getElementById("pop").classList.contains("on"));
 
+  /* ── 重看新手引导 ──
+     引导只自动带一次，所以"想再看"的入口必须找得到。放在说明页上：
+     想重看的人本来就会先来这一页找。 */
+  const again=document.getElementById("tourAgain");
+  ok("说明页上有「重看新手引导」", !!again, again&&again.textContent.trim());
+  ok("按钮有一句说明它只带一次", /(只带一次|runs once)/.test(again.title), again.title);
+  try{Object.keys(TOUR).forEach(k=>localStorage.setItem(TOUR_KEY+k,"1"));}catch(_){}
+  again.click(); await wait(400);
+  ok("点了就忘掉「走过了」的记号", !localStorage.getItem(TOUR_KEY+"dlg"));
+  ok("点了会切到对话页开讲", page==="dlg", page);
+  try{Object.keys(TOUR).forEach(k=>localStorage.setItem(TOUR_KEY+k,"1"));}catch(_){}
+  tourEnd(true);
+  page="help"; render(); await wait(200);
+
   /* ── 侧栏入口 ── */
   ok("介绍页里这一项不再标「未实现」", AB_READY.includes("help"));
   page="about"; render(); await wait(400);

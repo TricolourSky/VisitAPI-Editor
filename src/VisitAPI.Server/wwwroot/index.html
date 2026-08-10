@@ -1015,7 +1015,7 @@ when: level&gt;=4 -&gt; root_high
   m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…）；raid＝战局，地点填地图名，* 表示任何地图。坐标是游戏里的世界坐标，改过的那一行才会被重写，别的原样不动。",
   m_head_d:"写进文件头的 scene: / actor:。留空就不写这一行。能填什么取决于游戏里有哪些原生房间与角色，还在摸底，所以这里不给下拉。",
   md_title:"VISITAPI EDITOR",md_ok:"确定",md_cancel:"取消",
-  set_tour:"新手引导",set_tour_d:"第一次进对话页和任务页时，会带着你把能点的地方过一遍。想再看一次就点这里。",
+  set_tour_d:"第一次进对话页和任务页时会自动带你走一遍，只带一次。想再看就点这里。",
   /* 新手引导：一步一句，说清"这是什么、点它会怎样" */
   tr_next:"下一个",tr_done:"知道了",tr_skip:"跳过",tr_restart:"重看新手引导",
   tr_open:"先打开一份剧本",tr_open_d:"点这里，从你的文件夹里挑一个 .dlg 文件。还没有的话，随便建个空的文本文件，把名字改成 mytrader.dlg 就行。",
@@ -1594,7 +1594,7 @@ when: level&gt;=4 -&gt; root_high
   m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…); raid = in a raid, place is a map name, * means any map. Coordinates are world coordinates. Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
   m_head_d:"Written to the file header as scene: / actor:. Leave empty to omit the line. What you can put here depends on which built-in rooms and characters the game has — still being mapped out, so no dropdown yet.",
   md_title:"VISITAPI EDITOR",md_ok:"OK",md_cancel:"Cancel",
-  set_tour:"Guided tour",set_tour_d:"The first time you open the dialogue and quest pages, it walks you through what you can click. Replay it here.",
+  set_tour_d:"It runs once, the first time you open the dialogue and quest pages. Click here to see it again.",
   /* Guided tour: one step, one sentence — what it is and what happens if you click it */
   tr_next:"Next",tr_done:"Got it",tr_skip:"Skip",tr_restart:"Replay the tour",
   tr_open:"Start by opening a script",tr_open_d:"Click here and pick a .dlg from your folder. Don't have one? Make an empty text file and rename it to mytrader.dlg — that's all it takes.",
@@ -3109,6 +3109,7 @@ function helpPage(){
       <div class="acts">
         <button class="btn ghost" id="gOpen"><span>${T("hp_all_open")}</span></button>
         <button class="btn ghost" id="gShut"><span>${T("hp_all_shut")}</span></button>
+        <button class="btn pri" id="tourAgain" title="${esc(T("set_tour_d"))}"><span>${T("tr_restart")}</span></button>
       </div></div><div class="tape"></div></div>
     <div class="hpgrid">${col("hp_sec_dlg",GUIDE.dlg)}${col("hp_sec_q",GUIDE.q)}</div>
     <div class="abmark">VISITAPI EDITOR <i>SEC.${secNo("help")}</i></div>
@@ -3117,7 +3118,11 @@ function wireHelp(){
   hide();
   const all=v=>document.querySelectorAll("#main .hpcard").forEach(d=>d.open=v);
   $("gOpen").onclick=()=>all(true);
-  $("gShut").onclick=()=>all(false);}
+  $("gShut").onclick=()=>all(false);
+  /* 引导只自动带一次；想再看就从这儿开——忘掉"走过了"的记号，然后直接切到对话页开讲 */
+  $("tourAgain").onclick=()=>{
+    try{Object.keys(TOUR).forEach(k=>localStorage.removeItem(TOUR_KEY+k));}catch(_){}
+    page="dlg";render();};}
 
 /* ══ 设置页 ══ */
 function setPage(){
@@ -3138,19 +3143,11 @@ function setPage(){
         ${seg("segLang",[{v:"zh",t:"中文"},{v:"en",t:"English"}],lang)}</div>
     </div>
 
-    <div class="card"><div class="chead">GUIDE<span>DEVICE TYPE.G003 · IPX3</span></div>
-      <div class="row"><div class="lbl"><b>${T("set_tour")}</b><span>${T("set_tour_d")}</span></div>
-        <button class="btn ghost" id="tourAgain"><span>${T("tr_restart")}</span></button></div>
-    </div>
 
     <div class="card note"><div class="chead">NOTE<span>REF.N000</span></div><div class="row"><div class="lbl">
       <b>${T("set_note_t")}</b><span>${T("set_note_d")}</span></div></div></div>
   </div>`;}
 function wireSettings(){
-  /* 忘掉"走过了"的记号，回到对话页就会重新带一遍 */
-  $("tourAgain").onclick=()=>{
-    try{Object.keys(TOUR).forEach(k=>localStorage.removeItem(TOUR_KEY+k));}catch(_){}
-    page="dlg";render();};
   $("segTheme").querySelectorAll("button").forEach(b=>b.onclick=()=>{setTheme(b.dataset.v);render();});
   $("segLang").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     lang=b.dataset.v;try{localStorage.setItem("visitapi.ef3.lang",lang);}catch(_){}
