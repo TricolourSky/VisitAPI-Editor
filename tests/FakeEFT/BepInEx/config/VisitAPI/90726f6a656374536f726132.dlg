@@ -2,11 +2,12 @@ trader: 90726f6a656374536f726132 "SORA"
 start: root
 first: first_meeting
 trigger: raid Sandbox_high (143.7, 18.45, -14.26) "拜访 SORA"
+# 藏身处触发器：坐标 = 你按 F11 打印的位置；选项会合并进情报中心的原生交互菜单
 trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node C dist 3.5 if 5043a1ce90726f6a536f7261=Started "拜访 SORA"
 trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node D dist 3.5 if 5043a1ce90726f6a536f7271=AvailableForFinish "拜访 SORA"
 trigger: hideout Security (-7.98, 1.50, -7.58) node D4 dist 3.5 if 5043a1ce90726f6a536f7282=AvailableForFinish "拜访 SORA"
 trigger: hideout Gym (9.83, 1.49, 3.21) node D10 dist 3.5 free if 5043a1ce90726f6a536f7286=Started/AvailableForFinish "拜访 SORA"
-
+# 对话按钮(tab)：只有在"上交藏身处材料"任务(SORA的补给, 5043a1ce90726f6a536f7286)完成后才出现
 tab: if 5043a1ce90726f6a536f7286=Success
 when: level>=4 -> root_high
 when: level>=3 -> root_familiar

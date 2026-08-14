@@ -1,0 +1,127 @@
+/* ══════════════════════════════════════════════════════════════════
+   鼠标指针 —— 终末地 / AIC CONSOLE 风格
+
+   为什么单独一个文件：一套指针 = 12 种形状 × 明暗两套 = 24 段内联 SVG，
+   塞进 index.html 会把那份本来就长的文件再撑一大截，而这套东西是**自成一体**的
+   （只导出一堆 --cur-* 变量，别的样式表拿来用），拆出来最干净。
+
+   ── 三条硬规矩 ──
+   ① **形状全是硬边**：只用直线和直角，miter 拐角，零圆角 —— 和界面四条铁律里
+      "容器直角零圆角"同源。指针是最先被看见的那个零件，圆头的一出现就出戏。
+   ② **双色描边，明暗两套各一份**。深色主题：骨白填充 + 近黑描边；
+      浅色主题：近黑填充 + 骨白描边。⚠️ 只做一套是不行的 ——
+      浅色主题的 --panel 是 #E7E4DC，骨白指针压上去就只剩一圈 1.7px 的线。
+   ③ **黄色只当"状态挂牌"，绝不给指针本体上色**。黄＝可点/可加，是信息不是装饰。
+      ⚠️ 本体也**不能**染黄：界面里 .iprow:hover / .nitem[aria-current] / .asseg button.on
+      一大片都是 --y 底色，黄指针压上去当场消失。挂牌小、丢了不碍事，本体白，永远看得见。
+
+   ── 用法 ──
+   别再写 `cursor:pointer`，写 `cursor:var(--cur-p)` —— 变量里已经带了关键字兜底
+   （`url(...) 2 2, pointer`），浏览器不认 SVG 指针时自动退回原生形状。
+   全站 75 处声明都换过来了，新写样式也照这个来。
+
+   ── 关掉 ──
+   设置页有开关，落 `<html data-cur="off">`，把所有变量打回原生关键字。
+   自定义指针会盖掉系统的"指针大小/高对比度"设置，得留这条退路。
+
+   ⚠️ 数据 URI 里 `#` 必须写成 `%23`（不然被当成片段标识符，整张图作废，
+      而且**不报错**——指针会静默退回兜底关键字，看着就像"改了没生效"）。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 深色主题（默认）：骨白本体 + 近黑描边 ── */
+:root{
+  /* 箭头。尖端在 (2.5,2)，热点写 2 2 —— 描边有一半在轮廓外，视觉尖端正好落在那儿 */
+  --cur:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.7' stroke-linejoin='miter'/></svg>") 2 2,default;
+
+  /* 可点：箭头 + 右下角一块**实心黄挂牌** */
+  --cur-p:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='6' height='6' fill='%23F2E205' stroke='%230C0D10' stroke-width='1.4'/></svg>") 2 2,pointer;
+
+  /* 可加（货架页点空格子）：挂牌里画个加号 */
+  --cur-cp:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='8' height='8' fill='%23F2E205' stroke='%230C0D10' stroke-width='1.4'/><path d='M19.35 18.05 h1.3 v1.3 h1.3 v1.3 h-1.3 v1.3 h-1.3 v-1.3 h-1.3 v-1.3 h1.3 Z' fill='%230C0D10'/></svg>") 2 2,copy;
+
+  /* 有说明可看：挂牌**掏空**，和"可点"是一家人、不同状态 */
+  --cur-hp:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='6' height='6' fill='none' stroke='%230C0D10' stroke-width='4'/><rect x='16' y='16' width='6' height='6' fill='none' stroke='%23F2E205' stroke-width='2'/></svg>") 2 2,help;
+
+  /* 文字光标：平切衬线的工字，不是细竖线 */
+  --cur-t:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M8.5 3 h9 v2.4 h-3.3 v13.2 h3.3 v2.4 h-9 v-2.4 h3.3 v-13.2 h-3.3 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.3' stroke-linejoin='miter'/></svg>") 13 12,text;
+
+  /* 四向移动 */
+  --cur-mv:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M13 1.6 L17.2 6.6 H14.5 V11.5 H19.4 V8.8 L24.4 13 L19.4 17.2 V14.5 H14.5 V19.4 H17.2 L13 24.4 L8.8 19.4 H11.5 V14.5 H6.6 V17.2 L1.6 13 L6.6 8.8 V11.5 H11.5 V6.6 H8.8 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,move;
+
+  /* 左右拉 */
+  --cur-ew:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M1.6 13 L6.8 8.6 V11.4 H19.2 V8.6 L24.4 13 L19.2 17.4 V14.6 H6.8 V17.4 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,ew-resize;
+
+  /* 上下拉 */
+  --cur-ns:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M13 1.6 L17.4 6.8 H14.6 V19.2 H17.4 L13 24.4 L8.6 19.2 H11.4 V6.8 H8.6 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,ns-resize;
+
+  /* 斜拉：左右拉那根转 45°，省一套形状 */
+  --cur-nw:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><g transform='rotate(45 13 13)'><path d='M1.6 13 L6.8 8.6 V11.4 H19.2 V8.6 L24.4 13 L19.2 17.4 V14.6 H6.8 V17.4 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.5' stroke-linejoin='miter'/></g></svg>") 13 13,nwse-resize;
+
+  /* 十字定位：中间**留空**，不然挡住要对准的那个点 */
+  --cur-cr:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M12.1 1 h1.8 v7.4 h-1.8 Z M12.1 17.6 h1.8 v7.4 h-1.8 Z M1 12.1 h7.4 v1.8 h-7.4 Z M17.6 12.1 h7.4 v1.8 h-7.4 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.2' stroke-linejoin='miter'/></svg>") 13 13,crosshair;
+
+  /* 能抓：四个角括号张开 */
+  --cur-gb:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M3.5 3.5 h8 v2 h-6 v6 h-2 Z M22.5 3.5 v8 h-2 v-6 h-6 v-2 Z M22.5 22.5 h-8 v-2 h6 v-6 h2 Z M3.5 22.5 v-8 h2 v6 h6 v2 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.2' stroke-linejoin='miter'/></svg>") 13 13,grab;
+
+  /* 抓住了：括号收拢，中间点亮一块黄 */
+  --cur-gg:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M6 6 h6.5 v2 h-4.5 v4.5 h-2 Z M20 6 v6.5 h-2 v-4.5 h-4.5 v-2 Z M20 20 h-6.5 v-2 h4.5 v-4.5 h2 Z M6 20 v-6.5 h2 v4.5 h4.5 v2 Z' fill='%23F0EEE8' stroke='%230C0D10' stroke-width='1.2' stroke-linejoin='miter'/><rect x='11.5' y='11.5' width='3' height='3' fill='%23F2E205'/></svg>") 13 13,grabbing;
+}
+
+/* ── 浅色主题：整套反过来（近黑本体 + 骨白描边）。
+      形状一模一样，只有两个颜色变了 —— 改形状时**两边都要改**。 ── */
+:root[data-theme="light"]{
+  --cur:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.7' stroke-linejoin='miter'/></svg>") 2 2,default;
+
+  --cur-p:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='6' height='6' fill='%23E8D800' stroke='%23101215' stroke-width='1.4'/></svg>") 2 2,pointer;
+
+  --cur-cp:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='8' height='8' fill='%23E8D800' stroke='%23101215' stroke-width='1.4'/><path d='M19.35 18.05 h1.3 v1.3 h1.3 v1.3 h-1.3 v1.3 h-1.3 v-1.3 h-1.3 v-1.3 h1.3 Z' fill='%23101215'/></svg>") 2 2,copy;
+
+  --cur-hp:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M2.5 2 L2.5 21.4 L7.1 16.8 L10.2 23.4 L13.1 22.1 L10.1 15.6 L15.2 15.6 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.7' stroke-linejoin='miter'/><rect x='16' y='16' width='6' height='6' fill='none' stroke='%23E7E4DC' stroke-width='4'/><rect x='16' y='16' width='6' height='6' fill='none' stroke='%23E8D800' stroke-width='2'/></svg>") 2 2,help;
+
+  --cur-t:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M8.5 3 h9 v2.4 h-3.3 v13.2 h3.3 v2.4 h-9 v-2.4 h3.3 v-13.2 h-3.3 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.3' stroke-linejoin='miter'/></svg>") 13 12,text;
+
+  --cur-mv:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M13 1.6 L17.2 6.6 H14.5 V11.5 H19.4 V8.8 L24.4 13 L19.4 17.2 V14.5 H14.5 V19.4 H17.2 L13 24.4 L8.8 19.4 H11.5 V14.5 H6.6 V17.2 L1.6 13 L6.6 8.8 V11.5 H11.5 V6.6 H8.8 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,move;
+
+  --cur-ew:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M1.6 13 L6.8 8.6 V11.4 H19.2 V8.6 L24.4 13 L19.2 17.4 V14.6 H6.8 V17.4 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,ew-resize;
+
+  --cur-ns:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M13 1.6 L17.4 6.8 H14.6 V19.2 H17.4 L13 24.4 L8.6 19.2 H11.4 V6.8 H8.6 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.5' stroke-linejoin='miter'/></svg>") 13 13,ns-resize;
+
+  --cur-nw:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><g transform='rotate(45 13 13)'><path d='M1.6 13 L6.8 8.6 V11.4 H19.2 V8.6 L24.4 13 L19.2 17.4 V14.6 H6.8 V17.4 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.5' stroke-linejoin='miter'/></g></svg>") 13 13,nwse-resize;
+
+  --cur-cr:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M12.1 1 h1.8 v7.4 h-1.8 Z M12.1 17.6 h1.8 v7.4 h-1.8 Z M1 12.1 h7.4 v1.8 h-7.4 Z M17.6 12.1 h7.4 v1.8 h-7.4 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.2' stroke-linejoin='miter'/></svg>") 13 13,crosshair;
+
+  --cur-gb:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M3.5 3.5 h8 v2 h-6 v6 h-2 Z M22.5 3.5 v8 h-2 v-6 h-6 v-2 Z M22.5 22.5 h-8 v-2 h6 v-6 h2 Z M3.5 22.5 v-8 h2 v6 h6 v2 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.2' stroke-linejoin='miter'/></svg>") 13 13,grab;
+
+  --cur-gg:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M6 6 h6.5 v2 h-4.5 v4.5 h-2 Z M20 6 v6.5 h-2 v-4.5 h-4.5 v-2 Z M20 20 h-6.5 v-2 h4.5 v-4.5 h2 Z M6 20 v-6.5 h2 v4.5 h4.5 v2 Z' fill='%23101215' stroke='%23E7E4DC' stroke-width='1.2' stroke-linejoin='miter'/><rect x='11.5' y='11.5' width='3' height='3' fill='%23E8D800'/></svg>") 13 13,grabbing;
+}
+
+/* ── 关掉自定义指针：全部打回原生关键字。
+      ⚠️ 这一块**必须排在浅色主题后面** —— 两条选择器权重一样（0,2,0），后来者才压得住。 ── */
+:root[data-cur="off"]{
+  --cur:default;   --cur-p:pointer;    --cur-cp:copy;      --cur-hp:help;
+  --cur-t:text;    --cur-mv:move;      --cur-ew:ew-resize; --cur-ns:ns-resize;
+  --cur-nw:nwse-resize; --cur-cr:crosshair; --cur-gb:grab;  --cur-gg:grabbing;
+}
+
+/* ── 拖动锁 ──
+   分隔条、窗口标题栏这类拖动的 mousemove 是挂在 window 上的，鼠标一离开那条 7px 宽的把手，
+   指针立刻变成底下元素的形状 —— 拖一次闪一路。原生指针时差别小看不太出来，
+   换成自定义图形后差异明显，很像 bug。拖动期间 <html data-drag> 一打，全屏锁成同一个形状。
+   ⚠️ 这儿的 !important 是**必要**的：要压过所有元素自己的 cursor 声明，没有别的写法。
+   ⚠️ 选择器要把 `:root` 自己也算进去：`:root[data-drag] *` 只匹配**后代**，
+      漏掉根元素本身（鼠标实际总压在某个后代上，看不出来，但留着就是个不一致的洞）。 */
+:root[data-drag],:root[data-drag] *{cursor:var(--cur-mv) !important}
+:root[data-drag="ew"],:root[data-drag="ew"] *{cursor:var(--cur-ew) !important}
+:root[data-drag="ns"],:root[data-drag="ns"] *{cursor:var(--cur-ns) !important}
+:root[data-drag="nwse"],:root[data-drag="nwse"] *{cursor:var(--cur-nw) !important}
+:root[data-drag="grab"],:root[data-drag="grab"] *{cursor:var(--cur-gg) !important}
+
+/* ── 兜底铺一层 ──
+   cursor 是**继承属性**，所以钉在 html 上就够全站生效；下面几条只是补那些
+   浏览器默认样式会自己插一脚的元素（输入框的工字、按钮的箭头）。 */
+html{cursor:var(--cur)}
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea,[contenteditable="true"]{cursor:var(--cur-t)}
+select,option,input[type="range"],input[type="checkbox"],input[type="radio"],
+a[href],summary,button:not(:disabled){cursor:var(--cur-p)}
+button:disabled,[aria-disabled="true"]{cursor:var(--cur)}

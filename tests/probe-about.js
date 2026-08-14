@@ -96,7 +96,12 @@ try{
   ok("其余的都标未实现", [...document.querySelectorAll(".abrow .abst")].filter(
      e=>e.textContent.trim()===T("ab_todo")).length===PAGES.length-AB_READY.length-1);  /* -1 = 本页 */
   ok("当前页标你在这", document.querySelectorAll(".abrow .abst.on").length===1);
-  ok("没做的模块不给按钮", !document.querySelector('.abrow [data-go="cloth"]'));
+  /* 同样别写死是哪个模块没做完 —— 上面那条计数早就改成跟着 AB_READY 走了，
+     这一条却还钉在 "cloth" 上，等 cloth 做完就变成假红。一起改成算出来的。 */
+  ok("没做的模块不给按钮",
+     PAGES.filter(p=>!AB_READY.includes(p.id)&&p.id!=="about")
+          .every(p=>!document.querySelector('.abrow [data-go="'+p.id+'"]')),
+     PAGES.filter(p=>!AB_READY.includes(p.id)&&p.id!=="about").map(p=>p.id).join(",")||"（都做完了）");
   ok("只有做完的模块是亮的",
      [...rows].filter(r=>r.dataset.on==="1").length===AB_READY.length+1);   /* 做完的 + 本页 */
 

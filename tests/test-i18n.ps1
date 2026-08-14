@@ -7,11 +7,20 @@ $pass = 0; $fail = 0
 function Ok($n, $c, $d) { if ($c) { $script:pass++; "PASS $n" + $(if($d){" [$d]"}) }
                           else    { $script:fail++; "FAIL $n" + $(if($d){" [$d]"}) } }
 
-$cs = [IO.File]::ReadAllText("$src\VisitAPI.Quests\QuestValidator.cs")
-# 三种写法都要认：Err("x") / Warn("x") / new Issue(级别, 任务id, "x", ...)
+# 校验码散在三个校验器里，**加了新模块就得把它的校验器加进这张单子**，
+# 否则新码会被判成"死文案"（BOT 外观和货架那两组一上来就中招过）
 $codes = @()
-$codes += [regex]::Matches($cs, '(?:Err|Warn)\("([a-z_]+)"')            | ForEach-Object { $_.Groups[1].Value }
-$codes += [regex]::Matches($cs, 'new Issue\([^,]+,\s*[^,]+,\s*"([a-z_]+)"') | ForEach-Object { $_.Groups[1].Value }
+foreach ($v in @("QuestValidator", "BotLookValidator", "AssortValidator")) {
+    $cs = [IO.File]::ReadAllText("$src\VisitAPI.Quests\$v.cs")
+    # 四种写法都要认，少认一种就会把活文案误判成"死文案"：
+    #   Err("x", …)            任务校验器那种，码在第一位
+    #   Err(file, "x", …)      bot 校验器那种，第一位是文件名
+    #   err("x", …)            货架校验器把 Err/Warn 当委托传下去，传进去就成小写了
+    #   new Issue(级别, 位置, "x", …)
+    $codes += [regex]::Matches($cs, '(?i)\b(?:err|warn)\(\s*(?:[A-Za-z_][\w.]*\s*,\s*)?"([a-z][a-z_]+)"') |
+              ForEach-Object { $_.Groups[1].Value }
+    $codes += [regex]::Matches($cs, 'new Issue\([^,]+,\s*[^,]+,\s*"([a-z_]+)"') | ForEach-Object { $_.Groups[1].Value }
+}
 $codes = $codes | Sort-Object -Unique
 
 $html = [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\index.html")
@@ -66,6 +75,61 @@ $missing = @($used | Where-Object { $zhK -notcontains $_ })
 Ok "quest.js 写死的键表里都有" ($missing.Count -eq 0) `
    "用了 $($used.Count) 个$(if($missing){'  缺: '+($missing -join ',')})"
 
+# 另外三份界面脚本以前**完全没人查**（Memory 第 8 节「静态守门人」那段记着这个洞是怎么补上的）。
+# 它们用的键前缀多得多（b_ / a_ / mr_ / q_ / md_ / nav_ …），所以这里不挑前缀，
+# 一律拿 T()/TF() 里那个字面量去两张表里对。动态拼的键（T("a_cur_"+x) 这种）静态扫不到，
+# 但那类在这三份里只有硬编码的常量表，已经各自写死了键名。
+$other = @{}
+foreach ($f in @("assort.js","bot.js","modroot.js","back.js")) {
+  $t = [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\$f")
+  $other[$f] = ([regex]::Matches($t,'\bTF?\("([a-z][_a-zA-Z0-9]*)"\s*[,)]') |
+                ForEach-Object { $_.Groups[1].Value }) | Sort-Object -Unique
+}
+$missO = @()
+foreach ($f in $other.Keys) {
+  foreach ($k in $other[$f]) {
+    if ($zhAll -notcontains $k) { $missO += "${f}:${k}(中)" }
+    if ($enAll -notcontains $k) { $missO += "${f}:${k}(英)" }
+  }
+}
+Ok "assort/bot/modroot/back.js 写死的键两张表里都有" ($missO.Count -eq 0) `
+   "共用了 $((($other.Values | ForEach-Object { $_ }) | Sort-Object -Unique).Count) 个$(if($missO){'  缺: '+($missO -join ',')})"
+
+# 反过来：a_* / b_* / mr_* 有没有变成没人用的死文案。这几页改得勤，删了功能忘删文案，
+# 两张表只会越攒越肥（这次一开就抓出 19 个，全是前几轮改版的遗留）。
+#
+# ⚠️ 判"用到"**不能**只看 `T("键")` 紧挨着的那种写法，会误伤两类：
+#   ① 三元/变量里的： T(aOnly ? "a_nolevel" : "a_nogoods")、常量表里的 ["a_cur_rub", …]
+#   ② 拼出来的族：   T("b_s_" + k)  —— 键名根本不以完整形式出现在源码里
+# 所以规则放宽成：**这个字面量在那几份源码里出现过**就算用到；再单独把 `"前缀"+` 这种
+# 拼接的前缀收成"族"，族下面的键一律算用到。宁可漏报也不能误报——误报会逼人删活文案。
+$scanSrc = $html
+foreach ($f in @("assort.js","bot.js","modroot.js","quest.js","back.js")) {
+  $scanSrc += "`n" + [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\$f")
+}
+$lits = @{}
+foreach ($m in [regex]::Matches($scanSrc, '"([a-z][_a-zA-Z0-9]*)"')) { $lits[$m.Groups[1].Value] = $true }
+# 动态族：T("b_s_"+k) / "a_cur_"+x / `${T("q_k_"+k)}` 都长这样 —— 引号收尾紧跟一个 +
+$fams = ([regex]::Matches($scanSrc, '"([a-z][_a-zA-Z0-9]*_)"\s*\+') | ForEach-Object { $_.Groups[1].Value }) |
+        Sort-Object -Unique
+$deadUI = @($zhAll | Where-Object {
+  $k = $_
+  $k -match '^(a|b|mr|bk)_' -and -not $lits.ContainsKey($k) -and
+  -not ($fams | Where-Object { $k.StartsWith($_) })
+})
+Ok "货架/服装/内容库/备份没有死文案" ($deadUI.Count -eq 0) `
+   $(if($deadUI){"没人用: "+($deadUI -join ',')}else{"检查了 $(@($zhAll | Where-Object { $_ -match '^(a|b|mr|bk)_' }).Count) 个，动态族 $($fams.Count) 个"})
+
+# 自定义指针：全站不许再出现裸的 cursor 关键字，一律走 --cur-* 变量。
+# 漏一处的症状是"这个元素还是系统指针"，肉眼几乎看不出来，也没有任何运行时测试会响。
+$curBare = @()
+foreach ($f in @("index.html","quest.css","bot.css","bot.js","assort.css","back.css","back.js")) {
+  $t = [IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\$f")
+  foreach ($m in [regex]::Matches($t,'cursor:\s*(?!var\()[a-z-]+')) { $curBare += "${f}: $($m.Value)" }
+}
+Ok "没有漏网的裸 cursor 关键字" ($curBare.Count -eq 0) `
+   $(if($curBare){$curBare -join ' | '}else{"7 份文件全走 var(--cur-*)"})
+
 # 动态拼出来的键（T("q_k_"+k) 这种）静态扫不到，得按"键族"逐个展开查 ——
 # 恰恰是这些最容易漏，因为加一个新类型时很容易忘了同步两张表
 function Family($rx, $prefix, $suffixes) {
@@ -102,6 +166,56 @@ $shared = @("card","chead","row","lbl","btn","ghost","pri","seg","note","alt","t
 $clash = @($inline | Where-Object { $quest -contains $_ -and $shared -notcontains $_ })
 Ok "内联样式和 quest.css 没有意外撞名" ($clash.Count -eq 0) `
    $(if($clash){"撞了: "+($clash -join ', ')}else{"内联 $($inline.Count) 个 / quest.css $($quest.Count) 个"})
+
+# 撞名守门扩容（原来只查上面那一对，bot/assort/back 是盲区——Memory 第 10 节记过）：
+# ① 类名两两互查。cursor.css **故意不查**：它的职责就是跨文件摸别人的类改指针，
+#    每一条"命中别人的类"都是设计使然，塞进撞名检查只会逼人维护一张永远过时的白名单。
+$sheets = [ordered]@{ "inline"=$inline; "quest.css"=$quest }
+foreach ($f in @("bot.css","assort.css","back.css")) {
+  $sheets[$f] = & $classOf ([IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\$f"))
+}
+# 各页有意去摸全局类的（是改样式，不是另立定义）：货架页给 .btn 的小号变体加了内边距
+$touch = @{ "assort.css"=@("btn") }
+$clash2 = @()
+$names = @($sheets.Keys)
+for ($i=0; $i -lt $names.Count; $i++) {
+  for ($j=$i+1; $j -lt $names.Count; $j++) {
+    $a=$names[$i]; $b=$names[$j]
+    if ($a -eq "inline" -and $b -eq "quest.css") { continue }   # 上面刚查过，别重复报
+    foreach ($c in $sheets[$a]) {
+      if ($sheets[$b] -contains $c -and $shared -notcontains $c -and
+          @($touch[$a]) -notcontains $c -and @($touch[$b]) -notcontains $c) {
+        $clash2 += "${a}×${b}: .$c"
+      }
+    }
+  }
+}
+Ok "五份样式两两之间没有意外撞名" ($clash2.Count -eq 0) `
+   $(if($clash2){($clash2 | Select-Object -First 8) -join ' | '}else{"共 $(@($sheets.Values | ForEach-Object { $_ }).Count) 条类定义"})
+
+# ② JS 顶层全局名查重。各页脚本共享同一个全局空间：重复的 let/const 会把**后加载的整个文件**
+#    炸死（BPARTS 撞过，症状是 botPage is not defined、服装页整页消失）；重复的 function 更阴——
+#    不报错、后来者悄悄顶掉前面的。列声明按行首粗扫，解构那类扫不到没关系，宁可漏报不误报。
+$decl=@{}
+foreach($f in @("index.html","quest.js","modroot.js","bot.js","assort.js","back.js")){
+  $t=[IO.File]::ReadAllText("$src\VisitAPI.Server\wwwroot\$f")
+  $ns=@()
+  $ns += [regex]::Matches($t,'(?m)^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)') | ForEach-Object { $_.Groups[1].Value }
+  foreach($m in [regex]::Matches($t,'(?m)^(?:let|const|var)\s+([^\r\n]*)')){
+    $line=$m.Groups[1].Value
+    # 首名必收；后续声明子句只认「, 名字 =」且排除 =>/==（不然箭头函数的参数表
+    # (btn,title,items,cur,set)=> 会被切出一串假全局——第一版就这么误报过 N/cur/v）
+    if($line -match '^([A-Za-z_$][\w$]*)'){ $ns += $Matches[1] }
+    $ns += [regex]::Matches($line,',\s*([A-Za-z_$][\w$]*)\s*=(?![=>])') | ForEach-Object { $_.Groups[1].Value }
+  }
+  $decl[$f]=@($ns | Sort-Object -Unique)
+}
+$owners=@{}
+foreach($f in $decl.Keys){ foreach($n in $decl[$f]){ $owners[$n]=@($owners[$n] | Where-Object { $_ })+$f } }
+$dupG=@($owners.Keys | Where-Object { @($owners[$_]).Count -ge 2 } |
+        ForEach-Object { "$_（$(@($owners[$_]) -join ' + ')）" })
+Ok "各页脚本没有重复声明的顶层全局名" ($dupG.Count -eq 0) `
+   $(if($dupG){($dupG | Select-Object -First 8) -join ' | '}else{"共 $($owners.Keys.Count) 个全局名"})
 
 # 使用说明页的卡片：GUIDE 表里只写标题键，正文键是 键+"_b" 拼出来的，静态扫不到
 $guide = [regex]::Match($html, '(?s)const GUIDE=\{(.*?)\n\};').Groups[1].Value

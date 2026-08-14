@@ -1,0 +1,273 @@
+/* ══════════════════════════════════════════════════════════════════
+   商人货架编辑器（SEC.05）—— 左「货架预览」／右「参数」
+
+   类名一律 as 前缀，**不能和 index.html 内联样式 / quest.css / bot.css 重名**。
+   形状照四条铁律：容器直角零圆角、静止态纯平、黄只给"当前项 / 主操作"。
+
+   左边那面墙的**版式 1:1 照搬塔科夫原生**（页签条 / 商人条 / 工具条 / 货架墙），
+   **配色一律走 AIC 中性黑** —— 中间试过一版原生的棕橄榄，Tech Leader 看过后要求改回来，
+   别当成漏改又改回去。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 数据头上的零件 ── */
+.asbar{display:flex;align-items:center;gap:.5rem;margin-left:auto;padding-right:1.1rem}
+.ascount{font:11px/1 var(--mono);color:var(--ink-2)}
+.asbad{color:var(--err)}
+.aswarn{color:var(--o)}
+.btn.sm>span{padding:.3rem .7rem;font-size:10px}
+
+/* ══ 工作区 ══ */
+.aswork{flex:1 1 auto;min-height:0;display:flex}
+.assplit{flex:0 0 auto;width:1px;background:var(--line);position:relative}
+.assplit::after{content:"";position:absolute;left:0;top:0;width:1px;height:64px;background:var(--y);opacity:.55}
+
+.asbh{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;height:28px;padding:0 .8rem;
+  background:var(--panel-3);border-bottom:1px solid var(--line);
+  font:9.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.asbh b{color:var(--ink-2);font-weight:400;font-size:11px;letter-spacing:.1em}
+.asbh .sp{flex:1 1 auto}
+.asbh em{font-style:normal;color:var(--y)}
+
+/* ── 左：货架预览 ──
+   --e-* 是这一块的局部变量，全部指回 AIC 主色板，明亮主题自动跟着走。
+   ⚠️ **面板本身不铺底色**：底下那张工程图纸壁纸（#sky）要透上来，和使用说明页同款。
+      条状零件（页签条/商人条/工具条/页脚）各自有底色，所以透的只是中间那片货架区。 */
+.asshelf{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0;
+  --e-panel:var(--panel-3);--e-tile:#2A2F36;--e-line:var(--line-2);
+  --e-ink:var(--ink);--e-dim:var(--ink-3);--e-hot:var(--y);
+  background:transparent}
+
+/* ① 页签条：交易 / 任务 / 服务。
+   「任务」是**能点的** —— 这一版不在货架里编任务，点它跳到任务编辑那页；
+   「服务」原生有、我们不做，压暗留着当占位。 */
+.astabs{flex:0 0 auto;display:flex;align-items:stretch;height:34px;background:var(--panel-2);
+  border-bottom:1px solid var(--e-line)}
+.astabs b,.astabs button{display:flex;align-items:center;gap:.4rem;padding:0 1.1rem;font-size:13px;
+  color:var(--e-dim);font-weight:400;border:0;border-right:1px solid var(--e-line);
+  background:none;font-family:inherit}
+.astabs>:first-child{background:var(--e-panel);color:var(--e-ink);font-weight:600;
+  box-shadow:inset 0 2px 0 var(--e-hot)}
+.astabs button{cursor:var(--cur-p)}
+.astabs button:hover{color:var(--y);background:rgba(242,226,5,.06);box-shadow:inset 0 -2px 0 var(--y)}
+
+/* ② 商人条：**只显示当前在编的那个**（换商人走数据头上那颗按钮）。
+   一排商人卡试过，Tech Leader 要求改回来 —— 这一页一次只编一份货架，
+   摆一排别人的头像是干扰不是信息。 */
+.astrader{flex:0 0 auto;display:flex;align-items:center;gap:.9rem;padding:.7rem .9rem;
+  background:var(--panel-2);border-bottom:1px solid var(--e-line);
+  background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 9px)}
+.asface{width:62px;height:62px;flex:0 0 auto;background:#101216;overflow:hidden;position:relative;
+  box-shadow:inset 0 0 0 1px var(--e-line)}
+.asface img,.asface svg{width:100%;height:100%;object-fit:cover;display:block}
+/* 真头像盖在剪影上：取不到时（自定义商人多半没有）JS 会把它摘掉，露出下面的剪影 */
+.asav{position:absolute;left:0;top:0}
+.asrank{position:absolute;left:3px;top:2px;font:11px/1 var(--mono);color:var(--e-ink);
+  text-shadow:0 1px 2px #000}
+.asok{position:absolute;right:3px;top:2px;font:11px/1 var(--mono);color:var(--ok);
+  text-shadow:0 1px 2px #000}
+.astname{flex:1 1 auto;min-width:0}
+.astname b{display:block;font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--ink)}
+.astname i{font:9.5px/1.7 var(--mono);font-style:normal;color:var(--ink-3)}
+/* 忠诚等级刻度：四格，这份货架用到第几级就亮几格 —— 是数据不是装饰 */
+.asll{display:flex;gap:3px;margin-top:3px}
+.asll i{width:26px;height:5px;background:var(--line);font-style:normal}
+.asll i.on{background:var(--y)}
+.astsum{flex:0 0 auto;text-align:right;font:10px/1.7 var(--mono);color:var(--ink-3)}
+.astsum b{display:block;font-size:15px;color:var(--ink);font-weight:400}
+
+/* ③ 工具条：商品展览 / 刷新商店 + 右侧密度按钮，位置照原生 */
+.astool{flex:0 0 auto;display:flex;align-items:center;height:30px;background:var(--e-panel);
+  border-bottom:1px solid var(--e-line);font-size:12px;color:var(--e-dim)}
+.astool b{padding:0 1.1rem;line-height:30px;font-weight:400;color:var(--e-ink);
+  background:var(--panel);border-right:1px solid var(--e-line)}
+.astool s{text-decoration:none;padding:0 1.1rem;line-height:30px;border-right:1px solid var(--e-line)}
+.astool .sp{flex:1 1 auto}
+/* 右边那句「墙高 12 排」。原来这儿是 Ⅰ/Ⅱ/Ⅲ 密度开关（一排几个），
+   2026-08-11 去掉了 —— 既然照着游戏的 12 排来，列数就是算出来的，没得选。 */
+.astool em{font-style:normal;padding:0 1.1rem;line-height:30px;font:10px/30px var(--mono);
+  letter-spacing:.12em;color:var(--ink-3);border-left:1px solid var(--e-line)}
+/* 按忠诚等级过滤：原生是一整面墙不分组，但作者需要"只看 LL3"这种视角 */
+.asfilter{display:flex;gap:2px}
+.asfilter button{background:var(--panel);color:var(--ink-3);border:0;cursor:var(--cur-p);
+  font:9px/1 var(--mono);letter-spacing:.1em;padding:4px 7px}
+.asfilter button:hover{color:var(--ink)}
+.asfilter button.on{background:var(--y);color:var(--y-ink)}
+
+/* ④ 货架墙。
+   ⚠️ **格网只能画在墙那块宽度里，不能刷满整个面板** —— 刷满了就变成
+      "墙无限宽但只摆了几件"，看着像没画完。所以分三层：
+        .asgrid  = 滚动容器，纯底色，不画格
+        .aswrap2 = 墙 + 两条标尺，四角刻度和扫描线挂这儿
+        .aswall  = 真正那面墙，宽 = 列数 × 格宽，高 ≥ 12 排，格网画在它身上 */
+.asgrid{flex:1 1 auto;min-height:0;overflow:auto;padding:0;background:transparent}
+
+/* 墙外面那层：左边一条行号尺、上面一条列号尺。
+   width:max-content 让它只占墙那么宽，右边空出来的地方继续露工程图纸壁纸 */
+.aswrap2{position:relative;display:grid;width:max-content;
+  grid-template-columns:18px calc(var(--cols) * var(--cell));
+  grid-template-rows:18px auto}
+/* 行列标尺：一面 12×N 的格子墙，没有刻度就没法说"第 3 排第 5 格那件"。
+   这是坐标，不是装饰 —— 四条铁律里"能承载数据的地方不放装饰"，反过来也成立。 */
+.asrx,.asry{display:grid;font:8.5px/1 var(--mono);color:var(--ink-3);letter-spacing:.06em;
+  background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
+.asrx{grid-template-columns:repeat(var(--cols),var(--cell));align-items:center}
+.asry{grid-template-rows:repeat(var(--rows),var(--cell));justify-items:center}
+.asrx i,.asry i{font-style:normal;display:flex;align-items:center;justify-content:center;
+  width:100%;height:100%}
+.asrx i{border-right:1px solid var(--line)}
+.asry i{border-bottom:1px solid var(--line)}
+/* 超出 12 排的那几排压暗：一眼看出"这些在游戏里得滚下去才看得到" */
+.asry i.over{color:var(--o);opacity:.55}
+/* 左上角那颗方块：四角刻度的起点，也是"这是一块仪表"的标志 */
+.ascorner{background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);position:relative}
+.ascorner::after{content:"";position:absolute;left:4px;top:4px;width:5px;height:5px;background:var(--y)}
+
+/* 墙上的空格子是能点的（开物品选择器），所以光标给"添加"的形状；瓦片自己会改回 pointer */
+.aswall{cursor:var(--cur-cp);width:calc(var(--cols) * var(--cell));
+  min-height:calc(var(--rows) * var(--cell));
+  display:grid;grid-template-columns:repeat(var(--cols),var(--cell));
+  grid-auto-rows:var(--cell);grid-auto-flow:row;gap:0;align-content:start;
+  background:#101216;box-shadow:0 0 0 1px var(--line-2);
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:var(--cell) var(--cell)}
+
+/* 四角刻度：把这面墙框成"一块取景器"，是这套风格里最省事也最像的一个零件 */
+.aswrap2::before{content:"";position:absolute;left:18px;top:18px;right:0;bottom:0;
+  pointer-events:none;z-index:4;
+  background:
+    linear-gradient(var(--y),var(--y)) left 0 top 0/12px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) left 0 top 0/2px 12px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 top 0/12px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 top 0/2px 12px no-repeat,
+    linear-gradient(var(--line-2),var(--line-2)) left 0 bottom 0/12px 2px no-repeat,
+    linear-gradient(var(--line-2),var(--line-2)) left 0 bottom 0/2px 12px no-repeat,
+    linear-gradient(var(--line-2),var(--line-2)) right 0 bottom 0/12px 2px no-repeat,
+    linear-gradient(var(--line-2),var(--line-2)) right 0 bottom 0/2px 12px no-repeat}
+/* 扫描线：全场唯一在动的东西，6 秒一轮。
+   ⚠️ 必须 position:absolute —— .aswrap2 是网格容器，不定位的伪元素会被当成一个格子塞进去。 */
+.aswrap2::after{content:"";position:absolute;left:18px;top:18px;right:0;height:52px;
+  pointer-events:none;z-index:3;opacity:.5;
+  background:linear-gradient(180deg,transparent,rgba(63,208,201,.10) 62%,rgba(63,208,201,.34));
+  animation:asscan 6s linear infinite}
+@keyframes asscan{0%{transform:translateY(-56px)}100%{transform:translateY(calc(var(--rows) * var(--cell)))}}
+@media (prefers-reduced-motion:reduce){.aswrap2::after{animation:none;opacity:0}}
+
+/* 鼠标停在空格子上时亮出来的虚框 —— 「点空格子能加商品」得看得见才算数 */
+.asghost{position:absolute;pointer-events:none;z-index:5;display:none;
+  box-shadow:inset 0 0 0 1px var(--y);background:rgba(242,226,5,.07)}
+.asghost.on{display:block}
+.asghost::after{content:"＋";position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font:16px/1 var(--mono);color:var(--y);opacity:.8}
+
+/* 一件商品 = 一块占 W×H 格的瓦片（占格来自 items.json，含武器的 ExtraSize*） */
+.ascard{position:relative;cursor:var(--cur-p);background:var(--e-tile);
+  box-shadow:inset 0 0 0 1px #444C56;overflow:hidden}
+.ascard:hover{background:#333A42;z-index:2}
+.ascard.on{background:#2B2910;z-index:3;box-shadow:inset 0 0 0 2px var(--e-hot)}
+/* 选中的那件再加四个角括号 —— 这套风格里"被选中"是被夹住，不是被涂色。
+   overflow:hidden 会把伸到框外的角切掉，所以做成内嵌的四段短边，靠 background 一次画完。 */
+.ascard.on::before{content:"";position:absolute;inset:2px;z-index:4;pointer-events:none;
+  background:
+    linear-gradient(var(--y),var(--y)) left 0 top 0/9px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) left 0 top 0/2px 9px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 top 0/9px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 top 0/2px 9px no-repeat,
+    linear-gradient(var(--y),var(--y)) left 0 bottom 0/9px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) left 0 bottom 0/2px 9px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 bottom 0/9px 2px no-repeat,
+    linear-gradient(var(--y),var(--y)) right 0 bottom 0/2px 9px no-repeat}
+.ascard.bad{box-shadow:inset 0 0 0 2px var(--o);z-index:1}
+.ascard img{position:absolute;left:14%;top:16%;width:72%;height:68%;object-fit:contain;opacity:.92}
+/* 没有分类图标时不留空框 */
+.asnoi{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;
+  font:20px/1 var(--mono);color:var(--ink-3)}
+/* 左上角价格：原生是货币符号 + 数字，白字压在物品图上。千位用**空格**（原生写作 ₽26 879）。
+   字号**跟着格宽走**：墙高钉死 12 排之后，窗口一矮格子就跟着缩（实测能到 53px），
+   写死 11px 的话「₽150 000」直接被 overflow:hidden 切掉半截。 */
+.aspx{position:absolute;left:3px;top:2px;color:#E9E9E1;white-space:nowrap;
+  font:clamp(8px,calc(var(--cell) * .135),11px)/1 var(--mono);
+  text-shadow:0 1px 2px #000,0 0 3px #000}
+/* 右下角数量：无限供应原生显示「大量」 */
+.asqty{position:absolute;right:3px;bottom:2px;color:#E9E9E1;
+  font:clamp(8px,calc(var(--cell) * .135),11px)/1 var(--mono);
+  text-shadow:0 1px 2px #000,0 0 3px #000}
+.asqty.inf{color:var(--tech)}
+.asqty.few{color:var(--o)}
+/* 左下角忠诚等级：原生是个小色块。
+   **不用彩色** —— 蓝/绿/黄/红在这套界面里各自已经有含义（青=自制、橙=待办、红=错误、黄=当前），
+   拿去表示"第几级"会串味。改成一条石墨明度阶梯：越高越亮，配上数字一样读得出来。 */
+.asll2{position:absolute;left:3px;bottom:3px;width:11px;height:11px;
+  font:8px/11px var(--mono);text-align:center;color:#101216}
+.asll2.l1{background:#4A525C;color:#D7DBE0}.asll2.l2{background:#6B7480}
+.asll2.l3{background:#98A0AA}.asll2.l4{background:#D7DBE0}
+/* 每次限购：右上角一个小点 */
+.aslim{position:absolute;right:3px;top:3px;width:6px;height:6px;background:var(--o)}
+/* 空盒子：橙框之外再给个感叹号，扫一眼就能找出来。点它直接装满 */
+.asbang{position:absolute;right:3px;top:2px;font:12px/1 var(--mono);color:var(--o);
+  text-shadow:0 1px 2px #000;cursor:var(--cur-p)}
+.asnone{grid-column:1/-1;padding:1.4rem .6rem;font:11.5px/2 var(--mono);color:var(--ink-3)}
+/* 图例说明（瓦片上那几个角标各是什么意思）。
+   ⚠️ 以前钉在墙底下，横着占满整个预览区、等于从下面切掉一条格子 ——
+      Tech Leader 反馈"挡住格子了"，2026-08-11 挪进右边参数栏的末尾。
+   不写 flex:0 0 auto：它现在是参数栏滚动内容的最后一块，跟着一起滚。 */
+.asfoot{padding:.7rem .6rem .2rem;font:10.5px/1.8 var(--mono);color:var(--ink-3);
+  border-top:1px solid var(--line);margin:.4rem .2rem 0}
+
+/* ── 右：参数（固定宽的检视栏）──
+   ⚠️ 这一栏**铺实底**，工程图纸壁纸只透在左边货架那半边。
+      0.9.1 时两栏都做成透明的，图例说明挪进来之后一大段小字压在网格上很吵，
+      Tech Leader 2026-08-11："参数区可以不用显示背景"。 */
+.aspar{flex:0 0 auto;width:clamp(360px,24vw,460px);display:flex;flex-direction:column;
+  background:var(--panel-2);min-height:0;overflow:auto}
+/* flex:1 **0** auto：往下撑满（参数少时把底下那段图例顶到栏底），但绝不缩到内容以下 ——
+   写 1 1 auto + min-height:0 的话，参数一长它会被压扁，图例就骑到参数上面去了 */
+.aspbody{flex:1 0 auto;padding:.8rem}
+.asblk{border:1px solid var(--line);background:var(--panel);margin-bottom:.6rem}
+.asblkh{display:flex;align-items:center;gap:.5rem;padding:.42rem .6rem;background:var(--panel-3);
+  border-bottom:1px solid var(--line);font:9.5px/1 var(--mono);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-3)}
+.asblkh b{color:var(--ink-2);font-weight:400;font-size:11px;letter-spacing:.08em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asblkh .sp{flex:1 1 auto}
+.asblkb{padding:.6rem}
+.asfld{display:flex;align-items:center;gap:.6rem;padding:.4rem 0}
+.asfld+.asfld{border-top:1px solid var(--line-2)}
+.asfld label{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink-2)}
+.asfld label i{display:block;font:9px/1.5 var(--mono);font-style:normal;color:var(--ink-3)}
+.asin{width:120px;flex:0 0 auto;background:var(--panel-2);color:var(--ink);border:0;
+  box-shadow:inset 0 0 0 1px var(--line);padding:.35rem .5rem;font:13px/1.2 var(--mono);text-align:right}
+.asin:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
+.asin.w{width:74px}
+/* 分段选择：货币 / 库存模式。挂牌类 → 斜切 */
+.asseg{display:flex;gap:.3rem;flex:0 0 auto}
+.asseg button{background:var(--panel-2);color:var(--ink-3);border:0;cursor:var(--cur-p);
+  font:10px/1 var(--mono);letter-spacing:.1em;padding:.42rem .7rem;
+  clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.asseg button:hover{color:var(--ink)}
+.asseg button.on{background:var(--y);color:var(--y-ink)}
+.asllpick{display:flex;gap:.3rem}
+.asllpick button{flex:1 1 0;background:var(--panel-2);color:var(--ink-3);border:0;cursor:var(--cur-p);
+  font:11px/1 var(--mono);letter-spacing:.1em;padding:.5rem 0;
+  clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.asllpick button:hover{color:var(--ink)}
+.asllpick button.on{background:var(--y);color:var(--y-ink);font-weight:700}
+.ashint{font:10px/1.7 var(--mono);color:var(--ink-3);padding:.35rem 0 0}
+.ashint em{font-style:normal;color:var(--o)}
+.asacts{display:flex;gap:.4rem;padding:.6rem;border-top:1px solid var(--line-2);background:var(--panel-2)}
+.asacts .sp{flex:1 1 auto}
+/* 没选中商品时的那块提示。参数栏已经是实底了，不用再套一层面板（会变成盒中盒） */
+.aspempty{padding:2rem 1rem;font:12px/2 var(--mono);color:var(--ink-3);text-align:center}
+.aspempty b{display:block;color:var(--ink-2);font-size:13px;font-weight:400;margin-bottom:.5rem}
+
+/* ── 落脚页 / 小零件 ── */
+.asempty{padding:1.2rem;font-size:12.5px;line-height:1.9;color:var(--ink-3)}
+.asx{background:none;border:1px solid var(--line);color:var(--ink-3);
+  font:11px/1 var(--mono);padding:.28rem .5rem;cursor:var(--cur-p);margin-left:.5rem}
+.asx:hover{color:var(--y);border-color:var(--y)}
+
+/* ── 物品选择器：**这一页不再自己养一套** ──
+   「添加商品 / 换物品 / 点空格子」全部改用任务编辑页那个窗口（#ipick，皮在 quest.css）。
+   原来这儿有一套 .aspick/.aspq/.asplist/.aspitem/.aspmore/.asnm/.astpl，
+   2026-08-11 整段删了（Tech Leader："弄成任务编辑里面的物品窗口吧"）。
+   那套既没有分类树也不显示价格，同一件事没必要养两张皮。 */

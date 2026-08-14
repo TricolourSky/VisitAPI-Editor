@@ -1,0 +1,18 @@
+{
+  "items": [
+    { "_id": "bb00000000000000000000a1", "_tpl": "65702558cfc010a0f5006a25",
+      "parentId": "hideout", "slotId": "hideout",
+      "upd": { "UnlimitedCount": true, "StackObjectsCount": 9999999, "BuyRestrictionMax": 2, "BuyRestrictionCurrent": 0 } },
+    { "_id": "bb00000000000000000000a2", "_tpl": "58dd3ad986f77403051cba8f",
+      "parentId": "bb00000000000000000000a1", "slotId": "cartridges", "location": 0,
+      "upd": { "StackObjectsCount": 20 } },
+    { "_id": "bb00000000000000000000a3", "_tpl": "60098ad7c2240c0fe85c570a",
+      "parentId": "hideout", "slotId": "hideout",
+      "upd": { "UnlimitedCount": true, "StackObjectsCount": 9999999 } }
+  ],
+  "barter_scheme": {
+    "bb00000000000000000000a1": [[{ "count": 150000, "_tpl": "5449016a4bdc2d6f028b456f" }]],
+    "bb00000000000000000000a3": [[{ "count": 30000, "_tpl": "5449016a4bdc2d6f028b456f" }]]
+  },
+  "loyal_level_items": { "bb00000000000000000000a1": 1, "bb00000000000000000000a3": 1 }
+}

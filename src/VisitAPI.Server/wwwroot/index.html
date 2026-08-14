@@ -60,6 +60,30 @@ body{background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:1
   line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font-family:inherit;color:inherit}
 svg{display:block}
+
+/* ══ 滚动条 ══
+   浏览器默认那根在这套工业面板里非常出戏（圆头、亮灰、带渐变）。照四条铁律重画：
+     形状 — 直角，滑块两边留 2px 让它像嵌在槽里的一条金属片
+     厚度 — 静止纯平（只有一层斜纹），**没有任何投影**
+     颜色 — 石墨灰阶；hover 才提亮，**只有正在拖的时候才亮黄**（拖动＝当前操作）
+     轨道 — 透明。全站有 panel / panel-2 / graph-bg 好几种底色，
+            给轨道写死一个颜色就会在某些面板上浮出一条色差带
+   变量全部走 :root，所以明亮主题自动跟着换，不用另写一套。
+
+   ⚠️ **绝对不能在这里写 scrollbar-width / scrollbar-color**（那两个是标准属性）：
+      Chromium 只要见到它们，就会把 ::-webkit-scrollbar 这一整套**全部忽略**，
+      滚动条直接打回浏览器默认样式 —— 改了半天没效果，还极难查。
+      `#navItems` 是**故意**用 scrollbar-width:none 把滚动条整根藏掉的（侧脊里不该有滚动条），
+      那一处保持原样，它的 id 选择器权重也压得住下面这些通配规则。 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background-color:var(--line-2);
+  background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 5px);
+  background-clip:padding-box;border:2px solid transparent}
+::-webkit-scrollbar-thumb:hover{background-color:var(--ink-3)}
+::-webkit-scrollbar-thumb:active{background-color:var(--y)}
+
 #sky{position:fixed;inset:0;z-index:0}
 .shell{position:relative;z-index:1;display:flex;height:100vh}
 
@@ -89,7 +113,11 @@ svg{display:block}
    只有当前项会在槽里点亮一条黄条。选中信号和按钮本体分离，互不干扰。 */
 #navItems,#navBottom{width:100%;display:flex;flex-direction:column;gap:1px;
   align-items:flex-start;position:relative;z-index:1}
-#navItems{padding-top:1px}
+/* 七格之后要留退路：实测 600px 高的窗口只剩 3px 余量，再矮就会顶到底部的设置按钮。
+   min-height:0 让 flex 允许它被压缩（不写的话 flex 子项默认不肯缩到内容以下），
+   overflow:auto 让它在挤不下时自己滚 —— 退化成滚动，而不是叠在一起。 */
+#navItems{padding-top:1px;min-height:0;overflow-y:auto;scrollbar-width:none}
+#navItems::-webkit-scrollbar{width:0}
 .nav .sp{flex:1 1 auto;width:100%;position:relative;z-index:1}
 .nav .sp::after{content:"AIC // VISITAPI EDITOR";position:absolute;left:50%;bottom:22px;
   transform:translateX(-50%) rotate(180deg);writing-mode:vertical-rl;
@@ -99,7 +127,7 @@ svg{display:block}
    静止：纯平色块 + 发丝描边，一点渐变和投影都没有。
    悬停：抬起来（投影 + 顶边高光）。按下：陷进去（内阴影）。
    立体感是"发生"出来的，不是"长"在按钮上的——这是终末地按钮的关键。 */
-.nitem{width:calc(100% - 14px);height:50px;border:0;cursor:pointer;padding:0;position:relative;
+.nitem{width:calc(100% - 14px);height:50px;border:0;cursor:var(--cur-p);padding:0;position:relative;
   background:var(--chrome);color:var(--chrome-ink);
   display:flex;align-items:center;justify-content:center;box-shadow:none}
 .nitem>span{display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -136,7 +164,7 @@ svg{display:block}
 .cart div{display:flex;flex-direction:column;gap:1px}
 .cart k{font:8.5px/1 var(--mono);letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase}
 .cart v{font:11.5px/1.25 var(--mono);color:var(--ink)}
-.cart div.edit{cursor:pointer}
+.cart div.edit{cursor:var(--cur-p)}
 .cart div.edit:hover v,.cart div.edit:hover k{color:var(--y)}
 .pop .fld{display:block;margin-bottom:.5rem}
 .pop .fld i{display:block;font:8.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;
@@ -148,14 +176,14 @@ svg{display:block}
 .pop .fld select{width:100%;box-sizing:border-box;padding:.28rem .4rem;background:var(--panel);
   border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11.5px var(--mono)}
 /* 触发点：一行一条，点开就是那条的表单 */
-.trrow{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;border:0;cursor:pointer;
+.trrow{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;border:0;cursor:var(--cur-p);
   background:var(--panel-3);color:var(--ink-2);padding:.3rem .5rem;margin-bottom:2px;font-size:11.5px}
 .trrow:hover{background:var(--y);color:var(--y-ink)}
 .trrow b{font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trrow span{margin-left:auto;font:8.5px/1 var(--mono);opacity:.6}
 .trxyz{display:flex;gap:.3rem}.trxyz .fld{flex:1 1 0;min-width:0}
 /* 节点标题上的 ⋮：平时压暗，鼠标到这张卡上才亮，免得每张卡上都戳着一个点 */
-.ghead .grole{margin-left:.35rem;font-style:normal;cursor:pointer;opacity:.35;padding:0 .15rem}
+.ghead .grole{margin-left:.35rem;font-style:normal;cursor:var(--cur-p);opacity:.35;padding:0 .15rem}
 .gnode:hover .ghead .grole{opacity:.8}
 .ghead .grole:hover{opacity:1;color:var(--y)}
 .gnode[data-start="1"] .ghead .grole:hover,.gnode[data-entry="1"] .ghead .grole:hover{color:inherit}
@@ -213,7 +241,7 @@ svg{display:block}
 /* 按钮：浅色机壳斜块，主操作填黄 */
 .btn{background:var(--chrome);border:0;position:relative;
   color:var(--chrome-ink);font-weight:700;padding:0;font-size:11.5px;letter-spacing:.1em;
-  text-transform:uppercase;cursor:pointer;white-space:nowrap;transform:skewX(var(--sk));
+  text-transform:uppercase;cursor:var(--cur-p);white-space:nowrap;transform:skewX(var(--sk));
   box-shadow:none}
 .btn>span{display:block;transform:skewX(calc(var(--sk) * -1));padding:.44rem .95rem}
 .btn:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 6px 16px rgba(0,0,0,.5)}
@@ -247,14 +275,14 @@ svg{display:block}
   background:var(--panel-2);border-bottom:1px solid var(--line)}
 .vtab b{font:9.5px/1 var(--mono);letter-spacing:.24em;color:var(--y);text-transform:uppercase}
 .vtab .bgtag{font:10px/1 var(--mono);color:var(--ink-3);margin-left:auto}
-.vfold{width:24px;height:20px;border:0;background:transparent;color:var(--ink-3);cursor:pointer;
+.vfold{width:24px;height:20px;border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);
   font-size:12px;line-height:1;padding:0}
 .vfold:hover{color:var(--y);background:var(--panel-3)}
 
 /* 分拍页签：实物里 节点｜日常｜索引 那条，选中是实心黄块 */
 .beatbar{flex:0 0 auto;display:flex;align-items:stretch;gap:0;height:31px;
   background:var(--panel);border-bottom:1px solid var(--line);padding:0 .5rem;overflow-x:auto}
-.beat{border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:11.5px;
+.beat{border:0;background:none;color:var(--ink-2);cursor:var(--cur-p);font-size:11.5px;
   letter-spacing:.08em;padding:0 .85rem;white-space:nowrap;position:relative;flex:0 0 auto}
 .beat+.beat::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line-2)}
 .beat:hover{color:var(--ink)}
@@ -273,7 +301,7 @@ svg{display:block}
   pointer-events:none;border:2px solid var(--y)}
 .stage::before{left:-7px;top:-7px;border-right:0;border-bottom:0}
 .stage::after{right:-7px;bottom:-7px;border-left:0;border-top:0}
-.stage .bglayer{position:absolute;inset:0;cursor:pointer;background-size:cover;
+.stage .bglayer{position:absolute;inset:0;cursor:var(--cur-p);background-size:cover;
   background-position:center;background-color:#0E0F10;overflow:hidden}
 .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .stage .bglayer.empty{background-image:repeating-linear-gradient(45deg,#0E0F10 0 14px,#15161A 14px 28px)}
@@ -298,14 +326,14 @@ svg{display:block}
 .optrow{display:flex;align-items:center;gap:.4rem;padding:.32rem .5rem .32rem .2rem;
   border-bottom:1px solid #22242A}
 .optrow:hover{background:#17181C}
-.kebab,.del{border:0;background:none;color:var(--g-dim);cursor:pointer;flex:0 0 auto}
+.kebab,.del{border:0;background:none;color:var(--g-dim);cursor:var(--cur-p);flex:0 0 auto}
 .kebab{width:18px;font-size:13px}.del{width:18px;font-size:11px}
 .kebab:hover{color:var(--g-gold)}.del:hover{color:var(--err)}
 .ico{width:14px;height:14px;flex:0 0 auto;opacity:.8;filter:brightness(1.35)}
 .otext{flex:1 1 auto;outline:0;font-size:12.5px;color:var(--g-ink);min-width:30px}
 .otext:focus{box-shadow:inset 0 -1px 0 var(--g-hot)}
 .jump{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--g-gold);background:#191B1F;
-  border:1px solid #3A3E45;padding:.06rem .3rem;cursor:pointer}
+  border:1px solid #3A3E45;padding:.06rem .3rem;cursor:var(--cur-p)}
 .jump:hover{background:var(--g-hot);color:#0B0B0C}
 .jump.bad{color:var(--err);border-color:#5A2E30}
 .jump.end{color:var(--g-dim);border-color:#2E3137}
@@ -314,10 +342,10 @@ svg{display:block}
 .chip.g{color:#D8C24E;border-color:#43402A}
 .chip.s{color:#DCA3C6;border-color:#432F3E}
 .addopt{width:100%;padding:.32rem .85rem;background:none;border:0;color:var(--g-dim);
-  cursor:pointer;font-size:11.5px;text-align:left}
+  cursor:var(--cur-p);font-size:11.5px;text-align:left}
 .addopt:hover{color:var(--g-hot);background:#17181C}
 
-.vsplit{flex:0 0 auto;width:7px;cursor:ew-resize;background:var(--panel);z-index:1;
+.vsplit{flex:0 0 auto;width:7px;cursor:var(--cur-ew);background:var(--panel);z-index:1;
   border-left:1px solid var(--line);border-right:1px solid var(--line);
   display:flex;align-items:center;justify-content:center}
 .vsplit::after{content:"";width:3px;height:46px;
@@ -339,15 +367,15 @@ svg{display:block}
     linear-gradient(90deg,var(--grid-1) 1px,transparent 1px),
     linear-gradient(var(--grid-2) 1px,transparent 1px),
     linear-gradient(90deg,var(--grid-2) 1px,transparent 1px);
-  background-size:130px 130px,130px 130px,26px 26px,26px 26px;cursor:crosshair}
-.graph.panning{cursor:grabbing}
+  background-size:130px 130px,130px 130px,26px 26px,26px 26px;cursor:var(--cur-cr)}
+.graph.panning{cursor:var(--cur-gg)}
 .gviewport{position:absolute;inset:0;transform-origin:0 0}
 .gedge{position:absolute;inset:0;overflow:visible;pointer-events:none}
 /* 章节索引条：一条故事线一根刻度，颜色跟节点头一致，点了直接跳过去。
    灵感来自实物左缘那列彩色刻度——但那是装饰，这条是能点的导航。 */
 .bandrail{position:absolute;left:0;top:0;bottom:0;width:22px;z-index:6;background:var(--panel);
   border-right:1px solid var(--line);padding:6px 0}
-.bandrail i{position:absolute;left:5px;width:12px;height:3px;background:var(--ink-3);cursor:pointer;
+.bandrail i{position:absolute;left:5px;width:12px;height:3px;background:var(--ink-3);cursor:var(--cur-p);
   transition:width .1s,left .1s,box-shadow .1s}
 .bandrail i.s{background:var(--y)}
 .bandrail i.e{background:var(--o)}
@@ -357,7 +385,7 @@ svg{display:block}
 .gtools{position:absolute;right:0;top:0;bottom:0;width:40px;display:flex;flex-direction:column;
   align-items:center;padding:.45rem 0;gap:4px;z-index:6;background:var(--panel);
   border-left:1px solid var(--line)}
-.gtools button{width:30px;height:28px;border:0;cursor:pointer;padding:0;font-size:12px;
+.gtools button{width:30px;height:28px;border:0;cursor:var(--cur-p);padding:0;font-size:12px;
   background:var(--chrome);color:var(--chrome-ink);box-shadow:none;font-weight:700}
 .gtools button>span{display:block}
 .gtools button:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 5px 13px rgba(0,0,0,.55)}
@@ -373,11 +401,11 @@ svg{display:block}
 .gnode[data-cur="1"]{box-shadow:0 0 0 2px var(--y),0 0 22px rgba(242,226,5,.28)}
 .gnode.orphan{opacity:.42}
 .ghead{padding:.24rem .45rem .24rem .5rem;font:10.5px/1.4 var(--mono);letter-spacing:.03em;
-  color:var(--ink);cursor:grab;background:var(--panel-3);border-bottom:1px solid var(--line);
+  color:var(--ink);cursor:var(--cur-gb);background:var(--panel-3);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:.3rem}
 .ghead em{margin-left:auto;font-style:normal;font-size:8.5px;letter-spacing:.14em;opacity:.6}
 .gname{width:100%;background:rgba(0,0,0,.45);border:1px solid var(--y);color:var(--ink);
-  font:inherit;padding:0 .18rem;outline:none;cursor:text}
+  font:inherit;padding:0 .18rem;outline:none;cursor:var(--cur-t)}
 .gnode[data-start="1"] .ghead{background:var(--y);color:var(--y-ink);font-weight:700}
 .gnode[data-entry="1"] .ghead{background:var(--o);color:#170A03;font-weight:700}
 .gnode[data-trig="1"] .ghead{background:var(--tech);color:#04201D;font-weight:700}
@@ -419,7 +447,7 @@ svg{display:block}
 .pop h4:first-child{margin-top:0}
 .opts2{display:flex;flex-wrap:wrap;gap:3px}
 .opts2 button{padding:.24rem .55rem;background:transparent;box-shadow:inset 0 0 0 1px var(--line-2);
-  border:0;color:var(--ink-2);font-size:11px;cursor:pointer}
+  border:0;color:var(--ink-2);font-size:11px;cursor:var(--cur-p)}
 .opts2 button:hover{color:var(--y);box-shadow:inset 0 0 0 1px var(--y)}
 .opts2 button[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
 
@@ -429,18 +457,18 @@ svg{display:block}
   display:none;flex-direction:column;overflow:hidden}
 .srcwrap.on{display:flex}
 .srcwrap header{display:flex;align-items:center;gap:.6rem;padding:.55rem .9rem;
-  border-bottom:1px solid var(--line);cursor:move;user-select:none;flex:0 0 auto;background:var(--panel-2)}
+  border-bottom:1px solid var(--line);cursor:var(--cur-mv);user-select:none;flex:0 0 auto;background:var(--panel-2)}
 .srcwrap header b{pointer-events:none;font:11px/1 var(--mono);letter-spacing:.2em;
   text-transform:uppercase;color:var(--y)}
 .srcwrap textarea{flex:1 1 auto;min-height:0;resize:none;margin:0;padding:.9rem 1rem;
   background:transparent;border:0;outline:none;font-family:var(--mono);
   font-size:12px;line-height:1.75;color:var(--ink-2);white-space:pre;overflow:auto;tab-size:2}
-.srcgrip{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;z-index:2}
+.srcgrip{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:var(--cur-nw);z-index:2}
 .srcgrip::after{content:"";position:absolute;right:5px;bottom:5px;width:9px;height:9px;
   border-right:2px solid var(--y);border-bottom:2px solid var(--y)}
 .srcedge{position:absolute;z-index:1}
-.srcedge.e{right:0;top:0;bottom:0;width:6px;cursor:ew-resize}
-.srcedge.s{left:0;right:0;bottom:0;height:6px;cursor:ns-resize}
+.srcedge.e{right:0;top:0;bottom:0;width:6px;cursor:var(--cur-ew)}
+.srcedge.s{left:0;right:0;bottom:0;height:6px;cursor:var(--cur-ns)}
 
 /* ══ 设置 / 占位页 ══ */
 .setwrap{flex:1 1 auto;min-height:0;overflow:auto;padding:2rem 2.3rem;max-width:860px;width:100%;
@@ -467,7 +495,7 @@ svg{display:block}
 .row .lbl span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:.15rem}
 .seg{display:flex;box-shadow:inset 0 0 0 1px var(--line-2);flex:0 0 auto}
 .seg button{border:0;background:none;color:var(--ink-2);font-size:11.5px;letter-spacing:.1em;
-  padding:.36rem .95rem;cursor:pointer;white-space:nowrap;text-transform:uppercase}
+  padding:.36rem .95rem;cursor:var(--cur-p);white-space:nowrap;text-transform:uppercase}
 .seg button:hover{color:var(--y)}
 .seg button[aria-pressed="true"]{color:var(--y-ink);background:var(--y);font-weight:700}
 /* ══ 程序介绍页 ══
@@ -509,7 +537,7 @@ svg{display:block}
 .hphd i{font-style:normal;color:var(--ink-3);letter-spacing:.1em}
 .hphd::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
 .hpcard{background:var(--panel);box-shadow:0 0 0 1px var(--line)}
-.hpcard>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.6rem;
+.hpcard>summary{list-style:none;cursor:var(--cur-p);display:flex;align-items:center;gap:.6rem;
   padding:.6rem .85rem;font-size:13px;font-weight:700;color:var(--ink)}
 .hpcard>summary::-webkit-details-marker{display:none}
 /* 三角自己画：原生标记在不同浏览器上大小不一，和这套界面也不搭 */
@@ -623,7 +651,7 @@ svg{display:block}
    所以这里必须连 .row .lbl 一起写，压过那条 */
 .row .lbl span.abnote b{display:inline;color:var(--ink);font-weight:600;font-size:inherit;letter-spacing:0}
 .slider{display:flex;align-items:center;gap:.8rem;flex:0 0 auto;width:250px}
-.slider input[type=range]{flex:1 1 auto;accent-color:var(--y);cursor:pointer}
+.slider input[type=range]{flex:1 1 auto;accent-color:var(--y);cursor:var(--cur-p)}
 .slider .val{font:11px/1 var(--mono);color:var(--y);width:42px;text-align:right}
 
 @media (prefers-reduced-motion:no-preference){
@@ -632,7 +660,7 @@ svg{display:block}
 .pathbar{font:10px/1 var(--mono);color:var(--ink-3);margin-bottom:.45rem;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .picker{display:flex;flex-direction:column;gap:1px;max-height:52vh;overflow:auto}
-.picker button{display:flex;align-items:center;gap:.5rem;text-align:left;border:0;cursor:pointer;
+.picker button{display:flex;align-items:center;gap:.5rem;text-align:left;border:0;cursor:var(--cur-p);
   background:var(--panel-3);color:var(--ink-2);font-size:12px;padding:.34rem .5rem}
 .picker button:hover{background:var(--y);color:var(--y-ink)}
 .picker em{margin-left:auto;font-style:normal;font:9.5px/1 var(--mono);opacity:.6}
@@ -641,24 +669,30 @@ svg{display:block}
   font:11.5px/1.6 var(--mono);padding:.35rem .45rem;outline:none}
 .rootin:focus{border-color:var(--y)}.demotag{font:8.5px/1 var(--mono);letter-spacing:.1em;background:var(--o);color:#170A03;padding:.05rem .22rem;font-weight:700;margin-left:.4rem}
 .audchip{border:0;background:transparent;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-3);
-  font:10px/1 var(--mono);letter-spacing:.04em;padding:.24rem .45rem;cursor:pointer;white-space:nowrap;
+  font:10px/1 var(--mono);letter-spacing:.04em;padding:.24rem .45rem;cursor:var(--cur-p);white-space:nowrap;
   margin-left:.45rem;flex:0 0 auto}
 .audchip:hover{color:var(--y);box-shadow:inset 0 0 0 1px var(--y)}
 .audchip.on{color:var(--y-ink);background:var(--y);box-shadow:none;font-weight:700}
 .beatbar .audchip{align-self:center;margin-left:auto;margin-right:.2rem}
 .audlist{display:flex;flex-direction:column;gap:1px;max-height:46vh;overflow:auto}
 .audrow{display:flex;gap:1px}
-.audrow>button:first-child{flex:1 1 auto;text-align:left;border:0;cursor:pointer;background:var(--panel-3);
+.audrow>button:first-child{flex:1 1 auto;text-align:left;border:0;cursor:var(--cur-p);background:var(--panel-3);
   color:var(--ink-2);font-size:11.5px;padding:.3rem .45rem}
 .audrow>button:first-child:hover{background:var(--y);color:var(--y-ink)}
 .audrow>button:first-child.on{background:var(--y);color:var(--y-ink);font-weight:700}
-.audplay{width:26px;border:0;cursor:pointer;background:var(--panel-3);color:var(--ink-3);font-size:10px}
+.audplay{width:26px;border:0;cursor:var(--cur-p);background:var(--panel-3);color:var(--ink-3);font-size:10px}
 .audplay:hover{background:var(--o);color:#170A03}
 .audempty{color:var(--ink-3);font-size:11.5px;padding:.4rem .1rem}.telem #wsInfo{color:var(--ink-3)} .telem #wsInfo.warn{color:var(--o)}
 .bghint small{display:block;margin-top:.4rem;font-size:11px;opacity:.75;line-height:1.5;max-width:26rem}
 </style>
 
+<!-- 指针那套放在最前：它只导出 --cur-* 变量和几条元素级兜底，
+     排在前面才不会跟后面各页的类选择器抢（同权重时后来者胜，这里要让页面赢） -->
+<link rel="stylesheet" href="/ui/cursor.css">
 <link rel="stylesheet" href="/ui/quest.css">
+<link rel="stylesheet" href="/ui/bot.css">
+<link rel="stylesheet" href="/ui/assort.css">
+<link rel="stylesheet" href="/ui/back.css">
 <canvas id="sky"></canvas>
 <div class="shell">
   <nav class="nav" id="nav">
@@ -672,7 +706,6 @@ svg{display:block}
   <span style="font-size:11.5px;color:var(--ink-3)" id="srcNote"></span>
   <span style="flex:1"></span>
   <button class="btn pri" id="srcCopy"><span></span></button>
-  <button class="btn ghost" id="srcDl"><span></span></button>
   <button class="btn ghost" id="srcClose"><span></span></button></header>
   <textarea id="srcPre" spellcheck="false" readonly></textarea>
   <div class="srcedge e" data-rz="e"></div><div class="srcedge s" data-rz="s"></div>
@@ -717,8 +750,25 @@ const SVG={
   list:'M2.4 4.1h15.2v2.7H2.4z M2.4 8.7h15.2v2.7H2.4z M2.4 13.3h9.4v2.7H2.4z',
   undo:'M10.2 2.4a7.6 7.6 0 1 1-7.3 9.6l2.9-.8a4.6 4.6 0 1 0 4.4-5.9h-1.1l1.9 1.9-2 2-5.4-5.4 5.4-5.4 2 2-1.9 1.9z',
   help:'M10 1.2A8.8 8.8 0 1 0 10 18.8 8.8 8.8 0 0 0 10 1.2z M8.8 13.6h2.4v2.3H8.8z M10.1 4.3c-2 0-3.4 1.2-3.6 3.1l2.3.3c.1-.9.6-1.4 1.3-1.4.6 0 1.1.4 1.1 1 0 .5-.2.8-.9 1.3-1 .7-1.4 1.3-1.4 2.4v.7h2.2v-.4c0-.6.2-.9.9-1.4 1.1-.8 1.6-1.5 1.6-2.7 0-1.7-1.4-2.9-3.5-2.9z',
-  gear:'M8.4 1.4h3.2l.4 2.4 1.6.9 2.2-1 1.6 2.8-1.8 1.6v1.8l1.8 1.6-1.6 2.8-2.2-1-1.6.9-.4 2.4H8.4L8 14.2l-1.6-.9-2.2 1-1.6-2.8 1.8-1.6V8.1L2.6 6.5l1.6-2.8 2.2 1 1.6-.9z M10 7.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z'};
+  gear:'M8.4 1.4h3.2l.4 2.4 1.6.9 2.2-1 1.6 2.8-1.8 1.6v1.8l1.8 1.6-1.6 2.8-2.2-1-1.6.9-.4 2.4H8.4L8 14.2l-1.6-.9-2.2 1-1.6-2.8 1.8-1.6V8.1L2.6 6.5l1.6-2.8 2.2 1 1.6-.9z M10 7.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z',
+  /* 价签：外圈是标签轮廓，中间那个圆靠 fill-rule=evenodd 掏成孔 */
+  tag:'M10.6 2H18v7.4l-8.4 8.4L2.2 10.4 10.6 2z M14.5 4.4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'};
 const ico=n=>`<svg viewBox="0 0 20 20" fill="currentColor" fill-rule="evenodd"><path d="${SVG[n]}"/></svg>`;
+/* ══ 偏好存取 ══
+   ⚠️ 不能用 localStorage：端口每次启动随机挑，浏览器按「地址+端口」隔离存储，
+   端口一换上次存的全部作废——新手引导每次都弹、语言主题每次悄悄回默认就是这么来的。
+   正本住在 exe 旁边的 visitapi-editor.txt（pref.* 行），服务端下发页面时注进 window.PREFS
+   （见 Program.Ui），脚本第一行就拿得到、不闪错主题；改动走 POST /api/pref 落盘。
+   ⚠️ 这一块必须放在 I18N 表**前面**：test-i18n 把「en:{ 到 const T=」之间都当英文表，
+   放在表尾和 const T 之间的话，setPref 里的 method:"POST" 会被数成一个没翻译的键。 */
+const PREFS=window.PREFS||{};
+const pref=k=>PREFS[k]??null;
+function setPref(k,v){
+  if(v==null||v===""){delete PREFS[k];}else{PREFS[k]=String(v);}
+  fetch("/api/pref",{method:"POST",
+    headers:{"X-Token":document.querySelector('meta[name=tok]')?.content||"","Content-Type":"application/json"},
+    body:JSON.stringify({key:k,value:v==null?"":String(v)})}).catch(()=>{});
+}
 /* ══ 界面文案（中/英）══
    界面所有文字都从这张表取，T("key") 拿当前语言的那份。
    剧本内容本身不翻译——那是作者写的东西，不是界面。 */
@@ -730,7 +780,25 @@ const I18N={zh:{
 
   /* ══ 使用说明页 ══ 一张卡一件事，标题点一下收起。写给不写代码的人看，所以先说"是什么"再说"怎么写"。 */
   hp_lede:"从零开始，把一段对话和一条任务做出来",
-  hp_sec_dlg:"对话编辑",hp_sec_q:"任务编辑",
+  hp_sec_dlg:"对话编辑",hp_sec_q:"任务 · BOT · 商人",
+g_bot:"换 BOT 身上的头、身体、腿和语音",
+g_bot_b:`<p>侧栏第二格「服装修改」。左边挑一种 BOT，右边分成<b>头部 / 身体 / 手 / 腿 / 语音</b>五块，
+每块可以放好几条，右边那个数字是<b>权重</b>——数字越大，刷出来的 BOT 越容易长这样。</p>
+<p>点 ＋ 会弹出可选清单，分两段：<b>这个模组自己做的</b>排在前面，下面是<b>游戏自带的</b>，中英文名都能搜。</p>
+<p class="hpwarn">两件容易踩的事：</p>
+<table class="hptab"><tbody>
+<tr><td>文件名就是 BOT 类型</td><td>而且<b>必须全小写</b>。写成 <code>bossKilla.json</code> 游戏会直接忽略它，
+不报任何错——所以新建时只能从清单里挑，编辑器也会当场标红。</td></tr>
+<tr><td>这里改的是 AI，不是你自己</td><td>玩家能穿什么由商人的服装决定，和这一页无关。</td></tr>
+</tbody></table>`,
+g_shop:"改商人卖什么、卖多少钱",
+g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、价格、几级能买、每次刷新限购几个。
+点「添加商品」从全部 4000 多件里挑，中英文名都能搜。</p>
+<p class="hpwarn">最容易出事的一条：<b>装东西的商品，必须把里面的东西也写上。</b></p>
+<p>弹药盒就是典型——只写盒子的话，玩家花钱买到手是个 <code>0/20</code> 的空盒，
+而且<b>服务端一个错都不会报</b>，你只有进游戏买一次才会发现。
+编辑器碰到这种商品会直接给一条橙色提示，旁边有「一键装满」，按模板允许的弹种和容量替你填好。</p>
+<p>删商品时会连它里面的东西、价格、等级一起删干净，不会留下"看得见买不了"的残渣。</p>`,
   hp_tip:"点标题可以收起这张卡",
   hp_all_open:"全部展开",hp_all_shut:"全部收起",
 
@@ -1056,10 +1124,10 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   a_none:"无",a_accept:"接取",a_complete:"完成",a_handover:"上交",
   m_jump:"跳转到",m_bg:"背景（当前拍）",no_bg:"（无背景）",end_paren:"（结束对话）",pick_q:"（选择任务）",
   broken:"处断链",all_ok:"个节点全部连通",entries:"个入口（含",trig_entries:"个触发器入口）",
-  src_title:".dlg 源码",src_copy:"复制全文",src_dl:"下载文件",src_close:"关闭",
+  src_title:".dlg 源码",src_copy:"复制全文",src_close:"关闭",
   src_gen:"由画布实时生成",src_warn:"条解析警告",src_nowarn:"解析无警告",
   saved_sel:"已全选，按 Ctrl+C 复制",
-  saved_dl:"已尝试下载",saved_copied:"已复制到剪贴板",
+  saved_copied:"已复制到剪贴板",
   /* ── 程序介绍 ──
      这一页不是宣传页：模块表照实说哪些没做，环境卡读的是真路径。
      骗一句，用户下次就不信整页了。 */
@@ -1071,7 +1139,8 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   ab_ready:"可用",ab_todo:"未实现",ab_here:"你在这",
   ab_go:"进入",
   ab_d_about:"就是这一页。",
-  ab_d_cloth:"换 BOT 身上的服装。还没开始做。",
+  ab_d_cloth:"换 BOT 身上的头、身体、腿、手和语音。从游戏自带的和这个模组自己做的里面挑。",
+ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品还会提醒你别忘了装东西。",
   ab_d_dlg:"编 .dlg 剧本：台词、分支、背景图/视频、语音、BGM，右边实时预览加整张流程图。要装 VisitAPI 插件，游戏里才读得到。",
   ab_d_quest:"编 SPT 任务：目标、奖励、四封邮件、失败分支、任务链，还能把任务挂到对话的某个选项上。不需要 VisitAPI。",
   ab_d_back:"从自动留下的 .bak 里挑一份还原回去。还没开始做。",
@@ -1109,6 +1178,8 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   set_title:"设置",set_lede:"PREFERENCES · STORED LOCALLY",
   set_theme:"主题",set_theme_d:"整个界面的明暗配色",
   set_dark:"深色",set_light:"明亮",
+  set_cur:"鼠标指针",set_cur_d:"换成这套界面自己的指针（明暗两套自动跟着主题走）。关掉就用系统指针——如果你在用系统的指针放大或高对比度，关掉更合适",
+  set_cur_on:"本套",set_cur_off:"系统",
   set_lang_t:"界面语言",set_lang_d:"只影响界面文字，不动你的剧本内容",
   set_note_t:"关于画布里的对话框",
   set_note_d:"版式照搬塔科夫原生对话框（说话人条、选项行、跳转标），但配色改成了中性黑——原版的棕黑放在这套界面里太出戏。",
@@ -1152,7 +1223,153 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   qe_fail_no_msg:"设了失败条件却没写失败邮件，玩家任务失败时会收到一封空信。",
   qe_missing_prereq:"{1} 里引用的任务 {0} 不在工作区里。",
   qe_dup_id:"同一个任务 ID 出现在多个文件里（{0}），游戏里只会留下一个。",
-  qe_broken_file:"任务文件 {0} 读不动：{1}",
+  qe_broken_file:"文件 {0} 读不动：{1}",
+/* ── 内容库选择（modroot.js，BOT 外观 / 商人货架共用）── */
+mr_title:"选一个内容库",
+mr_found:"在你的 SPT 里找到 {0} 个模组带着 BOT 外观或商人货架，点一行就用它：",
+mr_none:"没找到带 BOT 外观或商人货架的模组。你可以直接填一个路径 —— 目录不存在会替你建出来，等于从零开一个新模组。",
+mr_own:"或者自己填一个模组的 db 目录：",
+mr_pick:"选目录",
+mr_bad:"这个路径用不了：{0}",
+mr_n_bots:"BOT {0} 份",
+mr_n_assort:"货架 {0} 份",
+mr_n_looks:"带服装/头/语音",
+/* ── BOT 外观（SEC.02）── */
+b_choose:"选 BOT",
+b_search_bot:"搜 BOT 名…",
+b_newbot:"配一个新的 BOT",
+b_prev_hint:"这一页还有 <b>{0}</b> 件没有配图（没有图不影响使用，画的是那个部位的示意图标）。想配图就把图放进 <code>{1}</code>，格式 .png/.jpg/.webp。<b>文件名直接写角色名最省事</b>——比如 <code>贝丝蒂.png</code>，她的上衣、下装、头就都有图了（一个角色在数据里是三条不相干的记录，靠名字才串得起来）。也可以用服装的 suiteId（管一整条记录）或单个外观 id（只管那一格）。",b_loading:"读取中…",
+b_nodb:"还没指定模组目录。先去任务编辑那一页选一个模组，这里读的是同一个 db 目录。",
+b_nobots:"这个模组还没有任何 BOT 外观配置。点右上角 ＋ 新建一个。",
+b_issues:"错误 {0} · 提示 {1}",
+b_save:"保存",
+b_s_head:"头",
+b_s_body:"身体",
+b_s_hands:"手",
+/* 游戏里 Feet 是整条下装（裤子和鞋一体），没有单独的"脚"。叫「下装」作者才不会去找"鞋"在哪 */
+b_s_feet:"下装",
+/* ── 装配台 / 衣柜（阶段 31 改版）── */
+b_bay:"装配台",
+b_robe:"衣柜",
+b_robe_note:"只列你自己做的",
+b_changed:"已换",
+b_cnt_changed:"{0} / {1} 个部位已换",
+b_cnt_avail:"{0} 件可选",
+b_def:"默认数据",
+b_def_s:"默认",
+b_def_d:"原版随机 {0} 套 · 一个字都不动",
+b_def_badge:"默认 ×{0}",
+b_keep:"保持原版随机",
+b_iscus:"已换成你做的",
+b_iscus_s:"自制",
+b_pick_one:"去挑一件",
+b_change_one:"换一件",
+b_restore:"恢复默认",
+b_restore_fail:"读不到 {0} 的原版数据（{1}）。恢复默认要去 SPT 的 bots\\types 里读原版那份。",
+b_restore_nospt:"编辑器还没认出你的游戏目录，所以读不到原版服装数据，「恢复默认」暂时用不了。先在「对话编辑」那一页指一次工作区（或者把这个 exe 放进游戏目录里再打开）。",
+b_all:"整套",
+b_all_on:"整套在用",
+b_inuse:"使用中",
+b_hint_pick:"点一下只换{0}",
+b_hint_on:"已经在用",
+b_mine:"我做的服装",
+b_mine_head:"我做的头",
+b_mine_voice:"我做的语音",
+b_pic_from:"配图用的是 previews\\{0}",
+b_this_suit:"这套含 {0}",
+b_mismatch:"对不上",
+b_mismatch_with:"和{0}对不上",
+b_dep_bad:"{0} 和 {1} 对不上",
+b_dep_why:"上装的袖口和手是接在一起的。只换一边，游戏里那台 NPC 会露出中空的手臂。",
+b_dep_now:"现在：{0} = {1} ｜ {2} = {3}",
+b_dummy:"当前画的是装配示意图",
+b_empty:"这一页是空的",
+b_empty_d:"你做的东西里没有{0}。做好之后放进 db\\{1}，再把配图放进 db\\previews\\&lt;id&gt;.png，卡片就有图了。",
+b_s_voice:"语音",
+b_search:"搜名字或 id…",
+b_nohit:"没有匹配的",
+b_alltypes:"所有 BOT 类型都已经配过了。",
+b_newask:"要给哪种 BOT 配外观？（这台机器上还有 {0} 种没配）",
+b_badtype:"游戏里没有叫 {0} 的 BOT 类型。名字必须和 SPT 的完全一致（全小写）。",
+b_stale:"这些文件在编辑器外面被改过了。要用你现在看到的内容盖过去吗？",
+b_savefail:"保存失败：{0}",
+qe_bot_unknown_type:"文件名 {0} 不是游戏里的 BOT 类型，这份配置不会生效",
+qe_bot_case:"文件名 {0} 大小写不对，应该是 {1}（游戏只认全小写）",
+qe_bot_unknown_id:"{1} 里的 {0} 找不到对应外观",
+qe_bot_wrong_slot:"{0} 是 {2} 的外观，却配在了 {1} 里",
+qe_bot_bad_weight:"{0} 的权重是 {1}，必须大于 0",
+qe_bot_empty:"{0} 一条外观都没配",
+qe_bot_no_sptdata:"找不到游戏数据，这一页只能编辑、没法校验（外观 id 和 BOT 类型都对不了）",
+/* ── 商人货架（SEC.05）── */
+nav_assort:"商人售卖",
+a_loading:"读取中…",
+a_nodb:"还没指定模组目录。先去任务编辑那一页选一个模组，这里读的是同一个 db 目录。",
+a_noshelf:"这个模组还没有货架文件（assort.json 或 CustomAssortSchemes 里的 json）。",
+a_notrader:"（没写商人 id）",
+a_ngoods:"{0} 件",
+a_issues:"错误 {0} · 提示 {1}",
+a_save:"保存",
+a_nogoods:"这个货架还是空的。",
+/* ── 左「货架预览」/ 右「参数」（阶段 41 改版）── */
+a_shelf:"货架预览",
+a_shelf_d:"玩家在商人那儿看到的样子",
+a_onsale:"{0} 件在售",
+a_tab_trade:"交易",
+a_tab_quest:"任务",
+a_tab_quest_d:"这一版不在货架里编任务 —— 点它去任务编辑那页",
+a_tab_serv:"服务",
+a_wall_tip:"点空格子添加商品",
+a_tool_show:"商品展览",
+a_tool_refresh:"刷新商店",
+a_foot:"每块瓦片按物品<b>真实占几格</b>铺（读的是 items.json 的 Width/Height，武器还加上了 ExtraSize）。左上角价格 · 右下角数量（<b>大量</b>＝无限供应）· 左下角忠诚等级。<br>格子里画的是这件商品<b>所属分类</b>的图标 —— SPT 没有单件物品的图，那个只有游戏本体里才有。<br>墙固定 <b>一排 10 格 × 12 排</b>（游戏里就是这么多），格子大小由这两个数算出来；排满了就往下滚，左边尺上<span style=\"color:var(--o)\">橙色</span>那几排是玩家得滚下去才看得到的。<br>鼠标停在空格子上会亮个虚框，点一下直接添加商品；左上角的「任务」页签去任务编辑那页。",
+a_par:"参数",
+a_none:"未选中",
+a_k_trader:"商人",
+a_k_goods:"商品",
+a_switch:"换商人",
+a_total:"货架总价值 {0}",
+a_all:"全部",
+a_wallsz:"墙 {0} 格 × {1} 排 · 超出滚动",
+a_lots:"大量",
+a_holds:"内含 {0} ×{1}",
+a_limn:"每次限购 {0}",
+a_emptybox2:"空盒子",
+a_emptybox_d:"玩家买回去里面什么都没有 —— 按模板容量装满就好。",
+a_nolevel:"这一级没有商品。",
+a_pickone:"左边点一件商品",
+a_pickone_d:"选中之后在这里调价格、忠诚等级、库存。",
+a_f_item:"物品",
+a_f_item_d:"占 {0}×{1} 格 · 换成别的物品会保留价格和等级",
+a_swap:"换物品",
+a_f_price:"价格",
+a_f_cur:"货币",
+a_cur_rub:"卢布",a_cur_usd:"美元",a_cur_eur:"欧元",
+a_g_cond:"上架条件",
+a_f_ll:"忠诚等级",
+a_f_ll_d:"玩家和这个商人的关系到几级才能买",
+a_f_stock:"库存",
+a_inf:"无限",a_fin:"有限",
+a_f_left:"还剩几件",
+a_f_lim:"每次限购",
+a_f_lim_d:"0 ＝ 不限制",
+a_g_inside:"盒子里装了什么",
+a_del:"删除这件",
+a_fill_wait:"正在读这件物品的模板，稍等一下再点。",
+a_add:"添加商品",
+a_fill:"一键装满",
+a_stale:"这些文件在编辑器外面被改过了。要用你现在看到的内容盖过去吗？",
+a_savefail:"保存失败：{0}",
+qe_as_no_itemdb:"找不到游戏物品表，这一页只能编辑、没法校验",
+qe_as_no_trader:"这份 assort.json 旁边的 base.json 没写商人 id，游戏不知道这货架是谁的",
+qe_as_empty:"这个货架一件商品都没有",
+qe_as_no_price:"{0} 没有价格，玩家会看得见但买不了",
+qe_as_no_loyalty:"{0} 没有忠诚等级，玩家会看得见但买不了",
+qe_as_orphan:"价格表或等级表里有个 {0}，但货架上没有这件商品（多半是删商品时漏删）",
+qe_as_bad_tpl:"{0} 用的物品 {1} 在游戏里不存在",
+qe_as_empty_container:"{0}（{1}）是容器，{2} 能装 {3} 个，但里面什么都没写 —— 玩家买到手是空的",
+qe_as_bad_child_tpl:"{0} 里装的 {1} 不在 {2} 允许的范围内",
+qe_as_bad_child_slot:"{0} 有个子件塞在 {1}，但 {2} 没有这个槽位",
+qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   qe_broken_locale:"文案文件 {0}.json 读不动：{1}",
   /* 任务编辑器界面 */
   q_load:"读取任务库…",q_reload:"重新载入",q_save:"保存",q_saving:"保存中…",q_saved:"已保存",
@@ -1235,7 +1452,8 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   q_a_item:"换物品",q_a_num:"改数量",q_a_val:"改数值",q_a_up:"上移",q_a_del:"删除",
   q_a_quest:"换任务",q_ask_num:"需要多少个？",q_ask_val:"数值",
   q_a_adv:"高级设置",q_m_adv:"高级参数",q_adv_yes:"要求",q_adv_no:"不要求",
-  q_adv_note:"这些是原版任务真在用的参数。武器型号、命中部位那类是列表，暂时没做入口。",
+  q_adv_note:"这些是原版任务真在用的参数。敌人装备、武器改装那类双层列表原版也几乎没人用，暂时没做入口。",
+  q_adv_roles:"目标角色（哪种敌人算数）",q_adv_parts:"命中部位",q_adv_weap:"武器型号",q_adv_add:"添加武器",
   q_adv_once:"必须一局内完成",q_adv_secs:"限时（秒，0=不限）",q_adv_fir:"必须战局中找到（FiR）",
   q_adv_cir:"必须本局带出",q_adv_dogtag:"狗牌等级下限",q_adv_dmin:"耐久下限 %",q_adv_dmax:"耐久上限 %",
   q_adv_zone:"区域 ID（zoneId）",q_adv_plant:"放置耗时（秒）",q_adv_distcmp:"距离比较",
@@ -1284,6 +1502,24 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   q_link_dup:"这条前置已经有了",
   q_link_cycle:"这样会绕成环：「{0}」本来就（间接）要求先完成「{1}」",
   q_link_ok:"已把「{0}」设为「{1}」的前置",
+  /* ══ 工程 ══ 三根打包成 .vaproj 一键切换 */
+  pj_cur:"当前组合",pj_save:"存成工程",pj_go:"打开",
+  pj_ask_path:"工程文件存到哪？（.vaproj 结尾的完整路径）",
+  pj_ask_open:"要打开的 .vaproj 完整路径",
+  pj_saved:"已存成工程：{0}",pj_gone:"文件不在了",pj_none:"还没有最近的工程",
+  pj_open:"打开工程文件",pj_open_d:"三个库一次切换到位；最近用过的直接点上面那排",
+  pj_dirty:"有没保存的改动，切换工程会把它们丢掉。继续？",
+  pj_done:"工程已切换：{0}",pj_fail:"工程操作失败：{0}",
+
+  /* ══ 还原备份页 ══ 还原＝对调（可反悔），复活＝把删除前留的那份搬回来 */
+  bk_lede:"还原到上一次保存之前",
+  bk_intro:"每次保存或删除前，编辑器都会把旧版留成同名 .bak（只留最近一代）。还原＝把备份和现役文件对调——点错了再点一次就换回去。标橙的那些现役文件已被删除，还原＝复活它（备份随之用掉）。",
+  bk_none:"没有备份",bk_nodir:"目录未设置，这一块还没启用",
+  bk_do:"还原",bk_s_swap:"还原＝换回上一版",bk_s_gone:"现役已删，还原＝复活",
+  bk_ask:"把「{0}」和它的备份对调？再点一次可以换回来。",
+  bk_ask_gone:"复活「{0}」？它的备份会被用掉。",
+  bk_done:"已还原：{0}",bk_fail:"还原失败：{0}",
+
   todo:"这一页还没做——先把「对话编辑」定下来，其余照抄同一套卡片和控件。"},
 en:{
   nav_about:"About",nav_cloth:"Outfits",nav_dlg:"Dialogue",nav_quest:"Quests",
@@ -1293,7 +1529,29 @@ en:{
 
   /* ══ Guide ══ one card per idea, click a title to fold it away. */
   hp_lede:"From nothing to a working conversation and a working quest",
-  hp_sec_dlg:"Dialogue",hp_sec_q:"Quests",
+  hp_sec_dlg:"Dialogue",hp_sec_q:"Quests · Bots · Traders",
+g_bot:"Change a bot's head, body, legs and voice",
+g_bot_b:`<p>Sidebar slot 2, "Outfits". Pick a bot type on the left; the right side is split into
+<b>head / body / hands / legs / voice</b>. Each part can hold several entries — the number next to one is its
+<b>weight</b>: the bigger it is, the more often bots spawn looking like that.</p>
+<p>＋ opens the picker, in two sections: <b>made by this mod</b> first, then <b>the stock game</b>.
+Both Chinese and English names are searchable.</p>
+<p class="hpwarn">Two easy mistakes:</p>
+<table class="hptab"><tbody>
+<tr><td>The file name is the bot type</td><td>and it <b>must be all lowercase</b>. Name it
+<code>bossKilla.json</code> and the game silently ignores it — no error at all. That is why new entries can only be
+picked from the list, and why the editor flags a wrong name immediately.</td></tr>
+<tr><td>This is about AI, not you</td><td>What the player can wear comes from the trader's clothing, not this page.</td></tr>
+</tbody></table>`,
+g_shop:"Change what a trader sells and for how much",
+g_shop_b:`<p>Sidebar slot 5, "Trader Goods". One row per item: name, price, required loyalty level, and how many
+can be bought per refresh. "Add item" lets you pick from all 4000+ items, searchable in either language.</p>
+<p class="hpwarn">The one that bites hardest: <b>items that hold something must have their contents written too.</b></p>
+<p>Ammo boxes are the classic case. Write only the box and the player pays for a <code>0/20</code> empty one —
+and <b>the server reports no error whatsoever</b>, so you only find out by buying one in game.
+The editor flags such items in orange and offers "Fill it", which uses the template's own allowed ammo and capacity.</p>
+<p>Deleting an item also clears its contents, price and loyalty entry, so nothing is left behind that would show up
+but refuse to sell.</p>`,
   hp_tip:"Click a title to fold the card",
   hp_all_open:"Expand all",hp_all_shut:"Collapse all",
 
@@ -1635,10 +1893,10 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   a_none:"None",a_accept:"Accept",a_complete:"Complete",a_handover:"Hand over",
   m_jump:"Jump to",m_bg:"Background (this beat)",no_bg:"(no background)",end_paren:"(end dialogue)",pick_q:"(pick a quest)",
   broken:"broken link(s)",all_ok:"nodes, all connected",entries:"entry points (incl.",trig_entries:"from triggers)",
-  src_title:".dlg source",src_copy:"Copy all",src_dl:"Download",src_close:"Close",
+  src_title:".dlg source",src_copy:"Copy all",src_close:"Close",
   src_gen:"generated live from the canvas",src_warn:"parse warning(s)",src_nowarn:"no parse warnings",
   saved_sel:"Selected — press Ctrl+C",
-  saved_dl:"Download attempted:",saved_copied:"Copied to clipboard",
+  saved_copied:"Copied to clipboard",
   ab_lede:"WHAT THIS IS · WHAT IT CAN'T DO YET",
   ab_what:"WHAT IS THIS",
   ab_what_b:"An SPT editor for people who don't write code",
@@ -1647,7 +1905,8 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   ab_ready:"Ready",ab_todo:"Not built",ab_here:"You are here",
   ab_go:"Open",
   ab_d_about:"This page.",
-  ab_d_cloth:"Swap what bots wear. Not started yet.",
+  ab_d_cloth:"Swap a bot's head, body, legs, hands and voice — pick from the stock game or from what this mod makes.",
+ab_d_assort:"Change what a trader sells, for how much, and at which level. It also reminds you to fill containers.",
   ab_d_dlg:"Edit a .dlg script: lines, branches, backgrounds and video, voice, music — live preview on the right plus the whole flow graph. Needs the VisitAPI plugin for the game to read it.",
   ab_d_quest:"Edit SPT quests: objectives, rewards, all four mails, the failure branch, quest chains, and which dialogue option hands a quest out. VisitAPI not required.",
   ab_d_back:"Roll a file back to one of the .bak copies this tool leaves behind. Not started yet.",
@@ -1685,6 +1944,8 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   set_title:"Settings",set_lede:"PREFERENCES · STORED LOCALLY",
   set_theme:"Theme",set_theme_d:"Light or dark for the whole interface",
   set_dark:"Dark",set_light:"Light",
+  set_cur:"Mouse cursor",set_cur_d:"Use this console's own cursor set (light/dark follows the theme). Turn it off to keep the system cursor — better if you rely on system cursor scaling or high contrast",
+  set_cur_on:"Console",set_cur_off:"System",
   set_lang_t:"Interface language",set_lang_d:"Affects UI text only, never your script",
   set_note_t:"About the dialogue box on the canvas",
   set_note_d:"Its layout mirrors Tarkov's native dialogue box (speaker bar, option rows, jump tags), but the palette is neutral black — the original brown clashed with this console.",
@@ -1725,7 +1986,153 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   qe_fail_no_msg:"There are fail conditions but no fail mail, so failing sends the player a blank letter.",
   qe_missing_prereq:"Quest {0}, referenced from {1}, isn't in this workspace.",
   qe_dup_id:"The same quest ID appears in more than one file ({0}) — only one survives in game.",
-  qe_broken_file:"Quest file {0} can't be read: {1}",
+  qe_broken_file:"File {0} can't be read: {1}",
+/* ── Content folder picker (modroot.js, shared by Outfits / Trader Goods) ── */
+mr_title:"Pick a content folder",
+mr_found:"Found {0} mod(s) in your SPT with bot outfits or trader goods — click one to use it:",
+mr_none:"No mod with bot outfits or trader goods was found. You can type a path instead — a folder that does not exist yet will be created, which is how you start a brand-new mod.",
+mr_own:"Or type a mod's db folder yourself:",
+mr_pick:"Pick folder",
+mr_bad:"That path cannot be used: {0}",
+mr_n_bots:"{0} bot file(s)",
+mr_n_assort:"{0} shelf file(s)",
+mr_n_looks:"has outfits/heads/voices",
+/* ── BOT outfits (SEC.02) ── */
+b_choose:"Pick a bot",
+b_search_bot:"Search bot name…",
+b_newbot:"Set up a new bot",
+b_prev_hint:"<b>{0}</b> item(s) on this page have no picture yet (that is fine — you get a diagram of the part instead). To add one, drop the image in <code>{1}</code> as .png/.jpg/.webp. <b>Naming a file after the character is the least work</b> — <code>Basti.png</code> gives her top, bottom and head a picture in one go (a character is three unrelated records in the data; the name is the only thing tying them together). A file name can also be the outfit's suiteId (covers one whole record) or a single look id (that slot only).",b_loading:"Loading…",
+b_nodb:"No mod folder picked yet. Choose one on the Quests page — this page reads the same db folder.",
+b_nobots:"This mod has no BOT outfit configs yet. Use ＋ above to add one.",
+b_issues:"errors {0} · notes {1}",
+b_save:"Save",
+b_s_head:"Head",
+b_s_body:"Body",
+b_s_hands:"Hands",
+/* Feet in the game is the whole lower outfit (trousers and boots in one) — there is no separate "feet" */
+b_s_feet:"Bottom",
+/* ── Bay / wardrobe (stage 31 rework) ── */
+b_bay:"Bay",
+b_robe:"Wardrobe",
+b_robe_note:"only what you made",
+b_changed:"changed",
+b_cnt_changed:"{0} / {1} parts changed",
+b_cnt_avail:"{0} to choose from",
+b_def:"Default data",
+b_def_s:"default",
+b_def_d:"{0} vanilla outfits, picked at random — left untouched",
+b_def_badge:"default ×{0}",
+b_keep:"Keeping the vanilla mix",
+b_iscus:"Using yours",
+b_iscus_s:"yours",
+b_pick_one:"Pick one",
+b_change_one:"Change",
+b_restore:"Back to default",
+b_restore_fail:"Cannot read the vanilla data for {0} ({1}). Restoring reads SPT's own bots\\types file.",
+b_restore_nospt:"The editor has not found your game folder yet, so it cannot read the vanilla outfit data and \"Back to default\" is unavailable. Point it at a workspace once on the Dialogue page (or put this exe inside the game folder and reopen it).",
+b_all:"Whole set",
+b_all_on:"Set in use",
+b_inuse:"In use",
+b_hint_pick:"Click to change {0} only",
+b_hint_on:"Already in use",
+b_mine:"Outfits you made",
+b_mine_head:"Heads you made",
+b_mine_voice:"Voices you made",
+b_pic_from:"picture from previews\\{0}",
+b_this_suit:"Covers {0}",
+b_mismatch:"mismatch",
+b_mismatch_with:"does not match {0}",
+b_dep_bad:"{0} and {1} do not match",
+b_dep_why:"The top's cuffs join onto the hands. Change only one of them and that NPC shows hollow forearms in game.",
+b_dep_now:"Right now: {0} = {1} | {2} = {3}",
+b_dummy:"drawing the assembly diagram",
+b_empty:"Nothing on this page",
+b_empty_d:"You have not made any {0}. Put them in db\\{1}, then drop pictures in db\\previews\\&lt;id&gt;.png and the cards get artwork.",
+b_s_voice:"Voice",
+b_search:"Search name or id…",
+b_nohit:"No matches",
+b_alltypes:"Every BOT type already has a config.",
+b_newask:"Which BOT type? ({0} still unconfigured on this machine)",
+b_badtype:"There is no BOT type called {0}. It must match SPT exactly (all lowercase).",
+b_stale:"These files changed outside the editor. Overwrite them with what you see here?",
+b_savefail:"Save failed: {0}",
+qe_bot_unknown_type:"File name {0} is not a BOT type in the game — this config will not apply",
+qe_bot_case:"File name {0} has the wrong case; it must be {1} (the game only accepts lowercase)",
+qe_bot_unknown_id:"{0} in {1} does not match any known outfit",
+qe_bot_wrong_slot:"{0} is a {2} outfit but it is configured under {1}",
+qe_bot_bad_weight:"{0} has weight {1}; it must be greater than 0",
+qe_bot_empty:"{0} has no outfits configured",
+qe_bot_no_sptdata:"Game data not found — you can edit here but nothing can be validated (outfit ids and BOT types can't be checked)",
+/* ── Trader shelves (SEC.05) ── */
+nav_assort:"Trader Goods",
+a_loading:"Loading…",
+a_nodb:"No mod folder picked yet. Choose one on the Quests page — this page reads the same db folder.",
+a_noshelf:"This mod has no shelf file yet (assort.json, or a json under CustomAssortSchemes).",
+a_notrader:"(no trader id)",
+a_ngoods:"{0} items",
+a_issues:"errors {0} · notes {1}",
+a_save:"Save",
+a_nogoods:"This shelf is still empty.",
+/* ── Shelf preview (left) / params (right), stage 41 rework ── */
+a_shelf:"Shelf preview",
+a_shelf_d:"what the player sees at this trader",
+a_onsale:"{0} on sale",
+a_tab_trade:"Trade",
+a_tab_quest:"Tasks",
+a_tab_quest_d:"Quests aren't edited here — click to open the Quests page",
+a_tab_serv:"Services",
+a_wall_tip:"Click an empty cell to add an item",
+a_tool_show:"Assortment",
+a_tool_refresh:"Refresh shop",
+a_foot:"Each tile spans the item's <b>real grid footprint</b> (Width/Height from items.json, plus ExtraSize for weapons). Price top-left · count bottom-right (<b>Lots</b> = unlimited) · loyalty level bottom-left.<br>The picture is the item's <b>category</b> icon — SPT has no per-item icons, only the game itself does.<br>The wall is a fixed <b>10 cells × 12 rows</b> (same as in game) and the cell size follows from that; past 12 rows it scrolls, and the <span style=\"color:var(--o)\">orange</span> numbers on the left ruler are rows the player has to scroll to reach.<br>Hover an empty cell to get a ghost outline — click it to add an item; the <b>Tasks</b> tab up there opens the Quests page.",
+a_par:"Params",
+a_none:"nothing selected",
+a_k_trader:"Trader",
+a_k_goods:"Items",
+a_switch:"Switch trader",
+a_total:"shelf value {0}",
+a_all:"All",
+a_wallsz:"{0} × {1} cells · scrolls past that",
+a_lots:"Lots",
+a_holds:"holds {0} ×{1}",
+a_limn:"limit {0} per purchase",
+a_emptybox2:"empty box",
+a_emptybox_d:"The player would buy an empty one — just fill it to the template's capacity.",
+a_nolevel:"Nothing at this level.",
+a_pickone:"Pick an item on the left",
+a_pickone_d:"Select one and set its price, loyalty level and stock here.",
+a_f_item:"Item",
+a_f_item_d:"takes {0}×{1} slots · swapping keeps the price and level",
+a_swap:"Swap item",
+a_f_price:"Price",
+a_f_cur:"Currency",
+a_cur_rub:"RUB",a_cur_usd:"USD",a_cur_eur:"EUR",
+a_g_cond:"Availability",
+a_f_ll:"Loyalty level",
+a_f_ll_d:"how far the player's standing with this trader must be",
+a_f_stock:"Stock",
+a_inf:"Unlimited",a_fin:"Limited",
+a_f_left:"How many left",
+a_f_lim:"Per-purchase limit",
+a_f_lim_d:"0 = no limit",
+a_g_inside:"What is inside the box",
+a_del:"Delete this",
+a_fill_wait:"Still reading this item's template — try again in a moment.",
+a_add:"Add item",
+a_fill:"Fill it",
+a_stale:"These files changed outside the editor. Overwrite them with what you see here?",
+a_savefail:"Save failed: {0}",
+qe_as_no_itemdb:"Game item table not found — you can edit here but nothing can be validated",
+qe_as_no_trader:"The base.json next to this assort.json has no trader id, so the game does not know whose shelf this is",
+qe_as_empty:"This shelf has no items",
+qe_as_no_price:"{0} has no price — players will see it but cannot buy it",
+qe_as_no_loyalty:"{0} has no loyalty level — players will see it but cannot buy it",
+qe_as_orphan:"The price or loyalty table mentions {0}, but no such item is on the shelf (usually left over from a delete)",
+qe_as_bad_tpl:"{0} uses item {1}, which does not exist in the game",
+qe_as_empty_container:"{0} ({1}) is a container; {2} holds {3}, but nothing is written inside — the player would buy it empty",
+qe_as_bad_child_tpl:"{0} contains {1}, which is not allowed in {2}",
+qe_as_bad_child_slot:"{0} has a child in {1}, but {2} has no such slot",
+qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_broken_locale:"Locale file {0}.json can't be read: {1}",
   q_load:"Loading quests…",q_reload:"Reload",q_save:"Save",q_saving:"Saving…",q_saved:"Saved",
   q_dirty:"Unsaved changes",q_clean:"All checks passed",q_issues:"{0} issue(s)",q_savefail:"Save failed: {0}",
@@ -1807,7 +2214,8 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   q_a_item:"Change item",q_a_num:"Change count",q_a_val:"Change value",q_a_up:"Move up",q_a_del:"Delete",
   q_a_quest:"Change quest",q_ask_num:"How many?",q_ask_val:"Value",
   q_a_adv:"Advanced",q_m_adv:"Advanced settings",q_adv_yes:"Required",q_adv_no:"Not required",
-  q_adv_note:"These are the fields stock quests actually use. Weapon and body-part lists have no editor yet.",
+  q_adv_note:"These are the fields stock quests actually use. Enemy-equipment / weapon-mod nested lists are barely used even in stock quests and have no editor yet.",
+  q_adv_roles:"Enemy roles that count",q_adv_parts:"Body parts",q_adv_weap:"Weapons",q_adv_add:"Add weapon",
   q_adv_once:"Must finish in one raid",q_adv_secs:"Time limit (s, 0 = none)",q_adv_fir:"Found in raid",
   q_adv_cir:"Brought out this raid",q_adv_dogtag:"Min dogtag level",q_adv_dmin:"Min durability %",
   q_adv_dmax:"Max durability %",q_adv_zone:"Zone ID",q_adv_plant:"Plant time (s)",
@@ -1854,8 +2262,26 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   q_link_dup:"That prerequisite is already there",
   q_link_cycle:"That would make a loop: \"{0}\" already requires \"{1}\" (directly or not)",
   q_link_ok:"\"{0}\" is now a prerequisite of \"{1}\"",
+  /* ══ Projects ══ three roots bundled into a .vaproj */
+  pj_cur:"Current setup",pj_save:"Save as project",pj_go:"Open",
+  pj_ask_path:"Where to save the project file? (full path ending in .vaproj)",
+  pj_ask_open:"Full path of the .vaproj to open",
+  pj_saved:"Project saved: {0}",pj_gone:"file is gone",pj_none:"No recent projects yet",
+  pj_open:"Open a project file",pj_open_d:"Switches all three folders at once; recent ones are one click above",
+  pj_dirty:"There are unsaved changes — switching projects will discard them. Continue?",
+  pj_done:"Project switched: {0}",pj_fail:"Project operation failed: {0}",
+
+  /* ══ Backups ══ restore = swap (undoable); revive = bring back a deleted file */
+  bk_lede:"Roll back to before the last save",
+  bk_intro:"Before every save or delete the editor keeps the old copy as a same-name .bak (latest one only). Restoring swaps the backup with the live file — clicked the wrong one? Restore again to swap back. Orange rows mean the live file was deleted; restoring revives it (and uses up the backup).",
+  bk_none:"No backups",bk_nodir:"Folder not set — this section is not active",
+  bk_do:"Restore",bk_s_swap:"Restore = swap back",bk_s_gone:"Deleted — restore revives",
+  bk_ask:"Swap \"{0}\" with its backup? Restore again to swap back.",
+  bk_ask_gone:"Revive \"{0}\"? Its backup will be used up.",
+  bk_done:"Restored: {0}",bk_fail:"Restore failed: {0}",
+
   todo:"Not built yet — Dialogue comes first, then the rest reuses the same cards and controls."}};
-let lang=localStorage.getItem("visitapi.ef3.lang")
+let lang=pref("lang")
   ||((navigator.language||"").toLowerCase().startsWith("zh")?"zh":"en");
 if(!I18N[lang])lang="zh";
 const T=k=>I18N[lang][k]??I18N.zh[k]??k;
@@ -1865,22 +2291,30 @@ const TF=(k,...a)=>a.reduce((s,v,i)=>s.split("{"+i+"}").join(v),T(k));
 /* 服务端只回码，人话在上面那两张表里 —— 加一门语言不用回头改 C# */
 const issueText=e=>TF("qe_"+e.code,...(e.args||[]));
 
-/* ══ 偏好：主题 / 模糊度 / 语言 ══
-   全部落 localStorage。主题写在 <html data-theme> 上，令牌一换整页跟着变，
-   不需要任何组件知道自己现在是深色还是浅色。 */
-let theme=localStorage.getItem("visitapi.ef3.theme")
+/* ══ 偏好：主题 / 指针 / 语言 ══
+   全部走 pref()/setPref()（正本在服务端，理由见上面那块注释）。主题写在 <html data-theme> 上，
+   令牌一换整页跟着变，不需要任何组件知道自己现在是深色还是浅色。 */
+let theme=pref("theme")
   ||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
 
 function setTheme(v){theme=v;document.documentElement.dataset.theme=v;
-  try{localStorage.setItem("visitapi.ef3.theme",v);}catch(_){}}
+  setPref("theme",v);}
 setTheme(theme);
+
+/* 自定义鼠标指针（cursor.css）。和主题同一套路：状态挂在 <html data-cur> 上，
+   CSS 那边一整块变量跟着换，没有哪个组件需要知道现在用的是哪套。
+   ⚠️ **必须留这个开关**：自定义指针会盖掉系统的"指针大小 / 高对比度指针"设置，
+   靠那些辅助功能的人得能一键退回系统指针。默认开（Tech Leader 要的就是这套皮）。 */
+let curOn=pref("cursor")!=="off";
+function setCur(v){curOn=!!v;document.documentElement.dataset.cur=curOn?"on":"off";
+  setPref("cursor",curOn?"on":"off");}
+setCur(curOn);
 document.documentElement.lang=lang==="zh"?"zh-CN":"en";
 /* 页面骨架里那几个写死的文字（源码窗按钮等）不经过 render()，单独刷 */
 function applyStatic(){
   document.title=lang==="zh"?"AIC CONSOLE — VisitAPI Editor":"AIC CONSOLE — VisitAPI Editor";
   $("srcTitle").textContent=T("src_title");
   $("srcCopy").firstChild.textContent=T("src_copy");
-  $("srcDl").firstChild.textContent=T("src_dl");
   $("srcClose").firstChild.textContent=T("src_close");
   /* 物品选择器是静态标记，切界面语言时也要跟着换 */
   $("ipTitle").textContent=T("q_ip_title");
@@ -1890,6 +2324,7 @@ function applyStatic(){
 
 const PAGES=[{id:"about",k:"nav_about",icon:"info"},{id:"cloth",k:"nav_cloth",icon:"shirt"},
   {id:"dlg",k:"nav_dlg",icon:"chat"},{id:"quest",k:"nav_quest",icon:"list"},
+  {id:"assort",k:"nav_assort",icon:"tag"},
   {id:"back",k:"nav_back",icon:"undo"},{id:"help",k:"nav_help",icon:"help"}];
 /* 开局落在介绍页：第一次用的人先看清这东西能干什么、不能干什么，再进模块 */
 let page="about",picked=false;
@@ -1942,21 +2377,26 @@ function parseDlg(text){
       const i=line.indexOf(":");const k=(i<0?line:line.slice(0,i)).trim().toLowerCase();
       const v=i<0?"":line.slice(i+1).trim();
       t.headRaw.push({k,i:k==="trigger"?t.triggers.length:k==="when"?t.when.length:0});
+      /* 这一行没能变成模型（语法错、或我们不认识的头）：把刚占的位子换成原文照抄 */
+      const keepRaw=()=>{t.headRaw.pop();t.headRaw.push({k:"raw",v:line});};
       if(k==="trader"){const m=v.match(/^(\S+)?\s*"(.*)"/);
         if(m){t.trader=m[1]||null;t.name=m[2];}else t.name=v;}
       else if(k==="start")t.start=v; else if(k==="first")t.first=v;
       /* 这两行进模型（界面上能改），头行的位置按 k 记着，回写由 DialogWriter 重新生成。
          以前是"存下值、同时把整行当原文留住"——那时没有入口，改不了才没露馅。 */
       else if(k==="actor")t.actor=v; else if(k==="scene")t.scene=v;
-      else if(k==="tab"){if(v.startsWith("if "))t.tab=gate(v.slice(3),t.tabS);}
+      /* 进不了模型的行必须**原文留住**（keepRaw）。不留的话回写时 DialogWriter 对这条头行
+         拿不到值就返回 null，整行会从作者的文件里悄悄消失 —— 4.0.13 的 `tab: always`
+         和写坏的 `when:` 都会这么被吃掉。C# 的 DialogHeaderParser 也是这么处理的，两边必须一致。 */
+      else if(k==="tab"){if(v.startsWith("if "))t.tab=gate(v.slice(3),t.tabS);
+        else{keepRaw();t.warn.push(`第 ${ln} 行: tab 只认 'if <任务>=<状态>'`);}}
       else if(k==="when"){const w=v.match(/^(.*?)\s*->\s*(\S+)$/);
-        if(w){const conds=[...w[1].matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
-          .map(c=>({f:c[1],le:c[2]==="<=",v:parseFloat(c[3])}));
-          if(conds.length)t.when.push({node:w[2],conds});else t.warn.push(`第 ${ln} 行: when 无法解析`);}
-        else t.warn.push(`第 ${ln} 行: when 无法解析 '${v}'`);}
+        const conds=w?[...w[1].matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
+          .map(c=>({f:c[1],le:c[2]==="<=",v:parseFloat(c[3])})):[];
+        if(conds.length)t.when.push({node:w[2],conds});
+        else{keepRaw();t.warn.push(`第 ${ln} 行: when 无法解析 '${v}'`);}}
       else if(k==="trigger")t.triggers.push(v);
-      else{t.headRaw.pop();t.headRaw.push({k:"raw",v:line});
-        t.warn.push(`第 ${ln} 行: 未知的文件头 '${k}'`);}
+      else{keepRaw();t.warn.push(`第 ${ln} 行: 未知的文件头 '${k}'`);}
       continue;}
     /* 节点体 */
     const seg=line.split(" | ");
@@ -2431,9 +2871,11 @@ function fit(){const ns=Object.values(doc.nodes);if(!ns.length||!$("graph"))retu
   gx=22+(W-(maxx-minx)*gs)/2-minx*gs;gy=30-miny*gs;applyView();}
 function wireGraph(){const g=$("graph");applyView();
   g.onmousedown=e=>{if(e.target.closest(".gnode")||e.target.closest(".gtools"))return;
-    g.classList.add("panning");const ox=e.clientX-gx,oy=e.clientY-gy;
+    g.classList.add("panning");document.documentElement.dataset.drag="grab";
+    const ox=e.clientX-gx,oy=e.clientY-gy;
     const mv=ev=>{gx=ev.clientX-ox;gy=ev.clientY-oy;applyView();};
-    const up=()=>{g.classList.remove("panning");removeEventListener("mousemove",mv);removeEventListener("mouseup",up);};
+    const up=()=>{g.classList.remove("panning");delete document.documentElement.dataset.drag;
+      removeEventListener("mousemove",mv);removeEventListener("mouseup",up);};
     addEventListener("mousemove",mv);addEventListener("mouseup",up);};
   g.onwheel=e=>{e.preventDefault();const r=g.getBoundingClientRect();
     const mx=e.clientX-r.left,my=e.clientY-r.top,k=e.deltaY<0?1.12:1/1.12;
@@ -2454,10 +2896,14 @@ function wireGraph(){const g=$("graph");applyView();
       n.opts.forEach(o=>{if(o.to===gone)o.to="";});});
     if(doc.start===gone)doc.start=Object.keys(doc.nodes)[0];
     cur=Object.keys(doc.nodes)[0];beat=0;refresh();};}
-/* 竖分隔：拖的是左侧视口的宽度，不是流程区的高度 */
+/* 竖分隔：拖的是左侧视口的宽度，不是流程区的高度。
+   ⚠️ 拖到的宽度必须记进 splitW——切页会把 #main 整页重建，行内样式活不过一次 render()，
+   只写 style 不写变量的话，切出去再回来预览就弹回默认宽（Tech Leader 实测抓到的）。 */
+let splitW=null;
 function wireSplit(){$("split").onmousedown=e=>{e.preventDefault();
   const v=$("viewport"),w0=v.getBoundingClientRect().width,x0=e.clientX,W=$("main").clientWidth;
-  const mv=ev=>{v.style.flexBasis=Math.max(280,Math.min(W-260,w0+(ev.clientX-x0)))+"px";drawEdges();};
+  const mv=ev=>{splitW=Math.max(280,Math.min(W-260,w0+(ev.clientX-x0)));
+    v.style.flexBasis=splitW+"px";drawEdges();};
   const up=()=>{removeEventListener("mousemove",mv);removeEventListener("mouseup",up);};
   addEventListener("mousemove",mv);addEventListener("mouseup",up);};}
 
@@ -2489,8 +2935,12 @@ function stat(){const bad=[];
   $("tape")?.classList.toggle("hot",bad.length>0);
   e.textContent=bad.length?`⚠ ${bad.length} ${T("broken")}: ${bad.slice(0,3).join(" · ")}${bad.length>3?"…":""}`
     :`✓ ${Object.keys(doc.nodes).length} ${T("all_ok")} · ${entryNodes().size} ${T("entries")} ${TRIG.size} ${T("trig_entries")}`;}
+/* ⚠️ `e.currentTarget` **只在一次派发进行中有值**，派发一结束就变回 null。
+   谁要是先 await 一下（比如"第一次打开选择器得先把物品表拉回来"）再来定位，
+   拿到的就是 null，这儿当场抛 —— 弹窗已经画出来了、但接线那几行永远跑不到，
+   表现成"弹窗能开、里面一个都点不动"，控制台外面一点声音都没有。退回 target 保底。 */
 function place(e,html){const p=$("pop");p.innerHTML=html;p.classList.add("on");
-  const r=e.currentTarget.getBoundingClientRect();
+  const r=(e.currentTarget||e.target).getBoundingClientRect();
   p.style.left=Math.min(r.left,innerWidth-350)+"px";
   p.style.top=Math.min(r.bottom+5,innerHeight-p.offsetHeight-10)+"px";return p;}
 const seg2=(items,sel,attr)=>`<div class="opts2">`+items.map((t,i)=>
@@ -2843,7 +3293,9 @@ function tourStart(kind){
 function tourEnd(remember){
   tourStep=-1;
   document.querySelectorAll(".tourwrap").forEach(e=>e.remove());
-  if(remember)try{localStorage.setItem(TOUR_KEY+tourKind,"1");}catch(_){}
+  /* 两边都写：正本是 pref（活过重启和换端口）；localStorage 只是同一次会话里的顺手镜像，
+     测试探针靠它压住/检查引导，不用改一票探针。 */
+  if(remember){setPref("tour."+tourKind,"1");try{localStorage.setItem(TOUR_KEY+tourKind,"1");}catch(_){}}
 }
 function tourDraw(){
   document.querySelectorAll(".tourwrap").forEach(e=>e.remove());
@@ -2878,7 +3330,8 @@ addEventListener("resize",()=>{if(tourStep>=0)tourDraw();});
 /* 进某一页时，如果这条线还没走过，就自动开一次 */
 function tourMaybe(kind){
   if(tourStep>=0)return;
-  try{ if(localStorage.getItem(TOUR_KEY+kind))return; }catch(_){}
+  if(pref("tour."+kind))return;                            /* 正本：活过重启换端口 */
+  try{ if(localStorage.getItem(TOUR_KEY+kind))return; }catch(_){}   /* 探针压引导用的口子 */
   setTimeout(()=>{if(page===(kind==="dlg"?"dlg":"quest"))tourStart(kind);},600);
 }
 
@@ -2948,6 +3401,8 @@ function render(){
     $("vfold").onclick=()=>{
       const w=document.querySelector(".work");w.classList.toggle("folded");
       relaid=false;setTimeout(relayout,20);};       /* 宽度变了就按新长宽比重排一次 */
+    /* 上次拖到的预览宽度重放回去（按当前窗口重新钳一遍，免得小窗上重放大窗的值） */
+    if(splitW)$("viewport").style.flexBasis=Math.max(280,Math.min($("main").clientWidth-260,splitW))+"px";
     wireGraph();wireSplit();refresh();setTimeout(relayout,30);
     markDirty(dirty);
     tourMaybe("dlg");        /* 第一次进这一页时带着走一遍 */
@@ -2955,6 +3410,9 @@ function render(){
        不提示的话用户会以为看到的就是自己的文件（我自己先掉进去过） */
     if(!picked&&!filePath){picked=true;openPicker();}
   }else if(page==="quest"){m.innerHTML=questPage();wireQuest();tourMaybe("quest");
+  }else if(page==="cloth"){m.innerHTML=botPage();wireBot();
+  }else if(page==="assort"){m.innerHTML=asPage();wireAs();
+  }else if(page==="back"){m.innerHTML=backPage();wireBack();
   }else if(page==="about"){m.innerHTML=aboutPage();wireAbout();
   }else if(page==="set"){m.innerHTML=setPage();wireSettings();
   }else if(page==="help"){m.innerHTML=helpPage();wireHelp();
@@ -2978,7 +3436,7 @@ function abLoad(){
   Promise.all([get("/api/workspace"),get("/api/quests/roots")])
     .then(r=>ABENV={ws:r[0]||{},q:r[1]||{}})
     .then(()=>{abWait=false;if(page==="about")render();});}
-const AB_READY=["dlg","quest","help"];
+const AB_READY=["cloth","dlg","quest","assort","back","help"];
 const AB_REPO="https://github.com/TricolourSky/VisitAPI-Editor";
 function aboutPage(){
   abLoad();const e=ABENV||{},ws=e.ws||{},q=e.q||{};
@@ -3041,7 +3499,7 @@ function abAuthor(){
 
 function abModules(){
   const D={about:"ab_d_about",cloth:"ab_d_cloth",dlg:"ab_d_dlg",
-    quest:"ab_d_quest",back:"ab_d_back",help:"ab_d_help"};
+    quest:"ab_d_quest",assort:"ab_d_assort",back:"ab_d_back",help:"ab_d_help"};
   const rows=PAGES.map(p=>{
     const here=p.id==="about",ok=AB_READY.includes(p.id);
     /* 能点的才给按钮，不能点的给挂牌——别让用户去按一个什么都不会发生的东西 */
@@ -3094,7 +3552,10 @@ function wireAbout(){
 const GUIDE={
   dlg:[["g_intro","G01"],["g_first","G02"],["g_file","G03"],["g_node","G04"],["g_name","G05"],
        ["g_special","G06"],["g_jump","G07"],["g_act","G08"],["g_trig","G09"],["g_media","G10"],["g_scene","G11"]],
-  q:[["g_q_what","G12"],["g_q_tabs","G13"],["g_q_obj","G14"],["g_q_link","G15"],["g_q_save","G16"]],
+  /* BOT 外观和商人货架并进右栏，不新开第三栏 —— 网格是写死的两列（.hpgrid），
+     加第三列会把版式挤坏，栏标题因此改成更宽的说法 */
+  q:[["g_q_what","G12"],["g_q_tabs","G13"],["g_q_obj","G14"],["g_q_link","G15"],["g_q_save","G16"],
+     ["g_bot","G17"],["g_shop","G18"]],
 };
 function helpPage(){
   /* 每一栏第一张默认展开：一进来就有东西看，不至于面对一排关着的标题 */
@@ -3121,11 +3582,58 @@ function wireHelp(){
   $("gShut").onclick=()=>all(false);
   /* 引导只自动带一次；想再看就从这儿开——忘掉"走过了"的记号，然后直接切到对话页开讲 */
   $("tourAgain").onclick=()=>{
-    try{Object.keys(TOUR).forEach(k=>localStorage.removeItem(TOUR_KEY+k));}catch(_){}
+    Object.keys(TOUR).forEach(k=>{setPref("tour."+k,"");
+      try{localStorage.removeItem(TOUR_KEY+k);}catch(_){}});
     page="dlg";render();};}
 
 /* ══ 设置页 ══ */
+/* ══ 工程（.vaproj）══
+   三个根打包成一份键=值小文件，一键切换。切换是在满载状态下发生的——
+   四处"没保存"（dirty/qdirty/bdirty/adirty）都要拦，切完把挂在旧根上的缓存一个不留。 */
+let PJ=null,pjWait=false;
+function pjLoad(){
+  if(PJ||pjWait)return;pjWait=true;
+  api("/api/project").then(d=>{PJ=d;}).catch(()=>{PJ={current:{},recent:[]};})
+    .then(()=>{pjWait=false;if(page==="set")render();});
+}
+function pjCard(){
+  const cur=(PJ&&PJ.current)||{},rec=(PJ&&PJ.recent)||[];
+  const path=p=>esc(p||T("ws_unset"));
+  return `<div class="card"><div class="chead">PROJECT<span>REF.P003</span></div>
+    <div class="row"><div class="lbl"><b>${T("pj_cur")}</b>
+      <span>${path(cur.root)}<br>${path(cur.quests)}<br>${path(cur.mods)}</span></div>
+      <button class="btn ghost" id="pjSave"><span>${T("pj_save")}</span></button></div>
+    ${rec.map((r,i)=>`<div class="row"><div class="lbl"><b>${esc(r.name)}</b>
+        <span>${esc(r.path)}${r.ok?"":" · "+T("pj_gone")}</span></div>
+      ${r.ok?`<button class="btn ghost" data-pj="${i}"><span>${T("pj_go")}</span></button>`:""}</div>`).join("")
+      ||`<div class="row"><div class="lbl"><span>${T("pj_none")}</span></div></div>`}
+    <div class="row"><div class="lbl"><b>${T("pj_open")}</b><span>${T("pj_open_d")}</span></div>
+      <button class="btn ghost" id="pjGo"><span>${T("pj_go")}</span></button></div>
+  </div>`;
+}
+async function pjOpen(path){
+  /* qdirty/bdirty/adirty 住在后加载的页脚本里，typeof 兜一手：万一哪个文件没起来，守卫别跟着炸 */
+  const busy=dirty||(typeof qdirty==="function"&&qdirty())
+    ||(typeof bdirty==="function"&&bdirty())||(typeof adirty==="function"&&adirty());
+  if(busy&&!await confirm2(T("pj_dirty")))return;
+  api("/api/project/open",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({path})})
+    .then(d=>{pjApply();say(TF("pj_done",d.name||""));})
+    .catch(e=>say(TF("pj_fail",String(e.message).slice(0,120))));
+}
+function pjApply(){
+  /* 换工程=三根齐换：挂在旧根上的缓存一个不留（QL 是挂接缓存，单换任务库时漏清过一次）。
+     对话页打开的文件路径已越界，退回起手模板；素材清单和工作区横幅重新拉。 */
+  QD=null;QROOTS=null;QL=null;BD=null;AD=null;ATPL={};ABENV=null;PJ=null;
+  filePath=null;doc=parseDlg(srcText());cur=doc.start;beat=0;picked=false;
+  applyStatic();savedText=docSnap();markDirty(false);
+  api("/api/workspace").then(w=>{WS=w;showWs();}).catch(()=>{});
+  api("/api/assets").then(a=>{ASSETS={bg:a.bg||[],audio:a.audio||[]};}).catch(()=>{});
+  render();
+}
+
 function setPage(){
+  pjLoad();
   const seg=(id,items,cur)=>`<div class="seg" id="${id}">`+items.map(it=>
     `<button data-v="${it.v}" aria-pressed="${cur===it.v}">${it.t}</button>`).join("")+`</div>`;
   return `<div class="setwrap">
@@ -3136,6 +3644,8 @@ function setPage(){
     <div class="card"><div class="chead">APPEARANCE<span>DEVICE TYPE.A001 · IPX3</span></div>
       <div class="row"><div class="lbl"><b>${T("set_theme")}</b><span>${T("set_theme_d")}</span></div>
         ${seg("segTheme",[{v:"dark",t:T("set_dark")},{v:"light",t:T("set_light")}],theme)}</div>
+      <div class="row"><div class="lbl"><b>${T("set_cur")}</b><span>${T("set_cur_d")}</span></div>
+        ${seg("segCur",[{v:"on",t:T("set_cur_on")},{v:"off",t:T("set_cur_off")}],curOn?"on":"off")}</div>
     </div>
 
     <div class="card alt"><div class="chead">LOCALE<span>DEVICE TYPE.L002 · IPX3</span></div>
@@ -3143,22 +3653,36 @@ function setPage(){
         ${seg("segLang",[{v:"zh",t:"中文"},{v:"en",t:"English"}],lang)}</div>
     </div>
 
+    ${pjCard()}
 
     <div class="card note"><div class="chead">NOTE<span>REF.N000</span></div><div class="row"><div class="lbl">
       <b>${T("set_note_t")}</b><span>${T("set_note_d")}</span></div></div></div>
   </div>`;}
 function wireSettings(){
   $("segTheme").querySelectorAll("button").forEach(b=>b.onclick=()=>{setTheme(b.dataset.v);render();});
+  $("segCur").querySelectorAll("button").forEach(b=>b.onclick=()=>{setCur(b.dataset.v==="on");render();});
   $("segLang").querySelectorAll("button").forEach(b=>b.onclick=()=>{
-    lang=b.dataset.v;try{localStorage.setItem("visitapi.ef3.lang",lang);}catch(_){}
+    lang=b.dataset.v;setPref("lang",lang);
     document.documentElement.lang=lang==="zh"?"zh-CN":"en";
     /* 还没打开过任何文件、也没动过手 → 起手模板重新按新语言生成。
        打开过文件就绝不动：那是人家的剧本，不能因为切了个界面语言就被换掉。 */
     if(!filePath&&!dirty)doc=parseDlg(srcText());
     applyStatic();render();savedText=docSnap();markDirty(false);});
+  const ps=$("pjSave"); if(ps)ps.onclick=async()=>{
+    const def=((PJ&&PJ.eft)?PJ.eft+"\\":"")+(lang==="zh"?"我的工程":"my-project")+".vaproj";
+    const p=await ask(T("pj_ask_path"),def); if(!p)return;
+    api("/api/project/save",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({path:p})})
+      .then(d=>{say(TF("pj_saved",d.path));PJ=null;render();})
+      .catch(e=>say(TF("pj_fail",String(e.message).slice(0,120))));};
+  document.querySelectorAll("[data-pj]").forEach(b=>b.onclick=()=>pjOpen(PJ.recent[+b.dataset.pj].path));
+  const pg=$("pjGo"); if(pg)pg.onclick=async()=>{const p=await ask(T("pj_ask_open"),"");if(p)pjOpen(p.trim());};
 }
 $("srcClose").onclick=()=>$("srcwrap").classList.remove("on");
-$("srcDl").onclick=()=>{tryDownload($("srcPre").value);note(T("saved_dl")+" "+fileName(),"hot");};
+/* 这儿曾经还有一颗「下载」：原型时代跑在沙箱 iframe 里，只能把文本递给浏览器下载。
+   现在有本地服务端了，保存直接写回原文件，那条路连同 tryDownload()/fileName() 一起删掉了 ——
+   按钮当时漏删，点下去是 ReferenceError（什么都不会发生，控制台外面一点声音都没有）。
+   要把文本弄到别处，左边那颗「复制全文」就是。 */
 $("srcCopy").onclick=()=>{const t=$("srcPre");
   t.readOnly=false;t.focus();t.select();t.readOnly=true;
   const ok=navigator.clipboard&&window.isSecureContext
@@ -3168,14 +3692,17 @@ $("srcCopy").onclick=()=>{const t=$("srcPre");
 
 /* ══ 源码窗：拖动 + 缩放，位置大小记住 ══ */
 (function srcWindow(){
-  const w=$("srcwrap"),KEY="visitapi.ef3.srcwin";
-  try{const s=JSON.parse(localStorage.getItem(KEY)||"null");
+  const w=$("srcwrap");
+  try{const s=JSON.parse(pref("srcwin")||"null");
     if(s){w.style.left=s.x+"px";w.style.top=s.y+"px";w.style.width=s.w+"px";w.style.height=s.h+"px";}}catch(_){}
   const save=()=>{try{const r=w.getBoundingClientRect();
-    localStorage.setItem(KEY,JSON.stringify({x:r.left,y:r.top,w:r.width,h:r.height}));}catch(_){}};
+    setPref("srcwin",JSON.stringify({x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)}));}catch(_){}};
   const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-  const grab=(e,move)=>{e.preventDefault();
-    const up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);save();};
+  /* 拖动期间给 <html> 打 data-drag，把全屏指针锁住 —— 理由同 quest.js 的 qdrag */
+  const grab=(e,move,kind)=>{e.preventDefault();
+    document.documentElement.dataset.drag=kind||"move";
+    const up=()=>{removeEventListener("mousemove",move);removeEventListener("mouseup",up);
+      delete document.documentElement.dataset.drag;save();};
     addEventListener("mousemove",move);addEventListener("mouseup",up);};
   $("srcHead").onmousedown=e=>{
     if(e.target.closest("button"))return;                     /* 按标题栏上的按钮不该拖窗 */
@@ -3309,3 +3836,7 @@ function place2(html){
   return p;}</script>
 
 <script src="/ui/quest.js"></script>
+<script src="/ui/modroot.js"></script>
+<script src="/ui/bot.js"></script>
+<script src="/ui/assort.js"></script>
+<script src="/ui/back.js"></script>

@@ -8,7 +8,7 @@
 /* ── 页签条 ── 和对话编辑器的分拍条同一个形状语言 */
 .qstates{flex:0 0 auto;display:flex;align-items:stretch;height:29px;background:var(--panel);
   border-bottom:1px solid var(--line);padding:0 .5rem}
-.qstates button{border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:11.5px;
+.qstates button{border:0;background:none;color:var(--ink-2);cursor:var(--cur-p);font-size:11.5px;
   letter-spacing:.08em;padding:0 .95rem;white-space:nowrap;position:relative}
 .qstates button+button::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line-2)}
 .qstates button:hover{color:var(--ink);background:var(--panel-3)}
@@ -48,7 +48,7 @@
 .tsec u{text-decoration:none;font:9px/1.5 var(--mono);letter-spacing:.08em;
   color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2);padding:.06rem .32rem}
 .tsec u.n0{opacity:.5}
-.tsec .add{margin-left:auto;border:0;background:transparent;color:var(--ink-3);cursor:pointer;
+.tsec .add{margin-left:auto;border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);
   font:10px/1 var(--mono);letter-spacing:.08em;padding:.24rem .45rem}
 .tsec .add:hover{background:var(--y);color:var(--y-ink);font-weight:700}
 .thint{padding:0 .9rem .3rem;font-size:11.5px;line-height:1.65;color:var(--ink-3)}
@@ -60,7 +60,7 @@
 .trow:hover{background:var(--panel-3)}
 /* 行里的按钮/输入框以前没人管，落到浏览器默认样式上——浅色主题下是一颗灰色系统按钮，
    跟这一屏完全不搭（选任务库那一页最明显，用户一眼就看出来了）。 */
-.trow .add{margin-left:auto;flex:0 0 auto;border:0;cursor:pointer;
+.trow .add{margin-left:auto;flex:0 0 auto;border:0;cursor:var(--cur-p);
   background:var(--panel-3);color:var(--ink-2);font:11px/1 var(--mono);letter-spacing:.06em;
   padding:.34rem .7rem;box-shadow:inset 0 0 0 1px var(--line-2)}
 .trow .add:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
@@ -83,14 +83,14 @@
 /* 画布上标出"这个任务在对话里有入口" */
 .qnode .dlgtag{margin-left:auto;color:var(--tech);letter-spacing:.1em}
 /* 挂接行的文字可以点着跳到对话编辑器 */
-.trow .tt.goto{cursor:pointer}
+.trow .tt.goto{cursor:var(--cur-p)}
 .trow .tt.goto:hover{color:var(--tech);text-decoration:underline}
 
 /* 只看这条链：无关的压暗而不是藏起来 —— 藏起来会让人以为任务丢了 */
 .qnode.dim{opacity:.22}
 .qnode.dim:hover{opacity:1}
 /* 出口方块是可拖的：给个 crosshair，并且比入口方块大一点好抓 */
-.qsock{cursor:crosshair;width:9px;height:9px;right:-5px}
+.qsock{cursor:var(--cur-cr);width:9px;height:9px;right:-5px}
 .qsock:hover{background:var(--y);outline:2px solid var(--y)}
 .trow .tag{transform:skewX(var(--sk));background:var(--line-2);padding:.02rem .3rem;flex:0 0 auto}
 .trow .tag s{display:block;transform:skewX(calc(var(--sk) * -1));text-decoration:none;
@@ -99,7 +99,7 @@
 .trow .tt[contenteditable]:focus{background:var(--panel);box-shadow:inset 2px 0 0 var(--y);outline:0}
 .trow .bar{width:140px;height:8px;flex:0 0 auto;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2)}
 .trow .num{font:11px/1 var(--mono);color:var(--ink-2);flex:0 0 auto;min-width:46px;text-align:right}
-.trow .dots{border:0;background:transparent;color:var(--ink-3);cursor:pointer;width:24px;height:24px;
+.trow .dots{border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);width:24px;height:24px;
   font-size:15px;line-height:1;padding:0;flex:0 0 auto}
 .trow:hover .dots{color:var(--ink-2)}
 .trow .dots:hover{background:var(--y);color:var(--y-ink)}
@@ -111,16 +111,16 @@
 /* 任务身份：在哪张图、要什么信赖等级、接取门槛几条 */
 .tmeta{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:0 .9rem .4rem}
 .tmeta button,.tmeta span{font-size:12px;padding:.32rem .7rem;background:var(--panel-2);
-  box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);border:0;cursor:pointer}
+  box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);border:0;cursor:var(--cur-p)}
 .tmeta button k,.tmeta span k{font:9px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3);margin-right:.45rem}
 .tmeta button:hover{background:var(--y);color:var(--y-ink);font-weight:700}
 .tmeta button:hover k{color:var(--y-ink);opacity:.7}
-.tmeta span{cursor:help;color:var(--ink-2)}
+.tmeta span{cursor:var(--cur-hp);color:var(--ink-2)}
 
 /* 简报：配图板 + 描述。配图空着时是一块带斜纹的坑，一眼看出缺东西 */
 .tbrief{flex:0 0 auto;display:flex;gap:.9rem;margin:0 .9rem .3rem;padding:.7rem;
   background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
-.tbrief .plate{width:236px;height:134px;flex:0 0 auto;cursor:pointer;position:relative;
+.tbrief .plate{width:236px;height:134px;flex:0 0 auto;cursor:var(--cur-p);position:relative;
   background-size:cover;background-position:center;background-color:var(--panel);
   box-shadow:inset 0 0 0 1px var(--line-2);display:flex;align-items:center;justify-content:center;
   font:10px/1 var(--mono);letter-spacing:.12em;color:var(--ink-3);text-align:center}
@@ -143,7 +143,7 @@
 .tcard .rl{font:9px/1 var(--mono);letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase}
 .tcard .rv{font-size:12.5px;color:var(--ink);margin-top:.22rem;display:block}
 .tcard .dots{position:absolute;right:.1rem;top:50%;transform:translateY(-50%);
-  border:0;background:transparent;color:var(--ink-3);cursor:pointer;width:22px;height:22px;
+  border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);width:22px;height:22px;
   font-size:14px;line-height:1;padding:0}
 .tcard:hover .dots{color:var(--ink-2)}
 .tcard .dots:hover{background:var(--y);color:var(--y-ink)}
@@ -157,12 +157,12 @@
 .prow2:hover{background:var(--panel-3)}
 .prow2 k{font-size:12.5px;color:var(--ink-2)}
 .prow2 s{font-size:11.5px;color:var(--ink-3);text-decoration:none;line-height:1.6}
-.prow2 .pv{font-size:12.5px;color:var(--ink);background:var(--panel);border:0;cursor:pointer;
+.prow2 .pv{font-size:12.5px;color:var(--ink);background:var(--panel);border:0;cursor:var(--cur-p);
   padding:.28rem .6rem;text-align:left;box-shadow:inset 0 0 0 1px var(--line-2)}
-.prow2 .pv.edit{cursor:text;outline:0}
+.prow2 .pv.edit{cursor:var(--cur-t);outline:0}
 .prow2 .pv:not(.edit):hover{background:var(--y);color:var(--y-ink);font-weight:700}
 .prow2 .pv:empty::before{content:attr(data-ph);color:var(--ink-3);font-style:italic}
-.prow2 .sw{font:11px/1 var(--mono);letter-spacing:.1em;border:0;cursor:pointer;padding:.34rem .8rem;
+.prow2 .sw{font:11px/1 var(--mono);letter-spacing:.1em;border:0;cursor:var(--cur-p);padding:.34rem .8rem;
   background:var(--panel);color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
 .prow2 .sw[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
 
@@ -192,14 +192,14 @@
 .lrow{display:grid;grid-template-columns:88px 1fr;align-items:center;gap:.7rem;
   margin:0 .9rem 2px;padding:.42rem .7rem;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
 .lrow:hover{background:var(--panel-3)}
-.lrow k{font:9px/1 var(--mono);letter-spacing:.12em;color:var(--ink-3);cursor:help}
+.lrow k{font:9px/1 var(--mono);letter-spacing:.12em;color:var(--ink-3);cursor:var(--cur-hp)}
 .lrow .lv{font-size:12.5px;color:var(--ink);outline:0;padding:.26rem .5rem;background:var(--panel);
   box-shadow:inset 0 0 0 1px var(--line-2)}
 .lrow .lv:focus{box-shadow:inset 2px 0 0 var(--y),inset 0 0 0 1px var(--line-2)}
 .lrow .lv:empty::before{content:attr(data-ph);color:var(--ink-3);font-style:italic}
 
 /* 横分隔条：跟竖的那条同一个零件，只是躺下来 */
-.hsplit{flex:0 0 auto;height:7px;cursor:ns-resize;background:var(--panel);z-index:2;
+.hsplit{flex:0 0 auto;height:7px;cursor:var(--cur-ns);background:var(--panel);z-index:2;
   border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   display:flex;align-items:center;justify-content:center}
 .hsplit::after{content:"";height:3px;width:46px;
@@ -231,7 +231,7 @@
 .gcol[data-cur="1"] b s{color:var(--y-ink);font-weight:700}
 
 /* 任务卡片：静止是平的，只有当前项和悬停才有影子和高亮 —— 四条铁律 */
-.qnode{position:absolute;width:216px;background:var(--node-bg);cursor:pointer;
+.qnode{position:absolute;width:216px;background:var(--node-bg);cursor:var(--cur-p);
   box-shadow:0 0 0 1px var(--line-2);overflow:hidden;user-select:none;
   transition:box-shadow .1s,background .1s}
 .qnode:hover{background:var(--panel-3);box-shadow:0 0 0 1px var(--ink-3),0 6px 18px rgba(0,0,0,.5)}
@@ -266,7 +266,7 @@
 .vpanel.on{display:block}
 .vpanel h4{font:9.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--err);
   padding:.6rem .75rem;border-bottom:1px solid var(--line)}
-.vrow{display:flex;gap:.55rem;padding:.5rem .75rem;border-bottom:1px solid var(--line);cursor:pointer}
+.vrow{display:flex;gap:.55rem;padding:.5rem .75rem;border-bottom:1px solid var(--line);cursor:var(--cur-p)}
 .vrow:hover{background:var(--panel-3)}
 .vrow i{flex:0 0 auto;font-style:normal;font:8.5px/1.5 var(--mono);letter-spacing:.08em;padding:0 .26rem;
   font-weight:700;height:16px;background:var(--err);color:#fff}
@@ -274,13 +274,13 @@
 .vrow div{flex:1 1 auto;min-width:0}
 .vrow b{display:block;font-size:12px;font-weight:600}
 .vrow small{display:block;font-size:11px;color:var(--ink-3);margin-top:.15rem;line-height:1.5}
-.telem .bad{color:var(--err);cursor:pointer}
+.telem .bad{color:var(--err);cursor:var(--cur-p)}
 .telem .bad:hover{text-decoration:underline}
 
 /* 文案语言开关：你在写哪种语言的文案，跟界面语言是两回事 */
 .langsw{display:flex;box-shadow:inset 0 0 0 1px var(--line-2)}
 .langsw button{border:0;background:none;color:var(--ink-3);font:9.5px/1 var(--mono);letter-spacing:.1em;
-  padding:.26rem .5rem;cursor:pointer}
+  padding:.26rem .5rem;cursor:var(--cur-p)}
 .langsw button[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700}
 
 /* ── 物品选择器 ── 左分类树 / 右列表，数据来自 SPT_Data。
@@ -289,25 +289,28 @@
   box-shadow:0 0 0 1px var(--line-2),0 30px 70px rgba(0,0,0,.7);flex-direction:column}
 .ipick.on{display:flex}
 .ipick header{display:flex;align-items:center;gap:.7rem;padding:.6rem .85rem;background:var(--panel-2);
-  border-bottom:1px solid var(--line);cursor:move;user-select:none}
+  border-bottom:1px solid var(--line);cursor:var(--cur-mv);user-select:none}
 .ipick header b{font:11px/1 var(--mono);letter-spacing:.2em;color:var(--y);text-transform:uppercase}
 .ipick header input{flex:1 1 auto;background:var(--panel-3);border:1px solid var(--line-2);color:var(--ink);
   font:12px/1.6 var(--ui);padding:.3rem .5rem;outline:none}
 .ipick header input:focus{border-color:var(--y)}
 /* 关闭键：红虚线方框 + 红 X，不填色。静止即平面，悬停只收成实线 */
-.xclose{width:28px;height:28px;flex:0 0 auto;cursor:pointer;padding:0;
+.xclose{width:28px;height:28px;flex:0 0 auto;cursor:var(--cur-p);padding:0;
   background:transparent;border:1px dashed var(--err);color:var(--err);font-size:14px;line-height:1}
 .xclose:hover{border-style:solid;color:#FF8080;border-color:#FF8080}
 .ipbody{flex:1 1 auto;display:flex;min-height:0}
 .ipcats{width:210px;flex:0 0 auto;overflow:auto;border-right:1px solid var(--line);background:var(--panel)}
 .ipcats button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink-2);
-  cursor:pointer;font-size:12px;padding:.34rem .6rem}
+  cursor:var(--cur-p);font-size:12px;padding:.34rem .6rem}
 .ipcats button.sub{padding-left:1.3rem;font-size:11.5px;color:var(--ink-3)}
 .ipcats button:hover{background:var(--panel-3);color:var(--ink)}
 .ipcats button[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700}
 .iplist{flex:1 1 auto;overflow:auto;background:var(--panel)}
-.iprow{display:flex;align-items:center;gap:.6rem;padding:.36rem .7rem;cursor:pointer;
-  border-bottom:1px solid rgba(255,255,255,.03)}
+/* ⚠️ 行分隔线走 --line 这个令牌，别写死 rgba(255,255,255,.03)：
+   那是 3% 的白，压在浅色主题的 --panel(#E7E4DC) 上等于没有，整列行线全消失。
+   这个窗口现在货架页也在用（"添加商品"就是它），看的人多了，这条更不能糊。 */
+.iprow{display:flex;align-items:center;gap:.6rem;padding:.36rem .7rem;cursor:var(--cur-p);
+  border-bottom:1px solid var(--line)}
 .iprow:hover{background:var(--y);color:var(--y-ink)}
 .iprow .pn{flex:1 1 auto;font-size:12.5px}
 .iprow .pe{font-size:11px;color:var(--ink-3)}
@@ -319,7 +322,7 @@
 
 /* ── 任务图选择器：共用上面那套窗体，右边换成缩略图网格 ── */
 .imgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px;padding:10px}
-.imcell{border:0;padding:0;background:var(--panel-3);cursor:pointer;position:relative;
+.imcell{border:0;padding:0;background:var(--panel-3);cursor:var(--cur-p);position:relative;
   box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .imcell img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--graph-bg)}
 .imcell figcaption{display:block;font:9px/1.4 var(--mono);color:var(--ink-3);padding:.3rem .35rem;
@@ -344,7 +347,7 @@
 
 /* 弹出小菜单里的选项 */
 .kindmenu{display:flex;flex-wrap:wrap;gap:2px}
-.kindmenu button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:pointer;font-size:11.5px;
+.kindmenu button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:var(--cur-p);font-size:11.5px;
   padding:.3rem .55rem}
 .kindmenu button:hover{background:var(--y);color:var(--y-ink)}
 .kindmenu button[aria-pressed="true"]{box-shadow:inset 0 0 0 1px var(--y);color:var(--y)}
@@ -352,13 +355,21 @@
 /* 高级参数：一行一个字段，左边名字右边控件。窄一点无所谓，值都是数字或短字符串 */
 .advrow{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:.28rem 0}
 .advrow i{font-style:normal;font-size:11.5px;color:var(--ink-2)}
-.advrow button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:pointer;
+.advrow button{border:0;background:var(--panel-3);color:var(--ink-2);cursor:var(--cur-p);
   font:11px var(--mono);padding:.22rem .5rem;min-width:52px}
 .advrow button[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700}
 .advrow input{width:88px;box-sizing:border-box;padding:.22rem .4rem;background:var(--panel);
   border:0;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font:11px var(--mono)}
 .advrow input:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
 .advnote{margin-top:.5rem;font-size:10.5px;line-height:1.6;color:var(--ink-3)}
+/* 数组参数（命中部位 / savageRole / 武器）：chip 换行铺，选中态走通用 aria-pressed 黄。
+   49 个角色能铺很高，封个上限内部滚——滚动条样式全站统一，别在这儿另写。 */
+.advrow.tall{align-items:flex-start}
+.advrow.tall>i{padding-top:.3rem}
+.advchips{display:flex;flex-wrap:wrap;gap:.25rem;justify-content:flex-end;
+  max-width:340px;max-height:190px;overflow-y:auto}
+.advchips button{font-size:10.5px}
+.advchips .add{background:transparent;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-3)}
 
 .kindmenu.col{flex-direction:column}
 .kindmenu.col button{text-align:left;width:100%}
@@ -383,6 +394,6 @@
 .kindmenu button.risky:hover{background:var(--o);color:#170A03}
 
 /* 「这个商人我认识」：给还没装 / 还没适配的商人 mod 留的出口 */
-.prow2 .ack{margin-left:.4rem;border:0;cursor:pointer;font-size:11px;padding:.26rem .6rem;
+.prow2 .ack{margin-left:.4rem;border:0;cursor:var(--cur-p);font-size:11px;padding:.26rem .6rem;
   background:transparent;color:var(--o);box-shadow:inset 0 0 0 1px var(--o)}
 .prow2 .ack:hover{background:var(--o);color:#170A03}

@@ -1,0 +1,8 @@
+{
+  "aa00000000000000000000d1": {
+    "name": "LabVoice",
+    "addVoiceToPlayer": true,
+    "bundlePath": "voices/x_voice.bundle",
+    "locales": { "en": "Lab Voice", "ch": "测试语音" }
+  }
+}

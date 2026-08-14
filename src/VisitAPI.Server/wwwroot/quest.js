@@ -461,12 +461,17 @@ function qfit(pos){
 }
 
 /* ══════════════ 接线 ══════════════ */
-/* 按下→装 move / 抬起→卸掉。down 返回 null 表示"这一下不归我管" */
-function qdrag(down){
+/* 按下→装 move / 抬起→卸掉。down 返回 null 表示"这一下不归我管"。
+   拖动期间在 <html> 上打个 data-drag —— mousemove 是挂在 window 上的，鼠标一旦离开那条
+   7px 宽的分隔条，指针就会变成底下元素的形状（一路闪）。换成自定义指针后形状差得更远，
+   闪起来很像 bug。cursor.css 里有一条 :root[data-drag] 把全屏指针锁成"移动"。 */
+function qdrag(down,kind){
   return e=>{
     const mv=down(e); if(!mv)return;
     e.preventDefault();
-    const up=()=>{removeEventListener("mousemove",mv);removeEventListener("mouseup",up);};
+    document.documentElement.dataset.drag=kind||"move";
+    const up=()=>{removeEventListener("mousemove",mv);removeEventListener("mouseup",up);
+      delete document.documentElement.dataset.drag;};
     addEventListener("mousemove",mv);addEventListener("mouseup",up);};
 }
 /* 拖出来的尺寸要跨 render() 存活：render() 是整块 innerHTML 重建，行内样式每次都会被抹掉 */
@@ -478,11 +483,11 @@ function qwirePanes(){
   $("qsplit").onmousedown=qdrag(e=>{
     const w0=v.getBoundingClientRect().width,x0=e.clientX,W=$("main").clientWidth;
     return ev=>{qvpW=Math.max(360,Math.min(W-300,w0+ev.clientX-x0));
-      v.style.flexBasis=qvpW+"px";qfit(qlayout().pos);};});
+      v.style.flexBasis=qvpW+"px";qfit(qlayout().pos);};},"ew");
   $("qhsplit").onmousedown=qdrag(e=>{
     const h0=m.getBoundingClientRect().height,y0=e.clientY;
     const H=document.querySelector(".qwork").clientHeight;
-    return ev=>{qmailH=Math.max(74,Math.min(H-150,h0-ev.clientY+y0));m.style.flexBasis=qmailH+"px";};});
+    return ev=>{qmailH=Math.max(74,Math.min(H-150,h0-ev.clientY+y0));m.style.flexBasis=qmailH+"px";};},"ns");
 }
 function qwireGraph(){
   const g=$("qgraph");
@@ -580,6 +585,9 @@ function qMenu(btn,title,items,cur,pick,rawTitle){
   p.innerHTML=`<h4>${esc(rawTitle??T(title))}</h4><div class="kindmenu${long?" col":""}">${
     items.map(i=>`<button data-a="${esc(i.a)}" ${i.a===cur?'aria-pressed="true"':""}
       ${i.d?`title="${esc(T(i.d))}"`:""}>${esc(i.n)}</button>`).join("")}</div>`;
+  /* ⚠️ 标记名不能叫 data-pane——任务页四个页签用的就是它，#pop 挂上同名属性会把
+     "[data-pane]" 的计数顶成 5（探针当场抓过）。popkind 是 #pop 独有的。 */
+  p.dataset.popkind="menu";   /* roles/items 拉完要判断"高级面板还开着吗"，别把别的菜单顶掉 */
   p.classList.add("on");
   p.style.left="-9999px";p.style.top="0";
   const r=btn.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight,m=8;
@@ -598,8 +606,11 @@ const qLlMenu=b=>qPickMenu(b,"q_m_ll",[0,1,2,3,4].map(n=>({a:String(n),n:n?TF("q
 /* ══ 目标的高级参数 ══
    字段不是照着文档猜的：把原版 1000+ 条条件按类型全扫了一遍，看哪些字段真有人填、
    填的是什么形状（`distance` 是 {compareMethod,value} 这种嵌套，所以路径要支持点号）。
-   **只放标量字段**：武器型号 / 命中部位 / 敌人装备那些是数组，
-   做成半吊子的列表编辑器还不如先不做，免得作者以为填了就生效。 */
+   标量之外，Kills 的三个高频数组也有入口（parts / roles / items 三种控件）：
+   命中部位——原版 558 个任务只用过 7 个部位，敢写死勾选组；
+   savageRole——选项**从原版任务提取**（任务里是 bossKilla 这种大小写，bots\types 目录名全小写对不上）；
+   武器型号——复用 #ipick 逐件累积（原版平均一条 10.6 件，最长 53 件）。
+   敌人装备 / 改装件是**双层**列表且原版各只有 2 条用例，仍不做——半吊子的单层入口等于教人写错数据。 */
 const ADV={
   CounterCreator:[["oneSessionOnly","bool","q_adv_once"],["completeInSeconds","num","q_adv_secs"]],
   HandoverItem:[["onlyFoundInRaid","bool","q_adv_fir"],["dogtagLevel","num","q_adv_dogtag"],
@@ -610,11 +621,36 @@ const ADV={
                        ["onlyFoundInRaid","bool","q_adv_fir"]],
   PlaceBeacon:[["zoneId","text","q_adv_zone"],["plantTime","num","q_adv_plant"]],
   Kills:[["distance.compareMethod","cmp","q_adv_distcmp"],["distance.value","num","q_adv_dist"],
-         ["daytime.from","num","q_adv_from"],["daytime.to","num","q_adv_to"]],
+         ["daytime.from","num","q_adv_from"],["daytime.to","num","q_adv_to"],
+         ["savageRole","roles","q_adv_roles"],["bodyPart","parts","q_adv_parts"],
+         ["weapon","items","q_adv_weap"]],
   Quest:[["availableAfter","num","q_adv_after"]],
 };
 const dig=(o,p)=>p.split(".").reduce((x,k)=>x==null?x:x[k],o);
 function put(o,p,v){const k=p.split("."),last=k.pop();for(const x of k)o=(o[x] ??= {});o[last]=v;}
+/* 清空数组时把键整个删掉——「只写用户真填了的」，别往任务里撒空数组 */
+function del(o,p){const k=p.split("."),last=k.pop();for(const x of k){o=o[x];if(o==null)return;}delete o[last];}
+
+/* 命中部位：558 个原版任务只用过这 7 个值（Head 16 次占大头），敢写死。
+   ⚠️ 名字不能叫 BPARTS——bot.js 已经用它放五个服装槽位，各页脚本共享同一个全局空间，
+   重复的 const 会把**后加载的整个文件**炸掉（症状是 botPage is not defined，探针抓过）。 */
+const KPARTS=["Head","Chest","Stomach","LeftArm","RightArm","LeftLeg","RightLeg"];
+let QROLES=null,qrWait=false,qiWait=false;   /* savageRole 选项表 / 物品表都用到才拉 */
+const itemLabel=id=>{const it=QITEMS&&QITEMS.byId&&QITEMS.byId[id];
+  return it?(ipZh()?it.zh:it.en):id.slice(0,10)+"…";};
+/* 拉完只在「高级参数面板还开着」时原地重画——用户早点去别处了就别抢屏幕 */
+function rolesFetch(btn,rows){
+  if(qrWait)return;qrWait=true;
+  api("/api/quests/roles").then(d=>{QROLES=d.roles||[];}).catch(()=>{QROLES=[];})
+    .then(()=>{qrWait=false;const p=$("pop");
+      if(p.classList.contains("on")&&p.dataset.popkind==="adv")advMenu(btn,rows);});
+}
+function itemsFetch(btn,rows){
+  if(qiWait||QITEMS)return;qiWait=true;
+  api("/api/quests/items").then(d=>{QITEMS=d;QITEMS.byId=Object.fromEntries((d.items||[]).map(x=>[x.id,x]));})
+    .catch(()=>{}).then(()=>{qiWait=false;const p=$("pop");
+      if(p.classList.contains("on")&&p.dataset.popkind==="adv")advMenu(btn,rows);});
+}
 
 /* rows：[[要改的对象, 字段表], …]。CounterCreator 那种是"外层管次数、内层管条件"，
    两层的参数得摆在同一个面板里，作者不该被迫理解这个嵌套。 */
@@ -622,6 +658,22 @@ function advMenu(btn,rows){
   const p=$("pop");
   const one=(o,[f,kind,key])=>{
     const v=dig(o,f);
+    /* 数组三兄弟不包 <label>——label 会把整行的点击都转发给第一个按钮 */
+    if(kind==="parts"||kind==="roles"){
+      if(kind==="roles"&&QROLES==null){rolesFetch(btn,rows);return "";}   /* 拉到再画，别闪一排空的 */
+      const opts=kind==="parts"?KPARTS:QROLES;
+      if(!opts.length)return "";                    /* 读不到游戏数据就整行不画，别摆一个空控件 */
+      const cur=Array.isArray(v)?v:[];
+      return `<div class="advrow tall"><i>${T(key)}</i><div class="advchips">${
+        opts.map(x=>`<button data-t="${f}" data-o="${esc(x)}" aria-pressed="${cur.includes(x)}">${esc(x)}</button>`).join("")}</div></div>`;
+    }
+    if(kind==="items"){
+      const cur=Array.isArray(v)?v:[];
+      if(cur.length&&!QITEMS)itemsFetch(btn,rows);  /* 名字表没到之前先显示 id 头几位 */
+      return `<div class="advrow tall"><i>${T(key)}</i><div class="advchips">${
+        cur.map((id,ix)=>`<button data-x="${f}" data-ix="${ix}" title="${esc(id)}">${esc(itemLabel(id))} ✕</button>`).join("")
+        }<button class="add" data-add="${f}">＋ ${T("q_adv_add")}</button></div></div>`;
+    }
     const ctl=kind==="bool"
       ? `<button data-b="${f}" aria-pressed="${!!v}">${v?T("q_adv_yes"):T("q_adv_no")}</button>`
       : kind==="cmp"
@@ -632,6 +684,7 @@ function advMenu(btn,rows){
   };
   p.innerHTML=`<h4>${T("q_m_adv")}</h4>`+rows.map(([o,fs])=>fs.map(f=>one(o,f)).join("")).join("")
     +`<div class="advnote">${T("q_adv_note")}</div>`;
+  p.dataset.popkind="adv";
   p.classList.add("on");
   p.style.left="-9999px";p.style.top="0";
   const r=btn.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight,m=8;
@@ -646,6 +699,24 @@ function advMenu(btn,rows){
     const f=i.dataset.v;
     put(own(f),f,+i.dataset.n?(+i.value||0):i.value.trim());
     qtouch(); render();});
+  p.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{        /* 勾选组：点一下进出 */
+    const f=b.dataset.t,o=own(f),cur=Array.isArray(dig(o,f))?dig(o,f).slice():[];
+    const i=cur.indexOf(b.dataset.o);
+    if(i<0)cur.push(b.dataset.o);else cur.splice(i,1);
+    if(cur.length)put(o,f,cur);else del(o,f);
+    qtouch(); advMenu(btn,rows);});
+  p.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{        /* 累积列表：✕ 删一件 */
+    const f=b.dataset.x,o=own(f),cur=(dig(o,f)||[]).slice();
+    cur.splice(+b.dataset.ix,1);
+    if(cur.length)put(o,f,cur);else del(o,f);
+    qtouch(); advMenu(btn,rows);});
+  p.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{      /* ＋：复用物品选择器 */
+    const f=b.dataset.add,o=own(f);
+    hide();                       /* pickItem 不自己收 #pop（老规矩），调用方先收 */
+    pickItem(it=>{                /* 选完把面板原地重开——连加十几把枪不用来回点 ⋮ */
+      const cur=(dig(o,f)||[]).slice();
+      if(!cur.includes(it.id))cur.push(it.id);
+      put(o,f,cur); qtouch(); advMenu(btn,rows);});});
 }
 
 const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","Skill","Quest"];
@@ -793,8 +864,11 @@ function qRowMenu(kind,i,btn){
    数据来自 SPT_Data：handbook 给分类树和价格，全局文案给中英名字。
    4000 多件，所以单独一条接口、用到才拉。 */
 let ipCb=null, ipCat="", ipQ="";
-function pickItem(cb){
+/* 商人货架页（assort.js）也用这个窗口 —— 那边的"添加商品/换物品"就是它。
+   所以别把这儿写死成任务页的假设：标题可传，显示语言见 ipZh()。 */
+function pickItem(cb,title){
   ipCb=cb; ipCat=""; ipQ="";
+  $("ipTitle").textContent=title||T("q_ip_title");
   const p=$("ipick"); p.classList.add("on");
   if(!p.dataset.placed){        /* 头一次打开先把百分比 inset 固化成像素，不然 left/top 写了也不动 */
     const r=p.getBoundingClientRect();
@@ -810,7 +884,12 @@ function pickItem(cb){
   }).catch(e=>{$("iplist").innerHTML=`<div style="padding:1rem;color:var(--err);font-size:12px">${esc(e.message)}</div>`;});
 }
 const closeItems=()=>{$("ipick").classList.remove("on");ipCb=null;};
-const catName=c=>(qlang==="ch"?c.zh:c.en)||c.id.slice(0,8);
+/* 列表里先显示哪种语言的名字：
+   任务页跟**内容语言** qlang（你正在写中文文案，就该先看中文名）；
+   别的页（商人货架）跟**界面语言** lang —— 那边压根没有"内容语言"这回事，
+   硬跟着 qlang 的话，英文界面的人打开选择器会看到一列中文名（qlang 默认就是 "ch"）。 */
+const ipZh=()=>page==="quest"?qlang==="ch":lang==="zh";
+const catName=c=>(ipZh()?c.zh:c.en)||c.id.slice(0,8);
 function drawItems(){
   if(!QITEMS)return;
   const tops=QITEMS.cats.filter(c=>!c.parent&&catName(c).trim());
@@ -827,8 +906,8 @@ function drawItems(){
     (!s||String(it.zh).toLowerCase().includes(s)||String(it.en).toLowerCase().includes(s)||it.id.includes(s)))
     .slice(0,400);
   $("iplist").innerHTML=list.map(it=>`<div class="iprow" data-i="${it.id}">
-      <span class="pn">${esc(qlang==="ch"?it.zh:it.en)}</span>
-      <span class="pe">${esc(qlang==="ch"?it.en:it.zh)}</span>
+      <span class="pn">${esc(ipZh()?it.zh:it.en)}</span>
+      <span class="pe">${esc(ipZh()?it.en:it.zh)}</span>
       <span class="pp">₽ ${num(it.price)}</span></div>`).join("")
     ||`<div style="padding:1rem;color:var(--ink-3);font-size:12px">${T("q_ip_none")}</div>`;
   $("ipfoot").textContent=TF("q_ip_foot",list.length,QITEMS.items.length);
@@ -1272,7 +1351,7 @@ function setRoot(path){
   if(!path)return;
   api("/api/quests/root",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({path})})
-    .then(()=>{QROOTS=null;QD=null;render();})       /* 换了库就整个重载，别拿旧数据往新目录写 */
+    .then(()=>{QROOTS=null;QD=null;QL=null;render();})   /* 换库整个重载；QL 是挂接缓存，跟着旧库已过期 */
     .catch(e=>{const s=$("qsaved");if(s)s.textContent=TF("q_root_bad",String(e.message).slice(0,60));
       say(TF("q_root_bad",String(e.message).slice(0,120)));});
 }

@@ -25,7 +25,25 @@
 |---|---|---|
 | `VisitAPI.Dlg` | netstandard2.0 | `.dlg` 的解析与回写。**和游戏插件共用这份源码** |
 | `VisitAPI.Server` | net10.0 (Web SDK) | 服务端 + 界面（界面嵌成资源打进 exe） |
-| `VisitAPI.Quests` | net10.0 | 任务 / 文案的读写与校验、只读 SPT_Data、任务↔对话的挂接、任务配图 |
+| `VisitAPI.Quests` | net10.0 | 所有落盘的东西：任务 / 文案、BOT 服装、商人货架，它们各自的校验器，只读 SPT_Data、任务↔对话的挂接、任务配图 |
+
+### 三个互不相干的根
+
+编辑器同时握着**三个**路径，而且它们**故意允许分属不同模组** ——
+作者完全可能在给 A 模组写任务的同时，编 B 模组的商人。
+
+| 根 | 位置 | 放什么 |
+|---|---|---|
+| `Root`（工作区） | `<EFT>\BepInEx\config\VisitAPI` | `.dlg` 剧本、`backgrounds\`、`audio\` |
+| `QuestDb`（任务库） | `<EFT>\SPT_Runtime\user\mods\<模组>\db` | `quests\`、`locales\` |
+| `ModDb`（内容库） | `<EFT>\SPT_Runtime\user\mods\<模组>\db` | `CustomBotLoadouts\`、`CustomClothing\`、`assort.json`、`CustomAssortSchemes\`、`previews\` |
+
+三个各有各的路径牢笼（`Resolve` / `ResolveQuest` / `ResolveMod`）。`.vaproj` 就是把这三条路径
+按 `键=值` 写成一个小文件；打开时**先把三条全验过再应用**——`SetRoot` 要求目录已存在，
+而另外两个会自动建目录，三连调用会切出"一半"的状态；换机器的场景下自动建更是只会建出一棵空树。
+
+内容库**按标志目录认，不按模组名认**（`CustomBotLoadouts` / `assort.json` / `CustomClothing`，
+这些是 WTT 的约定）。写死一个模组名只对一个人有用。
 
 ### 为什么 `VisitAPI.Dlg` 是 netstandard2.0
 
@@ -75,7 +93,9 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 1. **令牌** —— 每次启动生成随机串注入页面，`/api/*` 全部校验。恶意网页跨域读不到我们的 HTML，
    就拿不到令牌。`<img>`/`<video>` 的 src 带不了自定义头，所以 `/media` 的令牌走查询串
-2. **路径牢笼** —— 任何路径都 `Path.GetFullPath` 后检查是否落在工作区内
+2. **路径牢笼** —— 任何路径都 `Path.GetFullPath` 后检查是否落在它该待的那个根里。
+   写接口还要额外钉住**文件名**：不许带分隔符，后缀必须是这个接口该写的那种。
+   这道检查**必须在服务端**——早先它只活在前端，手搓一个请求就能往工作区里写出 `notes.txt`
 
 工作区来源优先级：`--root=` > 自动探测（从 exe 往上找 `BepInEx\config\VisitAPI`）> 上次填过的
 （记在 exe 旁边的 `visitapi-editor.txt`，不用浏览器 localStorage —— 清一次数据就没了）。
@@ -104,7 +124,17 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 | `POST /api/quests/link` | 挂上/摘掉一条挂接。**改的是 `.dlg`，走 `DialogWriter`** |
 | `POST /api/quests/trader-ok` | 标记「这个商人我认识」（给还没装/没适配的商人 mod 用） |
 | `GET /api/quests/images` | 任务配图清单：SPT 自带的那份 + 模组目录里的那份 |
+| `GET /api/quests/roles` | `savageRole` 的取值，**从原版任务里提取**（不是列 `bots\types` 目录——那边全小写，对不上号） |
 | `GET /qimg?src=&name=&t=` | 配图字节。**不挂在 `/api` 下**——`<img src>` 发不了令牌头，只能像 `/media` 那样走查询串 |
+| `GET/POST /api/mods` | 读/设内容库，附带自动探测到的候选 |
+| `GET /api/bots` | BOT 服装文件 + 这个模组注册过的外观 + 校验 + 指纹 |
+| `POST /api/bots` | 按文件写回；**送一份空的 `appearance` ＝ 删掉这份文件**。和任务同一套乐观锁 |
+| `GET /api/bots/default?type=` | SPT 原版那份服装池，用到才读——「恢复默认」是回去读它，编辑器不自己另存一份 |
+| `GET/POST /api/assort` | 商人货架，两种写法都认，附校验 |
+| `GET /api/assort/tpl?id=` | 某个模板的容器槽位：能装什么、装几个 |
+| `GET /api/backup` `POST /api/backup/restore` | 列 `.bak`；还原是**对调**而不是覆盖 |
+| `GET /api/project` `POST /api/project/save` `/open` | `.vaproj`：存下三个根，或整套切过去 |
+| `GET /hbimg?name=&t=` `/avimg?id=` `/look?id=` | handbook 分类图标、商人头像、预览图。全都挂在 `/api` 外面，理由同 `<img src>` |
 
 ## 两条 SPT 的事实，配图功能全靠它们
 
@@ -125,8 +155,12 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 - `DialogTree.HeadRaw` 按原顺序记下文件头**每一行**（含注释）；回写时重放：
   注释原文照抄，可编辑的行从模型重新生成
 - 节点体里的注释挂到"它后面那个元素"的 `Lead` 上（节点/旁白/台词/选项/跳转各一份，加节点尾 `Tail`）
-- `DialogTrigger.Raw` 存触发器原文，回写优先照抄
-  ⚠️ **将来支持编辑触发器时，改完必须把 `Raw` 置 null**，否则回写吐旧内容
+- `DialogTrigger.Raw` 存触发器原文，回写优先照抄。
+  触发器编辑已经做了，而且**绕开了这件事**：界面改的是**那一行字符串本身**，改完原样当 `Raw` 发回来，
+  所以你没动过的坐标永远不会被重新格式化（重新生成会把手填的 `0.09` 印成 `0.090000003576`）。
+  ⚠️ 哪天真去改 `DialogTrigger` 的**字段**了，**必须把 `Raw` 置 null**，否则回写吐的是旧内容
+- 文件头里**变不成模型的行一律原文留住**（`KeepRaw`）。漏掉这一步既不抛错也不警告，
+  那一行会在下次保存时**从作者的文件里消失** —— 4.0.13 的 `tab: always` 以前就是这么没的
 - 别名反查：解析时别名已被换成真 ID，回写要查回去
 
 ## 只有一个 writer
@@ -139,7 +173,11 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 任务 json 走的是同一条原则的另一种形式：**全程 `JsonNode`，只改我们认识的字段。**
 不做强类型模型，就是为了不把 SPT 里那些没建模的字段（`arenaLocations` / `gameModes` / …）
-在反序列化→序列化的往返中静默丢掉。
+在反序列化→序列化的往返中静默丢掉。BOT 配置同理（只写 `appearance`，同一份文件里的
+`chances` / `inventory` 一字不差地吐回去），货架也是。
+
+保存**只送真改过的那几份**。一股脑全送不只是浪费：服务端写它收到的东西，
+作者改一个 BOT 就会把目录里 40 份全重写一遍、平白留下 40 个 `.bak`。
 
 ### 两处已知的归一化（不是丢数据）
 
@@ -148,13 +186,22 @@ namespace(C#10)，所以 csproj 里必须显式写 `<LangVersion>latest</LangVer
 
 ## 界面
 
-`wwwroot/` 下三个文件：`index.html`（外壳 + 对话编辑器）、`quest.css` / `quest.js`（任务编辑器）。
+`index.html` 是外壳：公共样式、中英两张文案表、对话编辑器全在里面；其余每个模块是一对
+`.css` + `.js`，在它之后加载（`quest`、`bot`、`assort`、`back`、`modroot`，外加 `cursor.css`）。
 无构建步骤、无框架、无依赖。里面包含：
 
 - 一份对齐 `DialogParser.cs` 的 JS 解析器（同一份文本，两边解析出同一张图）
 - 画布预览、节点图（自绘贝塞尔连线 + 拖拽缩放）、分拍页签、中英双语、深浅双主题
 
+⚠️ 各页脚本**共享同一个全局空间**，重复的顶层 `const` 会把**后加载的整个文件**炸死 ——
+症状是后面那一页干脆不存在（`botPage is not defined`）。加一个新模块要接四处：
+`<link>`、`<script>`、程序介绍页的模块表、`render()` 里的一个分支。
+
 界面在 csproj 里被嵌成资源（`LogicalName="ui/..."`），单文件发布时才不会掉。
+⚠️ 往 `wwwroot` 加资源有两个坑：逻辑名会保留子目录段，而路由是单段 `{name}`，
+所以**新文件必须平铺在根下**，放子目录会 404；另外 `Mime()` 只认
+html/js/css/png/ico/jpg/mp4，别的一律 `application/octet-stream`，
+而 Chromium 不会把 octet-stream 当图片用（所以那套自定义指针全走内联 data URI）。
 
 ⚠️ 本地用 `file://` 直接打开这个 HTML 时，Chrome 会**猜编码**，没有 `<meta charset="utf-8">`
 会猜成 GBK → 中文字符串字面量变乱码 → 报 `SyntaxError` 却指向一行完全正常的代码。

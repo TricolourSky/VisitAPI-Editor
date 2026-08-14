@@ -26,6 +26,21 @@ public static class QuestApi
         return made.Item2;
     }
 
+    /// <summary>savageRole 的取值表要扫 5.8MB 的原版任务文件，扫一次就按文件路径记住。</summary>
+    static (string Path, string[] Roles)? _roles;
+
+    static void CollectRoles(JsonNode? n, SortedSet<string> into)
+    {
+        if (n is JsonObject o)
+            foreach (var (k, v) in o)
+            {
+                if (k == "savageRole" && v is JsonArray a)
+                    foreach (var x in a) { if (x is JsonValue jv && jv.TryGetValue<string>(out var s) && s.Length > 0) into.Add(s); }
+                else CollectRoles(v, into);
+            }
+        else if (n is JsonArray arr) foreach (var x in arr) CollectRoles(x, into);
+    }
+
     static HashSet<string> TraderIds(SptData spt) =>
         (spt.Ok ? spt.Traders().Select(t => t.Id) : []).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -155,6 +170,22 @@ public static class QuestApi
             return Results.Json(new { ok = true, cats, items });
         });
 
+        // Kills 目标的 savageRole 选项。**从原版任务里提取**而不是列 bots\types 目录 ——
+        // 任务里写的是 WildSpawnType 的大小写（bossKilla），目录名全小写（bosskilla），
+        // 照目录列会让作者写出对不上号的值；49 种取值里还有 4.1 新角色，硬编码会过期。
+        app.MapGet("/api/quests/roles", () =>
+        {
+            var file = ws.SptData.Length == 0 ? "" : Path.Combine(ws.SptData, "templates", "quests.json");
+            if (file.Length == 0 || !File.Exists(file))
+                return Results.Json(new { ok = false, roles = Array.Empty<string>() });
+            if (_roles is { } c && c.Path == file) return Results.Json(new { ok = true, roles = c.Roles });
+            var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            CollectRoles(JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(file))), set);
+            var made = (file, set.ToArray());
+            _roles = made;
+            return Results.Json(new { ok = true, roles = made.Item2 });
+        });
+
         app.MapPost("/api/quests", (SaveReq r) => Save(ws, r));
 
         // ── 任务 ↔ 对话 ──
@@ -186,12 +217,19 @@ public static class QuestApi
         });
     }
 
-    /// <summary>每个 .dlg 的节点和选项，给"挂到哪个选项"那个两步选择器用。</summary>
+    /// <summary>
+    /// 每个 .dlg 的节点和选项，给"挂到哪个选项"那个两步选择器用。
+    /// 读不动的文件**跳过就好**：兄弟调用 <see cref="DlgLinks.Scan"/> 已经把它记进 broken
+    /// 并随同一个回包送给界面了。这里再抛一次的话，一份坏文件就能让整页挂接 500 ——
+    /// 而那正是 broken 那套机制要避免的。
+    /// </summary>
     static object Nodes(string dlgDir) =>
         DlgLinks.Files(dlgDir).Select(p =>
         {
-            var t = VisitAPI.Dialog.DialogParser.Parse(File.ReadAllText(p), null);
-            return new
+            VisitAPI.Dialog.DialogTree t;
+            try { t = VisitAPI.Dialog.DialogParser.Parse(File.ReadAllText(p), null); }
+            catch { return null; }
+            return (object)new
             {
                 file = Path.GetFileName(p),
                 trader = t.DisplayName,
@@ -202,7 +240,7 @@ public static class QuestApi
                     opts = n.Options.Select(o => new { text = o.Text, acts = ActNames(o) }),
                 }),
             };
-        }).ToArray();
+        }).Where(x => x != null).ToArray();
 
     static string[] ActNames(VisitAPI.Dialog.DialogOption o) =>
         new[] { o.AcceptId != null ? "accept" : null, o.CompleteId != null ? "complete" : null,

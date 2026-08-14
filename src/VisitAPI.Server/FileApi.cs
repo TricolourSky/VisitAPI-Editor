@@ -35,6 +35,11 @@ public static class FileApi
             ws.SetRoot(r.Path) ? Results.Json(new { root = ws.Root, ok = true })
                                : Results.BadRequest(new { error = "目录不存在: " + r.Path }));
 
+        // 界面偏好（语言/主题/指针/引导/源码窗位置）。为什么不落 localStorage 见 Workspace.Prefs。
+        app.MapPost("/api/pref", (PrefReq r) =>
+            ws.SetPref(r.Key ?? "", r.Value ?? "") ? Results.Json(new { ok = true })
+                : Results.BadRequest(new { error = "bad_pref", key = r.Key }));
+
         // 列目录：只回子目录和剧本文件，别的不关我们的事也没必要暴露。
         // `.dlg.demo` 也列出来——插件带的示例就是这个后缀，不列的话用户会以为目录是空的。
         app.MapGet("/api/list", (string? dir) =>
@@ -118,4 +123,5 @@ public static class FileApi
     }
 
     public record RootReq(string Path);
+    public record PrefReq(string? Key, string? Value);
 }

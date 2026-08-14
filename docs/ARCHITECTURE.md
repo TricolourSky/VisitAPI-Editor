@@ -7,15 +7,34 @@
 ## In one line
 
 A single-file exe that starts a loopback-only web server and serves an editor UI embedded inside itself.
-It reads and writes `.dlg` scripts and SPT quest files on your disk.
+It reads and writes `.dlg` scripts, SPT quest files, bot appearance configs and trader assortments on your disk.
 
 ## Three projects
 
 | Project | Target | What it does |
 |---|---|---|
 | `VisitAPI.Dlg` | netstandard2.0 | `.dlg` parsing and writing. **Shared with the game plugin.** |
-| `VisitAPI.Quests` | net10.0 | Quests / locales read-write, validation, read-only SPT_Data, quest↔dialogue hooks, quest icons |
+| `VisitAPI.Quests` | net10.0 | Everything that touches files on disk: quests / locales, bot appearance, trader assortments, their validators, read-only SPT_Data, quest↔dialogue hooks, quest icons |
 | `VisitAPI.Server` | net10.0 (Web) | Self-hosted server + the UI, embedded as resources |
+
+### Three independent roots
+
+The editor holds **three** paths at once, and they deliberately do not have to belong to the same mod —
+an author may be writing quests for mod A while editing mod B's trader.
+
+| Root | Where | Holds |
+|---|---|---|
+| `Root` (workspace) | `<EFT>\BepInEx\config\VisitAPI` | `.dlg` scripts, `backgrounds\`, `audio\` |
+| `QuestDb` | `<EFT>\SPT_Runtime\user\mods\<mod>\db` | `quests\`, `locales\` |
+| `ModDb` (content) | `<EFT>\SPT_Runtime\user\mods\<mod>\db` | `CustomBotLoadouts\`, `CustomClothing\`, `assort.json`, `CustomAssortSchemes\`, `previews\` |
+
+Each has its own path jail (`Resolve` / `ResolveQuest` / `ResolveMod`). A `.vaproj` file is just the three
+paths written as `key=value`; opening one **validates all three before applying any of them**, because
+`SetRoot` requires an existing directory while the other two create one — applying them one by one could
+leave the editor half-switched, and on a different machine it would silently build empty trees.
+
+Content roots are detected **by marker directory, not by mod name** (`CustomBotLoadouts`, `assort.json`,
+`CustomClothing` — WTT's conventions). Hardcoding a name would only ever help one person.
 
 ### Why `VisitAPI.Dlg` is netstandard2.0
 
@@ -45,7 +64,10 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 - **Dynamic port**, picked at startup by binding `:0` and releasing it.
 - **Per-run random token**, injected into the page as `<meta name="tok">` and required by every
   `/api/*` call. Other sites can't read our page cross-origin, so they can't obtain it.
-- **Path jail.** Every path must resolve inside the workspace (or the quest DB); `..` is rejected.
+- **Path jail.** Every path must resolve inside the root it belongs to (workspace / quest DB / content DB);
+  `..` is rejected. Write endpoints additionally pin the **file name**: no separators, and the extension
+  has to match what that endpoint writes. That check has to live on the server — an earlier version had
+  it only in the page, and a hand-made request could write `notes.txt` into the workspace.
 - **Heartbeat.** The one that actually decides is an **open connection**, `GET /live` (SSE). The tab
   goes away, the socket drops, `RequestAborted` fires — the operating system tells us, the page does
   not have to cooperate. The server exits ~10s after the last connection closes; the grace period is
@@ -63,8 +85,12 @@ The point of sharing at all: the editor and the game can **never** disagree abou
   - The page also pings immediately on `visibilitychange`, and paints a "backend has shut down" overlay
     when a ping fails. It cannot close itself (`window.close()` is blocked for pages a script did not
     open), so saying so is the most it can do.
-- **UI is embedded** in the exe as resources (`ui/index.html`, `ui/quest.css`, `ui/quest.js`).
+- **UI is embedded** in the exe as resources (`ui/index.html`, `ui/quest.css`, `ui/bot.js`, …).
   Single-file publishing does not carry a `wwwroot` folder along, so embedding is the reliable route.
+  ⚠️ Two traps when adding an asset: the logical name keeps sub-directory segments while the route is a
+  single `{name}` segment, so **new files must sit flat in `wwwroot\`** or they 404; and `Mime()` only
+  knows html/js/css/png/ico/jpg/mp4 — anything else is served as `application/octet-stream`, which
+  Chromium will not treat as an image. (That is why the custom cursors are inline data URIs.)
 
 ## Endpoints
 
@@ -91,7 +117,17 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 | `POST /api/quests/link` | Attach/detach a hook. **This edits the `.dlg`, via `DialogWriter`** |
 | `POST /api/quests/trader-ok` | Mark a trader as known (for mods not installed / not updated yet) |
 | `GET /api/quests/images` | Quest icons available from SPT and from the mod folder |
+| `GET /api/quests/roles` | `savageRole` values, extracted from vanilla quests (not from the `bots\types` folder — those are lowercase and would not match) |
 | `GET /qimg?src=&name=&t=` | The icon bytes. **Not under `/api`** — `<img src>` cannot send the token header, so it goes in the query string like `/media` |
+| `GET/POST /api/mods` | Read/set the content DB, with the auto-detected candidates |
+| `GET /api/bots` | Bot appearance files + what the mod registered + validation + a stamp |
+| `POST /api/bots` | Write back per file; **an empty `appearance` means delete the file**. Same optimistic lock as quests |
+| `GET /api/bots/default?type=` | SPT's own stock appearance pool, read on demand — "restore to stock" reads it back rather than the editor keeping a copy |
+| `GET/POST /api/assort` | Trader stock, both file layouts, with validation |
+| `GET /api/assort/tpl?id=` | One template's container slots — what it holds and how many |
+| `GET /api/backup` `POST /api/backup/restore` | List `.bak` files; restore **swaps** rather than overwrites |
+| `GET /api/project` `POST /api/project/save` `/open` | `.vaproj` — save the three roots, or switch to a saved set |
+| `GET /hbimg?name=&t=` `/avimg?id=` `/look?id=` | Handbook category icons, trader avatars, preview art. All outside `/api` for the same `<img src>` reason |
 
 ## Faithful round-trip
 
@@ -102,8 +138,14 @@ The point of sharing at all: the editor and the game can **never** disagree abou
 - Comments inside a node attach to the element that follows them (`Lead` on node / narration / npc line /
   option / jump, plus `Tail` at the end of a node)
 - `DialogTrigger.Raw` keeps the trigger line verbatim and the writer prefers it.
-  ⚠️ **If trigger editing is ever added, whatever changes a field must set `Raw` to null**, or the
-  writer will emit the stale line.
+  Trigger editing exists, and it sidesteps this entirely: the page edits the **line itself** as a string
+  and posts it back as `Raw`, so a coordinate you never touched is never re-formatted (regenerating one
+  would print a hand-typed `0.09` as `0.090000003576`).
+  ⚠️ If anything ever starts editing the *fields* of a `DialogTrigger` instead, it **must set `Raw` to
+  null**, or the writer will emit the stale line.
+- A header line the parser cannot turn into a model is **kept as raw text** (`KeepRaw`). Skipping that
+  step does not throw and does not warn — the line simply disappears from the author's file on the next
+  save. `tab: always` from 4.0.13 used to vanish exactly this way.
 - Quest aliases are mapped back to their names, so `quest sora = 5043…` doesn't turn into bare ids below
 - Anything the parser can't understand degrades to verbatim rather than being regenerated
 
@@ -120,6 +162,12 @@ the cost of drift is somebody else's script.
 Quest json applies the same principle differently: **everything stays a `JsonNode` and only fields we
 understand are touched.** There is deliberately no strongly-typed model, so fields we never modelled
 (`arenaLocations`, `gameModes`, …) cannot be silently dropped on a deserialize→serialize round trip.
+The same holds for bot configs (only `appearance` is written; a file's `chances` / `inventory` come back
+byte for byte) and for assortments.
+
+Saving sends **only the files that actually changed**. Sending everything is not merely wasteful: the
+server writes what it receives, so one edit would rewrite forty files and leave forty `.bak` copies in
+the author's mod folder.
 
 ### Two known normalisations (not data loss)
 
@@ -130,8 +178,14 @@ understand are touched.** There is deliberately no strongly-typed model, so fiel
 
 ## UI
 
-One page, no framework, no build step. `index.html` carries the shell and the dialogue editor;
-`quest.css` / `quest.js` carry the quest editor.
+One page, no framework, no build step. `index.html` carries the shell, the shared styles, both text
+tables and the dialogue editor; each other module is a `.css` + `.js` pair loaded after it
+(`quest`, `bot`, `assort`, `back`, `modroot`, plus `cursor.css`).
+
+They all share **one global scope**, so a duplicated top-level `const` kills the whole file that loads
+second — the symptom is the later page simply not existing (`botPage is not defined`). Adding a module
+means touching four places: a `<link>`, a `<script>`, the module list on the About page, and a branch in
+`render()`.
 
 - All interface text goes through a `T("key")` lookup against two tables (zh / en). Server-side messages
   are returned as **codes plus arguments**, never prose, so a new language is a new table and no C# change.

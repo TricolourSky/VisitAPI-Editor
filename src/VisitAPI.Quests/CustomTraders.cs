@@ -83,8 +83,13 @@ public static class CustomTraders
             if (line == null) continue;
             var m = Regex.Match(line, @"trader:\s*(\S+)\s*(?:""(.*)"")?");
             if (!m.Success) continue;
+            // 4.0.13 允许 `trader: "名字"`（不写 id）。那种行里 (\S+) 抓到的是带引号的名字，
+            // 当成商人 id 列出来就是一条谁也认不出的垃圾（`"SORA"`）。共享库的
+            // DialogHeaderParser 早就有这道防呆，这里补齐，两边口径一致。
+            var id = m.Groups[1].Value;
+            if (id.StartsWith("\"")) continue;
             var name = m.Groups[2].Value;
-            yield return new TraderOpt(m.Groups[1].Value, name, name, "dlg", Path.GetFileName(f));
+            yield return new TraderOpt(id, name, name, "dlg", Path.GetFileName(f));
         }
     }
 }

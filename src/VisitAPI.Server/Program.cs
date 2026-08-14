@@ -83,6 +83,20 @@ public static class Program
             var pick = ws.ScanQuestRoots().FirstOrDefault(x => x.HasQuests);
             if (pick.Path != null) ws.SetQuestDb(pick.Path);
         }
+        // 内容库（BOT 外观 / 商人货架）也是独立一条线，理由见 Workspace.ModDb。
+        // **只在恰好探测到一个时才自作主张**：0 个或 2 个以上都交给界面让作者挑，
+        // 替他猜错目录比让他点一下更烦人。
+        var argM = args.FirstOrDefault(a => a.StartsWith("--mods="))?.Substring(7);
+        if (argM != null)
+        {
+            if (!ws.SetModDb(argM))
+                Console.WriteLine($"--mods 目录用不了，已忽略 / unusable folder, ignored: {argM}");
+        }
+        else if (!ws.HasModDb)
+        {
+            var found = ws.ScanModRoots();
+            if (found.Count == 1) ws.SetModDb(found[0].Path);
+        }
 
         var b = WebApplication.CreateBuilder(args);
         b.Logging.ClearProviders();                 // ASP.NET 默认日志太吵，控制台留给我们自己说话
@@ -92,10 +106,15 @@ public static class Program
 
         FileApi.Map(app, ws);
         QuestApi.Map(app, ws);
-        app.MapGet("/", () => Ui("index.html", ws.Token));
+        ModsApi.Map(app, ws);
+        BotApi.Map(app, ws);
+        AssortApi.Map(app, ws);
+        BackupApi.Map(app, ws);
+        ProjectApi.Map(app, ws);
+        app.MapGet("/", () => Ui("index.html", ws));
         // 界面拆成了多份（index.html + quest.css/js），这条把 wwwroot 里其余的静态资源放出来。
         // 资源名是编译期固定的字符串，取不到就是 404，`..` 穿越不出去。
-        app.MapGet("/ui/{name}", (string name) => Ui(name, ws.Token));
+        app.MapGet("/ui/{name}", (string name) => Ui(name, ws));
         // 报到。顺手撤销待退出标记：能报到就说明刚才那声"我要走了"是刷新，不是关页面。
         app.MapGet("/api/ping", () =>
         {
@@ -155,6 +174,9 @@ public static class Program
         Console.WriteLine(ws.HasQuestDb
             ? $"任务库 / Quests    : {ws.QuestDb}"
             : "没找到任务库，界面里会让你挑一个 / Quest DB not found — the page will let you pick one.");
+        Console.WriteLine(ws.HasModDb
+            ? $"内容库 / Content   : {ws.ModDb}"
+            : "没定内容库（BOT 外观 / 商人货架），界面里会让你挑 / Content folder not set — the page will let you pick.");
         Console.WriteLine("关掉浏览器标签页会自动退出。/ Closing the browser tab shuts this down.");
         app.Run();
     }
@@ -184,14 +206,19 @@ public static class Program
     /// <summary>
     /// 界面整包嵌在 exe 里（见 csproj），按逻辑名取出来直接返回。
     /// 页面里塞一个 <c>&lt;meta name="tok"&gt;</c> 把本次运行的令牌带过去——这是前端唯一的令牌来源。
+    /// 偏好也在这儿整包注进 <c>window.PREFS</c>：端口随机挑导致 localStorage 每次启动都是新的，
+    /// 只有服务端下发才能让语言/主题在脚本第一行就拿到、不闪一下错误的样子。
+    /// （JsonSerializer 默认把小于号转义成 <，注进 script 块不会被内容截断。）
     /// </summary>
-    static IResult Ui(string name, string token)
+    static IResult Ui(string name, Workspace ws)
     {
         var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("ui/" + name);
         if (s == null) return Results.NotFound($"界面资源缺失: {name}");
         if (!name.EndsWith(".html")) return Results.Stream(s, Mime(name));
         using var r = new StreamReader(s);
-        var html = r.ReadToEnd().Replace("<!--TOKEN-->", $"<meta name=\"tok\" content=\"{token}\">");
+        var prefs = System.Text.Json.JsonSerializer.Serialize(ws.Prefs);
+        var html = r.ReadToEnd().Replace("<!--TOKEN-->",
+            $"<meta name=\"tok\" content=\"{ws.Token}\">\n<script>window.PREFS={prefs}</script>");
         return Results.Content(html, Mime(name));
     }
 

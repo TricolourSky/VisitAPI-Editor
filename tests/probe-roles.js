@@ -188,6 +188,20 @@ try{
   lang="zh"; doc=parseDlg(srcText()); applyStatic(); render(); await wait(150);
   ok("中文下起手模板是中文", /新商人/.test(doc.name), doc.name);
 
+  /* ── 7 预览分隔条：拖出的宽度要活过切页 ──
+     切页会把 #main 整页重建、行内样式蒸发；宽度不记进变量的话回来就弹回默认（实测抓到过）。 */
+  const vp0=$("viewport").getBoundingClientRect().width;
+  $("split").dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:800}));
+  dispatchEvent(new MouseEvent("mousemove",{clientX:680}));
+  dispatchEvent(new MouseEvent("mouseup"));
+  await wait(80);
+  const vp1=$("viewport").getBoundingClientRect().width;
+  ok("拖动改了预览宽度", Math.abs((vp0-120)-vp1)<8, Math.round(vp0)+" → "+Math.round(vp1));
+  page="help"; render(); await wait(150);
+  page="dlg"; render(); await wait(250);
+  const vp2=$("viewport").getBoundingClientRect().width;
+  ok("切页回来宽度还在（不弹回默认）", Math.abs(vp2-vp1)<8, Math.round(vp1)+" → "+Math.round(vp2));
+
 }catch(e){ L.push("EXCEPTION "+e.message+" @ "+(e.stack||"").split("\n")[1]); }
 post("/api/dlg?path=_probe.dlg",{nodes:[{name:"PROBE",tail:L}]});
 })();

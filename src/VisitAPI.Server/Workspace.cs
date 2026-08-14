@@ -39,6 +39,46 @@ public sealed class Workspace
     public string QuestDb { get; private set; } = "";
     public bool HasQuestDb => QuestDb.Length > 0 && Directory.Exists(QuestDb);
 
+    /// <summary>
+    /// **内容库**：BOT 外观和商人货架住的模组 db 目录。
+    ///
+    /// 为什么不和 <see cref="QuestDb"/> 共用一个：任务和这两样虽然都在 <c>&lt;某个mod&gt;\db</c> 底下，
+    /// 但**未必是同一个模组** —— 作者可能给 A 模组写任务、同时编 B 模组的商人。
+    /// 共用一个的话，切内容库会把任务库一起拖走。
+    ///
+    /// 来源优先级：命令行 <c>--mods=</c> &gt; 记住的 &gt; 自动探测（见 <see cref="Quests.ModLooks.ScanRoots"/>）。
+    /// 探测到 1 个直接用；0 个或 2 个以上交给界面让作者挑。
+    /// </summary>
+    public string ModDb { get; private set; } = "";
+    public bool HasModDb => ModDb.Length > 0 && Directory.Exists(ModDb);
+
+    public List<Quests.ModRoot> ScanModRoots() => Quests.ModLooks.ScanRoots(EftRoot);
+
+    public bool SetModDb(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        try
+        {
+            var full = Path.GetFullPath(path);
+            Directory.CreateDirectory(full);          // 指到一个还不存在的目录＝从零开一个新模组
+            ModDb = full;
+            Save();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>把路径钉死在内容库里。和 Resolve 同一套牢笼，只是根不同。</summary>
+    public string? ResolveMod(string relative)
+    {
+        if (!HasModDb) return null;
+        var root = Path.GetFullPath(ModDb);
+        var full = Path.GetFullPath(Path.Combine(root, relative ?? ""));
+        var pre = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return full == root.TrimEnd(Path.DirectorySeparatorChar) ||
+               full.StartsWith(pre, StringComparison.OrdinalIgnoreCase) ? full : null;
+    }
+
     /// <summary>从某个目录一路往上找 EFT 根（含 SPT_Runtime 或 BepInEx 的那一层）。</summary>
     static string FindEftFrom(string start)
     {
@@ -138,6 +178,27 @@ public sealed class Workspace
         Save();
     }
 
+    /// <summary>
+    /// 界面偏好（语言 / 主题 / 指针开关 / 引导看过没 / 源码窗位置）。
+    ///
+    /// 为什么住在这儿而不是浏览器的 localStorage：**端口每次启动随机挑**，而浏览器按
+    /// 「地址+端口」隔离存储 —— 端口一换，上次存的全部作废。症状就是新手引导每次都弹、
+    /// 语言主题每次悄悄回默认。正本落在 visitapi-editor.txt 的 pref.* 行，
+    /// 页面下发时整包注进 window.PREFS（见 Program.Ui），打开瞬间就有、不闪错主题。
+    /// </summary>
+    public Dictionary<string, string> Prefs { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>存一个偏好；值给空串＝删掉。键收得很紧、值不许换行——这文件是按行解析的。</summary>
+    public bool SetPref(string key, string value)
+    {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(key ?? "", @"^[a-z][a-z0-9._-]{0,40}$")) return false;
+        value ??= "";
+        if (value.Length > 500 || value.Contains('\r') || value.Contains('\n')) return false;
+        if (value.Length == 0) Prefs.Remove(key!); else Prefs[key!] = value;
+        Save();
+        return true;
+    }
+
     void Save()
     {
         try
@@ -145,7 +206,9 @@ public sealed class Workspace
             var lines = new List<string>();
             if (HasRoot) lines.Add("root=" + Root);
             if (QuestDb.Length > 0) lines.Add("quests=" + QuestDb);
+            if (ModDb.Length > 0) lines.Add("mods=" + ModDb);
             foreach (var t in KnownTraders) lines.Add("trader=" + t);
+            foreach (var (k, v) in Prefs) lines.Add("pref." + k + "=" + v);
             File.WriteAllLines(ConfigPath, lines);
         }
         catch { /* 记不住不算致命，下次再填一遍 */ }
@@ -185,7 +248,9 @@ public sealed class Workspace
                 var val = i < 0 ? line : line.Substring(i + 1).Trim();
                 if (key == "root") { if (!HasRoot) ApplyRoot(val); }
                 else if (key == "quests" && Directory.Exists(val)) QuestDb = Path.GetFullPath(val);
+                else if (key == "mods" && Directory.Exists(val)) ModDb = Path.GetFullPath(val);
                 else if (key == "trader" && val.Length > 0) KnownTraders.Add(val);
+                else if (key.StartsWith("pref.") && key.Length > 5 && val.Length > 0) Prefs[key.Substring(5)] = val;
             }
         }
         catch { /* 读不出来就当没记过 */ }

@@ -7,6 +7,8 @@
 bin/
 obj/
 dist/
+# 近几版的发布输出（dist/ 是老目录，两个并存的账记在 Memory 第 8 节）
+publish/
 *.user
 *.suo
 .vs/

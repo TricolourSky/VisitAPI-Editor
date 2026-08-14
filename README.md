@@ -1,6 +1,6 @@
 # VisitAPI Editor
 
-> A visual **dialogue + quest** editor for SPT 4.1.1
+> A visual editor for SPT 4.1.1 — **dialogue, quests, bot outfits and trader stock**
 
 **English** · [中文](README.zh-CN.md)
 
@@ -14,9 +14,15 @@ It exists so that **people who don't write code** can write stories and quests f
 - **Quests** — writes **plain SPT quest files** and **does not need VisitAPI**. Objectives, rewards,
   fail branches, all four mails, player lines; item / map / trader lists come straight from the game's
   own data so nobody has to memorise 24-character ids.
+- **Bot outfits** — put the clothes your mod adds onto any of SPT's bot types, with the mismatch that
+  causes hollow forearms in game caught before you save.
+- **Trader stock** — lay out what a trader sells on a 1:1 copy of Tarkov's own shelf, and get told about
+  the mistakes the server never reports (an ammo box sold empty, an item priced but not unlocked).
+- **Restore from backup** — every overwrite leaves a `.bak`; this page puts them back.
 
-The two are wired together: a quest can be attached to a dialogue option (which line the player has to
-press to get it), and one click jumps you there.
+Dialogue and quests are wired together: a quest can be attached to a dialogue option (which line the
+player has to press to get it), and one click jumps you there. Bot outfits and trader stock read the
+same mod files, so a suit you make is also the thing your trader sells.
 
 ### What it is
 
@@ -51,6 +57,33 @@ your browser opens. No installer, no dependencies — **a single exe is the whol
 - **Advanced objective fields** — found-in-raid, durability range, one-raid-only, time limit, zone id, plant time,
   kill distance and time of day — the fields stock quests actually use, surveyed from all 1000+ of their conditions
 - **Validation** — no objectives, empty completion mail, missing prerequisite, duplicate id, unknown trader… 13 rules
+
+**Bot outfits**
+
+- **Assembly bay / wardrobe** — five slots (head · body · hands · bottom · voice) on the left, everything
+  your mod registered on the right; the wardrobe deliberately does not list SPT's own 456 entries
+- **One icon per slot** — the pile of ids in a bot file is SPT's random outfit pool for that bot, so it is
+  shown as one item ("stock"), not unpacked into thirteen
+- **Mismatch caught early** — an upper and the hands it ships with come from the same record; swap only one
+  and the NPC shows hollow forearms in game. The editor says which two, why, and what each is now
+- **Restore to stock** reads SPT's own `bots\types\<type>.json` back — the editor keeps no copy of its own
+- **Your own preview art** goes in `db\previews\`; a file named after the character works, so you don't
+  have to rename anything to a 24-character hex id
+
+**Trader stock**
+
+- **The shelf, as the player sees it** — 10 × 12 grid, tiles sized by the item's real footprint (a rifle with
+  a barrel and stock takes the room it takes), price top-left, count bottom-right, loyalty tier bottom-left
+- **Edit on the right, the shelf changes on the left** — price, currency, loyalty tier, stock, buy limit
+- **Both file layouts** — a mod's own `assort.json`, or WTT's `CustomAssortSchemes` with several traders per file
+- **Validation for what the server never reports** — an ammo box listed without ammo inside (the player buys
+  an empty box), an item in `items` but missing from the price or loyalty table, a child part in a slot the
+  template doesn't have. Verified against 2331 stock items across 6 vanilla traders: zero false alarms
+
+**Projects**
+
+Three roots (the `.dlg` workspace, the quest DB, the content DB) can belong to three different mods. Save the
+combination as a `.vaproj` and switch the whole set in one click; the five most recent are one click away.
 
 There is also a **Guide** page — one foldable card per idea, in plain language, each with an example you
 can copy: what a node is, what node names are for, where an option can jump, what an option can do on
@@ -158,7 +191,7 @@ This is a local service that can read and write your disk, so:
 ```powershell
 git clone <this-repo>
 cd "VisitAPI Editor"
-.\build.ps1              # produces dist\VisitAPI.Editor.exe
+.\build.ps1              # produces publish\VisitAPI.Editor.exe
 ```
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Output is a single-file,
@@ -167,7 +200,7 @@ framework-dependent executable.
 Tests live in [tests/](tests/) — PowerShell plus a headless browser, no framework to install:
 
 ```powershell
-.\tests\run-all.ps1      # 567 checks
+.\tests\run-all.ps1      # 986 checks
 ```
 
 They need a real SPT install for its item/map/trader tables; see [tests/README.md](tests/README.md).
@@ -177,9 +210,10 @@ They need a real SPT install for its item/map/trader tables; see [tests/README.m
 ```
 src/
 ├─ VisitAPI.Dlg/      .dlg parsing and writing (netstandard2.0) — shared with the plugin
-├─ VisitAPI.Quests/   quests / locales / validation / read-only SPT_Data / quest↔dialogue hooks
-└─ VisitAPI.Server/   self-hosted server + UI (index.html + quest.css/js, embedded in the exe)
+├─ VisitAPI.Quests/   quests / locales / bot looks / assortments / validation / read-only SPT_Data
+└─ VisitAPI.Server/   self-hosted server + UI (wwwroot, embedded in the exe)
 tests/                regression suite (PowerShell + headless Edge) and its fixtures
+docs/                 architecture and third-party notes, in both languages
 ```
 
 `VisitAPI.Dlg` is **shared with the game plugin**. The plugin (net472, running under Unity's Mono)
@@ -200,9 +234,12 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - [x] Trigger points, and setting a node as the entry / first meeting / tiered entry
 - [x] A guide inside the app, and a guided tour of what you can click
 - [x] Opening a 4.0.13 script points out what 4.1 reads differently
-- [ ] Bot outfit swapping
-- [ ] Chapter/campaign authoring
-- [ ] Restore from the `.bak` copies the editor leaves behind
+- [x] Bot outfit swapping, with the body/hands mismatch caught before you save
+- [x] Trader stock, laid out the way the player sees it
+- [x] Restore from the `.bak` copies the editor leaves behind
+- [x] Projects (`.vaproj`) — switch all three roots at once
+- [ ] ~~Chapter/campaign authoring~~ — **dropped**: it would need the plugin to drive scenes and actors,
+      which it cannot do today. `scene:` / `actor:` stay free-text fields, written through faithfully.
 
 ---
 

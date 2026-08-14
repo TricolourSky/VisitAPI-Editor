@@ -128,7 +128,7 @@ public static class DialogWriter
     static List<string> Directives(DialogTree t, DialogOption o)
     {
         var d = new List<string>();
-        if (o.SetStatusId != null) d.Add($"setstatus: {Alias(t, o.SetStatusId)}" + (o.SetStatusValue == 3 ? "" : "=" + DialogParser.StatusNames[o.SetStatusValue]));
+        if (o.SetStatusId != null) d.Add($"setstatus: {Alias(t, o.SetStatusId)}" + (o.SetStatusValue == 3 ? "" : "=" + Status(o.SetStatusValue)));
         if (o.AcceptId != null) d.Add("accept: " + Alias(t, o.AcceptId));
         if (o.CompleteId != null) d.Add("complete: " + Alias(t, o.CompleteId));
         if (o.HandoverId != null) d.Add($"handover: {Alias(t, o.HandoverId)}" + (o.HandoverLabel == null ? "" : " " + o.HandoverLabel));
@@ -151,8 +151,16 @@ public static class DialogWriter
         return id;
     }
 
-    static string Statuses(List<int> s) =>
-        s.Count == 0 ? "" : string.Join("/", s.Select(i => i >= 0 && i < DialogParser.StatusNames.Length ? DialogParser.StatusNames[i] : i.ToString()));
+    /// <summary>
+    /// 状态号 → 名字。**越界必须扛住**：解析器遇到不认识的状态（作者把 <c>Success</c> 打成
+    /// <c>Succes</c>）会记一条警告并返回 -1，那个 -1 会一路带到这里。直接拿去索引就是
+    /// IndexOutOfRange —— 保存 / 查看 .dlg / 给选项挂任务当场 500，而作者只是拼错了一个词。
+    /// 原样吐回数字：文件能存下去，警告还在，改不改由作者决定。
+    /// </summary>
+    static string Status(int i) =>
+        i >= 0 && i < DialogParser.StatusNames.Length ? DialogParser.StatusNames[i] : i.ToString();
+
+    static string Statuses(List<int> s) => s.Count == 0 ? "" : string.Join("/", s.Select(Status));
 
     static string Kv(params (string k, string v)[] parts)
     {

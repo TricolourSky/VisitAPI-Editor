@@ -1,0 +1,254 @@
+/* ══════════════════════════════════════════════════════════════════
+   BOT 服装编辑器（SEC.02）—— 左「装配台」／右「衣柜」
+
+   类名一律 bt 前缀。**不能和 index.html 内联样式 / quest.css / assort.css 重名** ——
+   说明页那次就是 .gcol 撞上任务链图的层级标尺（1px 竖线），整页塌了而 27 项测试全绿。
+   （唯一要绕开的确切名字是内联里的 .btn）
+
+   四条铁律：
+     形状 — 斜切(-11°)只给挂牌类（这里只有标签页）；容器一律直角零圆角
+     厚度 — 静止态纯平，阴影和高光只在 hover / 选中时发生
+     颜色 — 黄=当前项与主操作 · 青=作者自己做的 · 橙=待办 · 红=真出问题 · 其余石墨灰阶
+     信息 — 能承载数据的地方不放装饰（没有立绘就画装配示意图，四个部位按状态点亮）
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 数据头上的零件 ── */
+.btbar{display:flex;align-items:center;gap:.5rem;margin-left:auto;padding-right:1.1rem}
+.btcount{font:11px/1 var(--mono);color:var(--ink-2)}
+.btbad{color:var(--err)}
+.cart v.tech{color:var(--tech)}
+.cart v.err{color:var(--err)}
+/* 头部条码：每根线一个部位。e/t 两档在内联样式里已有，这里只补"出问题"那档 */
+#bars i.b{width:2px;background:var(--err)}
+/* 依赖对不上时，连顶上那条斜纹带都变红 —— 切到别的部位也看得见还有事没办 */
+.tape.bad{background:repeating-linear-gradient(-45deg,var(--err) 0 6px,#22090A 6px 12px)}
+
+/* ══ 工作区：左装配台 / 右衣柜 ══ */
+.btwork{flex:1 1 auto;min-height:0;display:flex}
+.btsplit{flex:0 0 auto;width:1px;background:var(--line);position:relative}
+.btsplit::after{content:"";position:absolute;left:0;top:0;width:1px;height:64px;background:var(--y);opacity:.55}
+
+/* 小节头：左右两栏共用同一条，两边才对得齐 */
+.btbh{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;height:28px;padding:0 .8rem;
+  background:var(--panel-3);border-bottom:1px solid var(--line);
+  font:9.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.btbh b{color:var(--ink-2);font-weight:400;font-size:11px;letter-spacing:.1em}
+.btbh .sp{flex:1 1 auto}
+.btbh em{font-style:normal;color:var(--y)}
+.btbh em.btbad{color:var(--err)}
+
+/* ── 左：装配台 ──
+   宽度跟着屏幕走：写死 400px 在 2560 的屏上会缩成一条，在 1366 上又挤掉右边 */
+.btbay{flex:0 0 auto;width:clamp(390px,25vw,560px);display:flex;flex-direction:column;
+  background:var(--panel-2);min-height:0;overflow:auto}
+
+/* 立绘：**由它来吃掉多余的高度**（flex:1）。
+   反过来让下面几组去伸缩的话，窗口一变矮每一组里都会冒出一根滚动条 —— 四根，非常难看。 */
+.btport{flex:1 1 auto;position:relative;width:100%;min-height:220px;
+  background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.018) 0 2px,transparent 2px 9px)}
+.btport img{width:100%;height:100%;object-fit:contain;display:block}
+.btport svg{height:100%;width:auto;max-width:100%}
+/* 扫描线：一条青色的光带慢慢扫过立绘。
+   ⚠️ .btport 是 flex 容器，凭空给它写 content 会多出一个 flex 子项 —— 必须 position:absolute
+      才是"浮在上面的一层"而不是"排在里面的一格"（说明页那次就是这么凭空多出 42px 的）。 */
+.btport::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent 0,rgba(63,208,201,.05) 45%,
+    rgba(63,208,201,.22) 50%,rgba(63,208,201,.05) 55%,transparent 100%);
+  background-size:100% 240%;background-repeat:no-repeat;
+  animation:btscan 6s linear infinite}
+@keyframes btscan{from{background-position:0 -140%}to{background-position:0 140%}}
+/* 系统里关了动态效果的人不该被一条来回跑的光带折腾 */
+@media (prefers-reduced-motion:reduce){.btport::after{animation:none;opacity:.25}}
+/* 四角刻度 */
+.btport i{position:absolute;width:14px;height:14px;border:1px solid var(--line-2);font-style:normal}
+.btport i.a{left:9px;top:9px;border-right:0;border-bottom:0}
+.btport i.b{right:9px;top:9px;border-left:0;border-bottom:0}
+.btport i.c{left:9px;bottom:9px;border-right:0;border-top:0}
+.btport i.d{right:9px;bottom:9px;border-left:0;border-top:0}
+.btpname{position:absolute;left:16px;top:15px;font:12px/1 var(--mono);letter-spacing:.2em;
+  color:var(--ink-2);text-transform:uppercase}
+.btpfile{position:absolute;left:16px;bottom:15px;max-width:52%;font:9px/1.5 var(--mono);
+  color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 没有立绘时那句话：说清"去哪放图"，不是一句"暂无"。
+   摆右下角而不是右上角 —— 右上角是示意图 HEAD/BODY 标签的地盘，会撞在一起 */
+.btpnone{position:absolute;right:16px;bottom:15px;font:9px/1.7 var(--mono);color:var(--o);
+  letter-spacing:.08em;text-align:right}
+
+/* 四个部位各一组：内容多高就多高，**而且不许被压缩**。
+   写成 flex:0 1 auto 的话立绘会把最后一格挤出可视区。 */
+.btslots{flex:0 0 auto;padding:.55rem;display:flex;flex-direction:column;gap:.5rem}
+
+/* 依赖对不上时的红条。这不是"提示"，是游戏里真的会出问题，所以走红不走橙 */
+.btband{border:1px solid var(--err);background:#1D0E10;padding:.5rem .6rem;
+  font:11px/1.75 var(--mono);color:#FFB3B3}
+.btband b{display:block;color:var(--err);font-weight:400;letter-spacing:.1em;margin-bottom:.15rem}
+.btband u{text-decoration:none;color:var(--ink-2)}
+
+.btgrp{border:1px solid var(--line);background:var(--panel)}
+.btgrp.on{border-color:var(--y-dim);box-shadow:inset 3px 0 0 var(--y)}
+.btgrp.bad{border-color:var(--err)}
+.btgh{display:flex;align-items:center;gap:.5rem;width:100%;background:none;border:0;
+  padding:.45rem .6rem;cursor:var(--cur-p);text-align:left;color:var(--ink-2)}
+.btgh:hover{background:var(--panel-3)}
+.btgrp.on .btgh{color:var(--ink)}
+.btgh b{font-size:13.5px;font-weight:700;letter-spacing:.05em;color:inherit}
+.btgh i{font:9px/1 var(--mono);font-style:normal;letter-spacing:.16em;color:var(--ink-3)}
+.btgh .sp{flex:1 1 auto}
+.btgh u{text-decoration:none;font:10px/1 var(--mono);color:var(--ink-3)}
+.btgrp.on .btgh u{color:var(--y)}
+.btgrp.cus .btgh u{color:var(--tech)}
+.btgrp.bad .btgh u{color:var(--err)}
+
+/* 部位那一行：一个图标 + 一句状态。**每个部位只有一个图标** */
+.btpart{display:flex;align-items:center;gap:.6rem;padding:.4rem .6rem;
+  border-top:1px solid var(--line-2)}
+.btwhat{flex:1 1 auto;min-width:0}
+.btwhat b{display:block;font-size:12.5px;font-weight:600;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btwhat i{font:9.5px/1.6 var(--mono);font-style:normal;color:var(--ink-3)}
+.btgrp.cus .btwhat b{color:var(--tech)}
+
+.bttile{position:relative;width:64px;height:64px;flex:0 0 auto;border:1px solid var(--line);
+  background:var(--panel-2);overflow:hidden}
+.bttile.cus{border-color:#1E4A47}
+.btgrp.bad .bttile.cus{border-color:var(--err)}
+.bttile img,.bttile svg{width:100%;height:100%;object-fit:cover;display:block}
+/* 默认态**照样画部位图标**（压暗 + 虚线框 + 角标），不要换成一个纯文字方块 ——
+   没了图标，四行长得一模一样，一眼看不出哪行是哪个部位。 */
+.bttile.def{border-style:dashed}
+.bttile.def svg{opacity:.45}
+.bttile.def b{position:absolute;left:0;bottom:0;background:rgba(12,13,16,.82);color:var(--ink-3);
+  font:8.5px/1 var(--mono);font-weight:400;letter-spacing:.06em;padding:3px 4px}
+
+.btacts{display:flex;align-items:center;gap:.4rem;padding:.45rem .6rem;
+  border-top:1px solid var(--line-2);background:var(--panel-2)}
+.btacts .sp{flex:1 1 auto}
+.btacts em{font-style:normal;font:9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3)}
+.btn.sm>span{padding:.3rem .7rem;font-size:10px}
+
+/* ── 右：衣柜（**只有作者自己做的**）── */
+.btrobe{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);
+  min-height:0;position:relative}
+/* 标签页：挂牌类 → 这一页唯一允许斜切的地方 */
+/* 五个页签在窄窗口里放不下，允许换行 —— 挤成一行会把最后一个推出可视区 */
+.bttabs{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem .9rem 0}
+.bttab{background:var(--panel-3);color:var(--ink-2);border:0;cursor:var(--cur-p);
+  padding:.55rem 1.4rem;font:14px/1 var(--ui);font-weight:700;letter-spacing:.06em;
+  display:flex;align-items:baseline;gap:.5rem;
+  clip-path:polygon(11px 0,100% 0,calc(100% - 11px) 100%,0 100%)}
+.bttab i{font:9.5px/1 var(--mono);font-style:normal;letter-spacing:.12em;color:var(--ink-3)}
+.bttab:hover{color:var(--ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.bttab.on{background:var(--y);color:var(--y-ink)}
+.bttab.on i{color:var(--y-ink);opacity:.7}
+/* 出问题的那一页，页签上挂一个红点 */
+.bttab s{width:6px;height:6px;background:var(--err);text-decoration:none;align-self:center}
+.bttabline{flex:0 0 auto;height:1px;background:var(--line);margin:0 .9rem}
+
+.bttool{flex:0 0 auto;display:flex;align-items:center;gap:.6rem;padding:.6rem .9rem}
+.btq{flex:1 1 auto;min-width:0;background:var(--panel);color:var(--ink);border:0;
+  box-shadow:inset 0 0 0 1px var(--line);padding:.42rem .6rem;font:12.5px var(--ui)}
+.btq:focus{outline:0;box-shadow:inset 0 0 0 1px var(--y)}
+.btchip{flex:0 0 auto;font:9.5px/1 var(--mono);letter-spacing:.16em;color:var(--tech);
+  padding:.42rem .7rem;box-shadow:inset 0 0 0 1px #1E4A47;text-transform:uppercase;
+  max-width:30ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 卡片网格。底纹网格让空白区不至于是一整块死黑 */
+.btcards{flex:1 1 auto;min-height:0;overflow:auto;padding:0 .9rem 1rem;position:relative;z-index:1;
+  /* 每列最小 250px：2560 的屏上正好一行 7 张（Tech Leader 定的）。
+     ⚠️ 200px 时 9 列刚好挤得进去（9×200＋8×11.2 ＝ 1889.6，网格内宽约 1890），
+     **卡在临界点上**——窗口宽一像素少一像素就跳一列。250px 的 7 列区间是 1817~2077，
+     宽出 260px 的余量，不会因为开不开滚动条就变来变去。 */
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.7rem;align-content:start;
+  background-image:linear-gradient(rgba(255,255,255,.017) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.017) 1px,transparent 1px);
+  background-size:46px 46px}
+.btsec{grid-column:1/-1;display:flex;align-items:center;gap:.6rem;
+  font:10px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--tech);
+  padding:.75rem .1rem .2rem}
+.btsec::before{content:"";width:3px;height:11px;background:var(--tech);flex:0 0 auto}
+.btsec::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
+.btsec u{text-decoration:none;color:var(--ink-2)}
+
+/* ⚠️ **button 不能套 button**：卡片本身是 button，「整套」那颗只能做它的兄弟节点，
+   外面包一层 .btcw 来定位。写成嵌套的话浏览器会把 DOM 拆开，事件全乱。 */
+.btcw{position:relative;display:flex}
+.btcard{position:relative;flex:1 1 auto;min-width:0;background:var(--panel);
+  border:1px solid #1E4A47;padding:0;cursor:var(--cur-p);
+  display:flex;flex-direction:column;text-align:left;color:var(--ink-2)}
+.btcard:hover{border-color:var(--y);color:var(--ink);box-shadow:0 8px 22px rgba(0,0,0,.55)}
+.btcard.on{border-color:var(--y);color:var(--ink);background:var(--panel-3)}
+/* 竖幅 3:4 而不是正方 —— 作者放的十有八九是角色立绘截图，正方会把人头切掉 */
+.btbig{position:relative;width:100%;aspect-ratio:3/4;background:var(--panel-2);display:flex;
+  align-items:center;justify-content:center;overflow:hidden;border-bottom:1px solid var(--line)}
+.btbig img,.btbig svg{width:100%;height:100%;object-fit:cover;display:block}
+.btcap{padding:.42rem .55rem;min-width:0}
+.btcap b{display:block;font-size:13px;font-weight:600;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;color:inherit}
+.btcap i{display:block;font:9.5px/1.7 var(--mono);font-style:normal;color:var(--ink-3)}
+/* has-all 只为给文字让位：不留出右下角那块，"这套含…"会钻到「整套」按钮底下 */
+.btcard.has-all .btcap{padding-right:4.9rem}
+/* 用着的：右上角一枚黄牌。选中信号和卡片本体分离，和侧脊那条指示灯是同一套语言 */
+.btok{position:absolute;right:0;top:0;background:var(--y);color:var(--y-ink);
+  font:9.5px/1 var(--mono);letter-spacing:.14em;padding:5px 7px;display:none}
+.btcard.on .btok{display:block}
+.btsrc{position:absolute;left:0;top:0;background:rgba(12,13,16,.72);color:var(--tech);
+  font:9px/1 var(--mono);letter-spacing:.14em;padding:4px 5px}
+/* 鼠标停上去才告诉你点下去会发生什么 —— 静止态不铺这层字 */
+.btact{position:absolute;left:0;right:0;bottom:0;background:var(--y);color:var(--y-ink);
+  font:9.5px/1 var(--mono);letter-spacing:.18em;padding:.4rem;text-align:center;
+  font-style:normal;display:none}
+.btcard:hover .btact{display:block}
+.btcard.on .btact{background:var(--panel-3);color:var(--ink-2)}
+/* 「整套」：一键把这条记录带的部位一起换上，给"不想混搭"留的近路。
+   **必须缩进 1px**：贴着 right:0/bottom:0 会正好盖在卡片那圈 1px 边框上，
+   把青框咬掉一个角，看起来像按钮长在卡片外面。 */
+.btall{position:absolute;right:1px;bottom:1px;z-index:2;background:var(--panel-3);color:var(--tech);
+  border:0;box-shadow:inset 0 0 0 1px #1E4A47;cursor:var(--cur-p);
+  font:9.5px/1 var(--mono);letter-spacing:.16em;padding:.42rem .6rem}
+.btall:hover{background:var(--tech);color:#04201D}
+.btall.on{background:var(--panel-3);color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line)}
+/* 配图说明：跟在卡片后面一整行，只在还有卡片缺图时才画 */
+.btfoot{grid-column:1/-1;padding:.9rem .2rem .2rem;font:11px/1.9 var(--mono);color:var(--ink-3);
+  border-top:1px solid var(--line);margin-top:.6rem}
+.btfoot b{color:var(--ink-2);font-weight:400}
+.btfoot code{color:var(--tech);background:var(--panel);padding:.05rem .3rem}
+.btnone{grid-column:1/-1;padding:1.4rem .2rem;font:11.5px/2 var(--mono);color:var(--ink-3)}
+.btnone b{display:block;color:var(--o);font-weight:400;margin-bottom:.3rem;font-size:12.5px}
+/* 水印字：空白区不至于什么都没有。压在网格下面，不吃鼠标 */
+.btwm{position:absolute;right:1.4rem;bottom:1.2rem;z-index:0;pointer-events:none;
+  font:700 96px/1 var(--ui);letter-spacing:.08em;color:var(--ink);opacity:.035;white-space:nowrap}
+
+/* ── 落脚页 / 弹窗 ── */
+.btempty{padding:1.2rem;font-size:12.5px;line-height:1.9;color:var(--ink-3)}
+.btx{background:none;border:1px solid var(--line);color:var(--ink-3);
+  font:11px/1 var(--mono);padding:.28rem .5rem;cursor:var(--cur-p);margin-left:.5rem}
+.btx:hover{color:var(--y);border-color:var(--y)}
+.btbox{min-width:520px;max-width:720px}
+.btlist{max-height:420px;overflow:auto;border:1px solid var(--line)}
+.btrow{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:0;
+  border-bottom:1px solid var(--line-2);padding:.35rem .5rem;cursor:var(--cur-p);
+  color:var(--ink-2);text-align:left}
+.btrow:last-child{border-bottom:0}
+.btrow:hover{background:var(--panel-3);color:var(--ink)}
+.btrow.on{color:var(--ink);box-shadow:inset 3px 0 0 var(--y)}
+.btrow b{flex:1 1 auto;font-size:13px;font-weight:600}
+.btrow i{font:10px/1 var(--mono);font-style:normal;color:var(--ink-3)}
+.btrow.warn i{color:var(--err)}
+.btrow .bttile{width:40px;height:40px}
+.bthint{font-size:11px;color:var(--ink-3);line-height:1.6;margin-top:.4rem}
+
+/* ── 内容库选择器（modroot.js，和货架页共用）── */
+.mrbox{min-width:480px;max-width:640px}
+.mrlede{font-size:12px;color:var(--ink-2);line-height:1.7;margin-bottom:.5rem}
+.mrlist{border:1px solid var(--line);max-height:260px;overflow:auto;margin-bottom:.6rem}
+.mrrow{display:block;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--line-2);padding:.45rem .6rem;cursor:var(--cur-p);color:var(--ink-2)}
+.mrrow:last-child{border-bottom:0}
+.mrrow:hover{background:var(--panel-3);color:var(--ink)}
+.mrrow b{display:block;font-size:13px;font-weight:600}
+.mrrow i{font:10px/1.7 var(--mono);font-style:normal;color:var(--y)}
+.mrrow span{display:block;font:10px/1.5 var(--mono);color:var(--ink-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrown{font-size:12px;color:var(--ink-3);margin-bottom:.3rem}

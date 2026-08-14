@@ -44,7 +44,17 @@ internal static class DialogHeaderParser
             case "first": t.First = v; break;
             case "actor": t.Actor = v; break;
             case "scene": t.Scene = v; break;
-            case "tab": if (v.StartsWith("if ")) t.TabQuestId = DialogParser.Gate(v.Substring(3), t.TabStatuses, t, ln); break;
+            // 只认 `tab: if <任务>=<状态>`。别的写法（4.0.13 的 `tab: always` 就是）进不了模型，
+            // 那就必须原文留住 —— 不留的话回写时 HeadLine("tab") 拿不到 TabQuestId 会返回 null，
+            // 整行**从作者的文件里消失**，而且一声不吭。when 一直是这么处理的，这里照办。
+            case "tab":
+                if (v.StartsWith("if ")) t.TabQuestId = DialogParser.Gate(v.Substring(3), t.TabStatuses, t, ln);
+                else
+                {
+                    t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: tab 只认 'if <任务>=<状态>'", $"Line {ln}: tab only accepts 'if <quest>=<status>'"));
+                    KeepRaw(t, line);
+                }
+                break;
             case "when":
                 var w = Regex.Match(v, @"^(.*?)\s*->\s*(\S+)$");
                 var rule = new WhenRule { Node = w.Groups[2].Value };

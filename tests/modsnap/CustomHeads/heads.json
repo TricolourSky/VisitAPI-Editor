@@ -1,0 +1,8 @@
+{
+  "aa00000000000000000000e1": {
+    "path": "heads/x_head.bundle",
+    "addHeadToPlayer": true,
+    "side": ["Bear", "Usec"],
+    "locales": { "en": "Lab Head", "ch": "测试头部" }
+  }
+}
