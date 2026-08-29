@@ -1,6 +1,6 @@
 # VisitAPI Editor
 
-> A visual editor for SPT 4.1.1 — dialogue, quests, bot outfits and trader stock
+> A visual editor for SPT 4.1.3 — dialogue, quests, chapters, bot outfits and trader stock
 
 **English** · [中文](README.zh-CN.md)
 
@@ -11,6 +11,7 @@ It exists so that **people who don't write code** can make content for SPT trade
 | | |
 |---|---|
 | **Dialogue** | Edit a `.dlg` script while seeing how it will look in Tarkov's dialogue box — backgrounds, video, voice, music — with the whole branching structure drawn as a flow graph. Pairs with the VisitAPI trader-dialogue framework. |
+| **Chapters** | String quests into one chapter of the STORY tab: the card is laid out like the 1.1 story page (icon and banner, main/optional objectives, journal, related items) and edited in place; sub-quest order, auto-accept/complete and chaining are one click. Needs VisitAPI 1.2+. |
 | **Quests** | Writes plain SPT quest files and **does not need VisitAPI**. Objectives, rewards, fail branches, mails; item, map and trader lists come from the game's own data, so nobody has to memorise 24-character ids. |
 | **Bot outfits** | Put the clothes your mod adds onto any SPT bot type. The body/hands mismatch that gives NPCs hollow forearms is caught before you save. |
 | **Trader stock** | Lay out what a trader sells on a 1:1 copy of Tarkov's shelf, with checks for the mistakes the server never reports — an ammo box sold empty, an item priced but not unlocked. |
@@ -19,9 +20,13 @@ It exists so that **people who don't write code** can make content for SPT trade
 Dialogue and quests are wired together: a quest can be attached to the dialogue option that hands it
 out, and one click jumps between the two.
 
+Every module walks you through itself the first time you open it — a step-by-step tour that points at the
+real buttons. Settings → "Replay the tour" runs it again.
+
 ## Install
 
 1. Download `VisitAPI.Editor.exe` from [Releases](../../releases)
+   — the [VisitAPI](https://github.com/TricolourSky/VisitAPI) release package ships the same exe in its root, so if you installed that you already have it
 2. Drop it in your EFT root, next to `EscapeFromTarkov.exe`, and run it
 3. Your browser opens — that is the editor
 
@@ -49,7 +54,7 @@ or flattens your blank lines.
 
 ```powershell
 .\build.ps1              # produces publish\VisitAPI.Editor.exe
-.\tests\run-all.ps1      # 986 checks
+.\tests\run-all.ps1      # 1286 checks
 ```
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Output is a single-file,

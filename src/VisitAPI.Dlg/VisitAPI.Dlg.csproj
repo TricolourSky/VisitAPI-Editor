@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- netstandard2.0 是唯一同时被 BepInEx 插件(net472) 和编辑器(net10.0) 接受的目标。
+         注意: netstandard2.0 默认语言版本是 C# 7.3，而 .dlg 解析器用了 `= new()`(C#9)
+         和文件级 namespace(C#10)，所以必须显式抬到 latest，否则搬过来直接编不过。 -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>VisitAPI.Dlg</AssemblyName>
+    <RootNamespace>VisitAPI.Dialog</RootNamespace>
+  </PropertyGroup>
+
+</Project>

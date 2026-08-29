@@ -1,0 +1,149 @@
+/* ══════════════════════════════════════════════════════════════════
+   章节编辑器（SEC.04）
+   骨架借任务页的（.qwork / .qstates / .stagepane / .qgraph / .vpanel / .trow 都是 quest.css 的），
+   这里只写章节卡和章节册自己的东西。类名一律 ch* / cbk*，别和别的页撞（守门人会查）。
+   卡片版式照 1.1 剧情页：左图标列 · 横幅 · 主要目标 · 可选目标 · 日记 · 相关物品。
+   AIC 四条铁律照旧：斜切只给挂牌类 · 静止纯平 · 黄只表当前与主操作 · 能载数据就别做装饰。
+   ══════════════════════════════════════════════════════════════════ */
+.cwork .stagepane::before{content:"STORY"}
+.cbook .cfgraph::before{content:"FLOW"}
+
+/* ── 章节卡 ── */
+.chcard{width:100%;height:100%;display:flex;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.chicons{flex:0 0 64px;display:flex;flex-direction:column;gap:6px;padding:8px 6px;background:var(--panel-2);
+  border-right:1px solid var(--line);overflow:auto}
+.chtile{width:52px;height:52px;flex:0 0 auto;border:0;cursor:var(--cur-p);padding:0;
+  background:var(--panel-3) center/cover no-repeat;box-shadow:inset 0 0 0 1px var(--line-2);position:relative}
+.chtile:hover{box-shadow:inset 0 0 0 1px var(--ink-3)}
+.chtile.cur{box-shadow:0 0 0 2px var(--y)}
+.chtile.cur::after{content:"";position:absolute;left:-6px;top:0;bottom:0;width:3px;background:var(--y)}
+.chtile.bad::before{content:"";position:absolute;right:-3px;top:-3px;width:9px;height:9px;background:var(--err)}
+.chtile.new{background:transparent;box-shadow:none;outline:1px dashed var(--line-2);outline-offset:-1px;
+  color:var(--ink-3);font-size:18px}
+.chtile.new:hover{outline-color:var(--y);color:var(--y)}
+.chbody{flex:1 1 auto;min-width:0;overflow:auto}
+
+/* 横幅：底图 + 渐变压暗，左下图标块、章节名，右上状态挂牌 */
+.chban{position:relative;height:168px;display:flex;align-items:flex-end;gap:.8rem;padding:.8rem .9rem;
+  background:var(--panel-3) center/cover no-repeat}
+.chban::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.72))}
+.chban>*{position:relative}
+.chplate{width:64px;height:64px;flex:0 0 auto;cursor:var(--cur-p);background:var(--panel) center/cover no-repeat;
+  box-shadow:0 0 0 1px var(--line-2)}
+.chplate.empty{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.05) 0 4px,transparent 4px 11px)}
+.chplate:hover{box-shadow:0 0 0 1px var(--y)}
+.chtitle{flex:1 1 auto;min-width:0}
+.chtitle i{display:block;font:9px/1 var(--mono);letter-spacing:.24em;color:var(--y);text-transform:uppercase;margin-bottom:.35rem}
+.chtitle h3{font-size:22px;font-weight:700;letter-spacing:.06em;color:#F0EEE8;text-shadow:0 1px 3px rgba(0,0,0,.85);outline:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chtitle h3:focus{box-shadow:inset 0 -2px 0 var(--y)}
+.chtitle h3:empty::before{content:attr(data-ph);color:var(--err);font-style:italic;font-weight:400;font-size:14px}
+.chstate{position:absolute;right:.9rem;top:.8rem;font:10px/1 var(--mono);letter-spacing:.2em;font-style:normal;
+  padding:.4rem .7rem;transform:skewX(var(--sk));background:var(--ink-3);color:var(--ground)}
+.chcard[data-st="active"] .chstate{background:var(--y);color:var(--y-ink);font-weight:700}
+.chcard[data-st="done"] .chstate{background:var(--tech);color:var(--ground);font-weight:700}
+.chpick{position:absolute;right:.9rem;bottom:.8rem;border:0;cursor:var(--cur-p);font-size:11px;padding:.3rem .6rem;
+  background:rgba(0,0,0,.55);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2)}
+.chpick:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
+.chdesc{margin:0;padding:.75rem .9rem;font-size:13px;line-height:1.85;color:var(--ink-2);outline:0;white-space:pre-wrap;
+  border-bottom:1px solid var(--line)}
+.chdesc:focus{background:var(--panel-2);box-shadow:inset 3px 0 0 var(--y)}
+.chdesc:empty::before{content:attr(data-ph);color:var(--err);font-style:italic}
+
+/* 栏目标题：同 .tsec 的口吻 */
+.chsec{display:flex;align-items:center;gap:.5rem;padding:.75rem .9rem .3rem}
+.chsec h5{font:9.5px/1 var(--mono);letter-spacing:.2em;color:var(--y);text-transform:uppercase}
+.chsec h5::before{content:"/ "}
+.chsec u{text-decoration:none;font:9px/1.5 var(--mono);letter-spacing:.08em;color:var(--ink-2);padding:0 .3rem;
+  box-shadow:inset 0 0 0 1px var(--line-2)}
+.chsec u.n0{opacity:.5}
+.chsec .add{margin-left:auto;border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);font-size:11px;padding:.28rem .55rem}
+.chsec .add:hover{background:var(--y);color:var(--y-ink);font-weight:700}
+.chsec .chhint{flex:1 1 auto;margin:0;padding:0 .3rem}
+.chhint{margin:0 .9rem 2px;padding:.4rem .7rem;font-size:11.5px;line-height:1.6;color:var(--ink-3);font-style:normal}
+
+/* 目标组：子任务名一行（可点跳转 + 开关芯片 + ＋目标），下面目标行 */
+.chgrp{margin:0 .9rem 6px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
+.chgh{display:flex;align-items:center;gap:.6rem;padding:.42rem .7rem;border-bottom:1px solid var(--line)}
+.chgh b{font-size:12.5px;color:var(--ink);cursor:var(--cur-p)}
+.chgh b:hover{color:var(--tech);text-decoration:underline}
+.chgh .chips{display:flex;gap:2px}
+.chsw{border:0;cursor:var(--cur-p);font:9px/1 var(--mono);letter-spacing:.08em;padding:.3rem .45rem;
+  background:var(--panel);color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+.chsw:hover{color:var(--ink)}
+.chsw[aria-pressed="true"]{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
+.chgh .add{margin-left:auto;border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);font-size:11px;padding:.26rem .55rem}
+.chgh .add:hover{background:var(--y);color:var(--y-ink);font-weight:700}
+.chobj{position:relative;display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem .45rem .8rem;margin:0 .9rem 2px;
+  background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
+.chgrp .chobj{margin:0;box-shadow:none;border-bottom:1px solid var(--line)}
+.chgrp .chobj:last-child{border-bottom:0}
+.chobj:hover{background:var(--panel-3)}
+.chobj .tick{width:13px;height:13px;flex:0 0 auto;box-shadow:inset 0 0 0 1px var(--ink-3);position:relative}
+.chcard[data-st="done"] .chobj .tick{background:var(--tech);box-shadow:none}
+.chcard[data-st="done"] .chobj .tick::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid var(--ground);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.chcard[data-st="unavail"] .chobj{opacity:.55}
+.chobj .tt{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink);outline:0}
+.chobj .tt:focus{background:var(--panel);box-shadow:inset 2px 0 0 var(--y)}
+.chobj small{flex:0 0 auto;font:10px/1.4 var(--mono);color:var(--ink-3);max-width:34%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chobj .nec{border:0;cursor:var(--cur-p);font:9px/1 var(--mono);letter-spacing:.08em;padding:.3rem .45rem;flex:0 0 auto;
+  background:var(--panel);color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+.chobj .nec:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
+.chobj .dots{border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);width:24px;height:24px;font-size:14px;flex:0 0 auto}
+.chobj:hover .dots{color:var(--ink-2)}
+.chobj .dots:hover{background:var(--y);color:var(--y-ink)}
+
+/* 日记：一组 = 一条任务，三行；没解锁的暗着 */
+.chjr{margin:0 .9rem 6px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
+.chjr>b{display:block;font:9px/1 var(--mono);letter-spacing:.14em;color:var(--ink-3);padding:.45rem .7rem .2rem;text-transform:uppercase}
+.chnote{display:grid;grid-template-columns:64px 1fr;align-items:start;gap:.7rem;padding:.3rem .7rem;opacity:.5}
+.chnote.on{opacity:1}
+.chnote k{font-size:11.5px;color:var(--ink-3);padding-top:.25rem}
+.chnote span{font-size:12.5px;line-height:1.7;color:var(--ink);outline:0;padding:.22rem .5rem;background:var(--panel);
+  box-shadow:inset 3px 0 0 var(--line-2);white-space:pre-wrap;min-height:1.6em}
+.chnote span:focus{box-shadow:inset 3px 0 0 var(--y)}
+.chnote span:empty::before{content:attr(data-ph);color:var(--ink-3);font-style:italic}
+
+/* 相关物品：一排挂牌 */
+.chitems{display:flex;flex-wrap:wrap;gap:2px;margin:0 .9rem 2px}
+.chitem{display:inline-flex;align-items:center;gap:.4rem;font-size:11.5px;padding:.3rem .55rem;
+  background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.chitem b{font-weight:400}
+.chitem.auto{color:var(--ink-3);outline:1px dashed var(--line-2);outline-offset:-1px;box-shadow:none;background:transparent}
+.chitem button{border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);font-size:11px;padding:0 .1rem}
+.chitem button:hover{color:var(--err)}
+.chitem.add{cursor:var(--cur-p);border:0;color:var(--ink-3);background:transparent;outline:1px dashed var(--line-2);outline-offset:-1px;box-shadow:none}
+.chitem.add:hover{background:var(--y);color:var(--y-ink);font-weight:700;outline:0}
+
+/* ── 右栏：上「对话流程」/ 下「任务流程」，中间一条可拖的横条 ── */
+.cbook{position:relative;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;background:var(--graph-bg)}
+.cflow{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.cfpane{flex:1 1 0;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.cfpane#cfTop{flex:0 0 46%}
+.cfhead{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;
+  background:var(--panel);border-bottom:1px solid var(--line);z-index:3}
+.cfhead h5{font:9.5px/1 var(--mono);letter-spacing:.2em;color:var(--y);text-transform:uppercase}
+.cfhead h5::before{content:"/ "}
+.cfhead u{text-decoration:none;font:9px/1.5 var(--mono);color:var(--ink-2);padding:0 .3rem;
+  box-shadow:inset 0 0 0 1px var(--line-2)}
+.cfhead u.n0{opacity:.5}
+.cfhead .sp{flex:1 1 auto}
+.cfhead .add{border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);font-size:11px;padding:.24rem .5rem}
+.cfhead .add:hover{background:var(--y);color:var(--y-ink);font-weight:700}
+/* 两块图共用对话页画布的底子（网格 + 斜纹），只是各自独立平移缩放 */
+.cfgraph{position:absolute;left:0;right:0;top:29px;bottom:0;overflow:hidden}
+.cfempty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;
+  font-size:12px;line-height:1.8;color:var(--ink-3);text-align:center;padding:1rem;max-width:34rem;margin:0 auto}
+.cfempty .add{border:0;cursor:var(--cur-p);font-size:12px;padding:.42rem .9rem;
+  background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--y)}
+.cfempty .add:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
+/* 和这一章无关的对话节点压暗，不隐藏——作者要看得见整条线长什么样 */
+.cfgraph .gnode.dim{opacity:.2}
+.cfgraph .gnode.dim:hover{opacity:.65}
+.cfgraph .gnode{cursor:var(--cur-p)}
+.cfgraph .qnode .chips{display:flex;gap:2px;margin-left:auto}
+.cfgraph .qnode .chips i,.cfgraph .qnode .chips b{font:8px/1 var(--mono);letter-spacing:.06em;padding:.2rem .3rem;
+  font-style:normal;background:var(--panel);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2)}
+.cfgraph .qnode .chips b{color:var(--y);box-shadow:inset 0 0 0 1px var(--y)}
+.cbook .hsplit{flex:0 0 auto;z-index:4}
