@@ -54,11 +54,10 @@ or flattens your blank lines.
 
 ```powershell
 .\build.ps1              # produces publish\VisitAPI.Editor.exe
-.\tests\run-all.ps1      # 1286 checks
 ```
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Output is a single-file,
-framework-dependent exe. How it all fits together: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+framework-dependent exe.
 
 ## License
 

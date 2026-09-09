@@ -52,11 +52,9 @@
 
 ```powershell
 .\build.ps1              # 产出 publish\VisitAPI.Editor.exe
-.\tests\run-all.ps1      # 1286 项回归测试
 ```
 
 需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)。产出是单文件、不自带运行时的 exe。
-内部怎么搭的见 [docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md)。
 
 ## License
 
