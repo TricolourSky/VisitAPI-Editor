@@ -23,9 +23,12 @@ public sealed class LocaleStore
     /// <summary>读不动的语言文件：语言 → 原因。有内容时一律不许保存，见 <see cref="SaveAll"/>。</summary>
     public Dictionary<string, string> Broken { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>每种语言文件读入时的样式，写回照原样（见 JsonFile）。</summary>
+    public Dictionary<string, JsonFile.Style> Styles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public void Load()
     {
-        Langs.Clear(); Broken.Clear();
+        Langs.Clear(); Broken.Clear(); Styles.Clear();
         foreach (var lang in Known)
         {
             var p = Path.Combine(Dir, lang + ".json");
@@ -34,6 +37,7 @@ public sealed class LocaleStore
             {
                 Langs[lang] = JsonNode.Parse(File.ReadAllText(p)) as JsonObject
                               ?? throw new InvalidDataException("not_object");
+                Styles[lang] = JsonFile.Sniff(p);
             }
             catch (Exception e)
             {
@@ -50,14 +54,8 @@ public sealed class LocaleStore
         key != null && Langs.TryGetValue(lang, out var o)
         && o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
-    static readonly JsonSerializerOptions Pretty = new()
-    {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
     /// <summary>
-    /// 只写指定的语言（不传就全写）。
+    /// 只写指定的语言（不传就全写）。内容没变的不写也不换 .bak、照原样式写（见 JsonFile）。
     /// 有任何一个语言文件读不动就整个拒写 —— 宁可让用户看见"文案文件坏了"，
     /// 也不能拿一份空对象去覆盖人家几百条文案。
     /// </summary>
@@ -68,9 +66,7 @@ public sealed class LocaleStore
         foreach (var lang in langs ?? Langs.Keys.ToList())
         {
             if (!Langs.TryGetValue(lang, out var obj)) continue;
-            var p = Path.Combine(Dir, lang + ".json");
-            if (File.Exists(p)) File.Copy(p, p + ".bak", true);
-            File.WriteAllText(p, obj.ToJsonString(Pretty));
+            JsonFile.Write(Path.Combine(Dir, lang + ".json"), obj, Styles.TryGetValue(lang, out var st) ? st : null);
         }
         return true;
     }

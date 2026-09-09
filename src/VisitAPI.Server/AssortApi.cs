@@ -165,8 +165,8 @@ public static class AssortApi
         foreach (var a in store.All())
             foreach (var it in AssortStore.Items(a.Scheme))
             {
-                var tpl = it["_tpl"]?.GetValue<string>();
-                if (!string.IsNullOrEmpty(tpl)) ids.Add(tpl);
+                var tpl = AssortStore.Str(it, "_tpl");   // `"_tpl": 123` 这种脏数据别让整个货架页 500
+                if (tpl.Length > 0) ids.Add(tpl);
             }
         return ids.Select(id =>
         {
@@ -232,8 +232,7 @@ public static class AssortApi
         if (name.Equals("assort.json", StringComparison.OrdinalIgnoreCase)) return false;
         if (!name.StartsWith(AssortStore.WttDir + "/", StringComparison.OrdinalIgnoreCase)) return true;
         var leaf = name[(AssortStore.WttDir.Length + 1)..];
-        return leaf.Contains('/') || leaf.Contains('\\') ||
-               ws.ResolveMod(Path.Combine(AssortStore.WttDir, leaf)) == null;
+        return !SafeName.Ok(leaf) || ws.ResolveMod(Path.Combine(AssortStore.WttDir, leaf)) == null;
     }
 
     public sealed record SaveReq(string? Stamp, bool Force, Dictionary<string, JsonObject>? Files);

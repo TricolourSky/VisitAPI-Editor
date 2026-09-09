@@ -21,7 +21,9 @@
 
 let ccur=null;        /* 当前章节 id */
 let cSt=1;            /* 卡片上模拟的章节状态：0 未开放 / 1 进行中 / 2 已完成 —— 只影响外观，不写数据 */
-const chapters=()=>QD&&QD.ok?Object.keys(QD.quests).filter(x=>isChap(QD.quests[x])):[];
+/* 章节顺序 = visitapi.order 小的在前（插件 1.3 G20），没标的按文件原序垫底 —— 图标列和游戏里一个顺序 */
+const chOrd=x=>{const o=dig(QD.quests[x],"visitapi.order");return typeof o==="number"?o:Number.MAX_VALUE;};
+const chapters=()=>QD&&QD.ok?Object.keys(QD.quests).filter(x=>isChap(QD.quests[x])).sort((a,b)=>chOrd(a)-chOrd(b)):[];
 const cq=()=>QD.quests[ccur];
 const cimg=v=>v?`style="background-image:url('/qimg?name=${encodeURIComponent(v)}&t=${encodeURIComponent(TOK)}')"`:"";
 /* 只看跟章节有关的校验：章节本身 + 它们的子任务 */
@@ -97,6 +99,7 @@ function chCard(ch){
         <div class="chtitle"><i>${T("ch_label")}</i>
           <h3 contenteditable="plaintext-only" data-cf="name" data-ph="${esc(T("q_name_ph"))}">${esc(qtext(ch,"name"))}</h3></div>
         <em class="chstate">${T("q_prev_st"+cSt)}</em>
+        <label class="chorder" title="${esc(T("ch_order_d"))}"><i>${T("ch_order")}</i><input type="number" step="1" data-corder value="${esc(dig(ch,"visitapi.order")??"")}" placeholder="—"></label>
         <button class="chpick" data-chimg="image" title="${esc(T("q_look_hint"))}">${T(ch.image?"ch_banner_change":"ch_banner_pick")}</button>
       </div>
       <div class="chdesc" contenteditable="plaintext-only" data-cf="description" data-ph="${esc(T("q_desc_ph"))}">${esc(qtext(ch,"description"))}</div>
@@ -112,23 +115,27 @@ function chCard(ch){
 const csec=(k,n,add)=>`<div class="chsec"><h5>${T(k)}</h5>${n==null?"":`<u class="${n?"":"n0"}">${n}</u>`}${
   add?`<button class="add" data-cadd="${add.k}">${T(add.t)}</button>`:""}</div>`;
 const chTile=x=>{const q=QD.quests[x], bad=(QD.issues||[]).some(e=>e.questId===x&&e.level==="err");
-  return `<button class="chtile${x===ccur?" cur":""}${bad?" bad":""}" data-cgo="${x}" ${cimg(dig(q,"visitapi.icon"))} title="${esc(qname(q))}"></button>`;};
+  return `<button class="chtile${x===ccur?" cur":""}${bad?" bad":""}" data-cgo="${esc(x)}" ${cimg(dig(q,"visitapi.icon"))} title="${esc(qname(q))}"></button>`;};
 
-/* 一条子任务的目标组：抬头是子任务名（点了跳去任务页）+ 三个开关芯片 + ＋目标；下面是它的主要目标 */
+/* 一条子任务的目标组：抬头是子任务名（点了跳去任务页）+ 三枚芯片（头一枚「什么时候接」是三选一菜单，后两枚才是开关）+ ＋目标；下面是它的主要目标 */
 function chObjGroup(s,main){
   const rows=main.filter(x=>x.s===s);
-  const sw=[["visitapi.autoStart","q_ch_auto"],["visitapi.autoFinish","q_ch_autoFinish"],["visitapi.dialogOnly","q_ch_dlg"]];
+  const sw=[["visitapi.autoFinish","q_ch_autoFinish"],["visitapi.dialogOnly","q_ch_dlg"]];
   return `<div class="chgrp"><div class="chgh">
       <b class="goto" data-cgoq="${s._id}" title="${esc(T("q_a_goto"))}">${esc(qname(s))}</b>
-      <span class="chips">${sw.map(([p,k])=>`<button class="chsw" data-csw="${s._id}|${p}" aria-pressed="${!!dig(s,p)}">${T(k)}</button>`).join("")}</span>
+      <span class="chips"><button class="chsw" data-cwhen="${s._id}" title="${esc(T("q_a_when"))}"
+        aria-pressed="${qafter(s)||dig(s,"visitapi.autoStart")?"true":"false"}">${
+        qafter(s)?esc(TF("q_ch_after",qafterName(s))):dig(s,"visitapi.autoStart")?T("q_ch_auto"):T("q_ch_manual")} ▾</button>${
+        sw.map(([p,k])=>`<button class="chsw" data-csw="${s._id}|${p}" aria-pressed="${!!dig(s,p)}">${T(k)}</button>`).join("")}</span>
       <button class="add" data-cobj="${s._id}">${T("q_add_obj")}</button></div>
     ${rows.map(chObjRow).join("")||`<div class="chhint">${T("q_e_obj")}</div>`}</div>`;
 }
 /* 目标行：方勾（模拟状态下打勾）· 文字可改 · 小字是哪条子任务/什么类型 · 主/可选 · ⋮（复用任务页的行菜单） */
-const chObjRow=x=>{const o=objText(x.c), txt=(x.c.id&&qloc(x.c.id))||o.text;
+const chObjRow=x=>{const o=objText(x.c), txt=(x.c.id&&qloc(x.c.id))||o.text, a=visOf(x.c)[0];
   return `<div class="chobj"><i class="tick"></i>
     <span class="tt" contenteditable="plaintext-only" ${x.c.id?`data-lockey="${esc(x.c.id)}"`:""}>${esc(txt)}</span>
     <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}</small>
+    ${a?`<span class="chvis" title="${esc(T("q_vis_d"))}">${esc(TF("q_vis_after",condLabel(x.s,a)))}</span>`:""}
     <button class="nec" data-cnec="${x.s._id}|${x.i}" title="${esc(T("ch_nec_tip"))}">${T(x.c.isNecessary===false?"ch_optional":"ch_main")}</button>
     <button class="dots" data-cmenu="${x.s._id}|${x.i}">⋮</button></div>`;};
 
@@ -156,11 +163,12 @@ function chSubs(ch){
 function subRow(c,i){
   const s=QD.quests[c.target];
   const chips=s?[["visitapi.autoStart","q_ch_auto"],["visitapi.autoFinish","q_ch_autoFinish"],["visitapi.dialogOnly","q_ch_dlg"]]
-    .filter(([p])=>dig(s,p)).map(([,k])=>`<i>${T(k)}</i>`).join(""):"";
+    .filter(([p])=>dig(s,p)).map(([,k])=>`<i>${T(k)}</i>`).join("")
+    +(qafter(s)?`<i>${esc(TF("q_ch_after",qafterName(s)))}</i>`:""):"";
   return `<div class="trow goal sub${s?"":" bad"}">
     <span class="tag"><s>${String(i+1).padStart(2,"0")}</s></span>
-    <span class="tt${s?" goto":""}" ${s?`data-gotoq="${c.target}" title="${esc(T("q_a_goto"))}"`:""}>${
-      s?esc(qname(s)):TF("q_sub_missing",c.target.slice(0,8))}${
+    <span class="tt${s?" goto":""}" ${s?`data-gotoq="${esc(c.target)}" title="${esc(T("q_a_goto"))}"`:""}>${
+      s?esc(qname(s)):TF("q_sub_missing",String(c.target||"").slice(0,8))}${
       s?`<small>${TF("q_sub_stat",(s.conditions?.AvailableForFinish||[]).length,Object.keys(s.notes||{}).length)}</small>`:""}</span>
     <span class="chips">${chips}${failOk(c)?`<i title="${esc(T("ch_failok_on"))}">${T("ch_failok")}</i>`:""}${c.isFinisher?`<b>${T("q_ch_fin")}</b>`:""}</span>
     <button class="dots" data-menu="sub" data-i="${i}">⋮</button></div>`;
@@ -231,8 +239,13 @@ const cqapply=()=>{const v=$("cqvp"); if(v)v.style.transform=`translate(${cqx}px
 function chQLayout(ch){
   const subs=subConds(ch).map(c=>c.target).filter(x=>QD.quests[x]);
   const inside=new Set(subs);
-  const pre=id=>qprereq(id).filter(p=>inside.has(p));
-  const depth={}, d=id=>depth[id]??=(seen=>{const p=pre(id);return p.length?1+Math.max(...p.map(x=>seen.has(x)?0:(seen.add(x),d(x)))):0;})(new Set([id]));
+  /* 「谁在我前面」全站共用 qedgesUp：子任务之间的先后现在写的是 startAfter，
+     还读 qprereq 的话这张图会全平铺、零连线（probe-chapter「任务流程图跟着画出连线」钉着这条） */
+  const pre=id=>qedgesUp(id).filter(p=>inside.has(p));
+  /* 和 quest.js 的 qlayout 同款「先占位防环」：原来 `depth[id]??=(…)` 在右边算完才赋值，
+     A→B→A 时 depth 里永远没有占位，无限递归把整个章节页炸白（2026-09-08 审查） */
+  const depth={}, d=id=>{if(depth[id]!==undefined)return depth[id]; depth[id]=0;
+    const p=pre(id); return depth[id]=p.length?1+Math.max(...p.map(d)):0;};
   subs.forEach(d);
   const cols={}; subs.forEach(id=>(cols[depth[id]] ??= []).push(id));
   const pos={}; Object.keys(cols).forEach(c=>cols[c].forEach((id,i)=>pos[id]={x:+c*CQGX,y:i*CQGY}));
@@ -246,7 +259,8 @@ function chQGraph(ch){
     const q=QD.quests[id], p=pos[id];
     const bad=errs.some(e=>e.questId===id&&e.level==="err");
     const sw=[["visitapi.autoStart","q_ch_auto"],["visitapi.autoFinish","q_ch_autoFinish"],["visitapi.dialogOnly","q_ch_dlg"]]
-      .filter(([k])=>dig(q,k)).map(([,k])=>`<i>${T(k)}</i>`).join("");
+      .filter(([k])=>dig(q,k)).map(([,k])=>`<i>${T(k)}</i>`).join("")
+      +(qafter(q)?`<i>${esc(TF("q_ch_after",qafterName(q)))}</i>`:"");
     const fin=subConds(ch).find(c=>c.target===id)?.isFinisher;
     return `<div class="qnode${bad?" bad":""}" data-cq="${id}" style="left:${p.x}px;top:${p.y}px;width:${CQW}px">
       <div class="qslab"></div>
@@ -354,8 +368,11 @@ function wireCard(ch,M){
   qcur=ccur;                        /* quest.js 的增删菜单按 qcur 找任务；动章节本身时它就是 ccur */
   M.querySelectorAll("[data-cf]").forEach(el=>el.oninput=()=>{
     qsetText(ch,el.dataset.cf,el.textContent);if(el.dataset.cf==="name")ch.QuestName=el.textContent;qtouch();});
-  M.querySelectorAll("[data-lockey]").forEach(el=>el.oninput=()=>{qsetLoc(el.dataset.lockey,el.textContent);qtouch();});
+  M.querySelectorAll("[data-lockey]").forEach(el=>el.oninput=()=>{qsetLocSync(el.dataset.lockey,el.textContent);qtouch();});
   M.querySelectorAll("[data-chimg]").forEach(el=>el.onclick=()=>{qcur=ccur;imgOpen(el.dataset.chimg);});
+  /* 显示顺序：清空 = 删键（不写 0，0 会排到最前面去）；onchange 不用 oninput，整页重画会把输入框换掉 */
+  M.querySelectorAll("[data-corder]").forEach(el=>el.onchange=()=>{const v=el.value.trim();
+    if(v===""||!Number.isFinite(+v))del(ch,"visitapi.order"); else put(ch,"visitapi.order",+v); qtouch();render();});
   M.querySelectorAll("[data-cadd]").forEach(b=>b.onclick=()=>{qcur=ccur;qAdd(b.dataset.cadd,b);});
   M.querySelectorAll("[data-cobj]").forEach(b=>b.onclick=()=>{qcur=b.dataset.cobj;qAdd("obj",b);});
   M.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cmenu.split("|");qcur=id;qRowMenu("obj",+i,b);});
@@ -363,11 +380,16 @@ function wireCard(ch,M){
   M.querySelectorAll("[data-cnec]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cnec.split("|");
     const c=QD.quests[id].conditions.AvailableForFinish[+i]; c.isNecessary=c.isNecessary===false; qtouch(); render();});
   M.querySelectorAll("[data-csw]").forEach(b=>b.onclick=()=>{const [id,p]=b.dataset.csw.split("|"), q=QD.quests[id];
-    put(q,p,!dig(q,p));qtouch();render();});
+    /* 和 quest.js 的 [data-sw] 同一道分流：autoStart 和 startAfter 互斥，全站只许 setWhen 写这两个键。
+       今天这张可点清单里没有 autoStart，但 162/253 两串只读芯片还字面写着它，是现成的复制粘贴源——先把闸修在这儿 */
+    if(p==="visitapi.autoStart")setWhen(q,dig(q,p)?"manual":"auto"); else put(q,p,!dig(q,p));
+    qtouch();render();});
+  /* 「什么时候接」是三选一（手动 / 自动接 / 跟在某条之后），不是开关：点了弹菜单，写入统一走 quest.js 的 setWhen */
+  M.querySelectorAll("[data-cwhen]").forEach(b=>b.onclick=()=>whenMenu(QD.quests[b.dataset.cwhen],ch,b));
   /* 日记：正文存 locale，键是日记自己的 id（第一次输入才生成）；清空 = 连 id 带两种语言的正文一起撤 */
   M.querySelectorAll("[data-cnote]").forEach(el=>el.oninput=()=>{const [id,k]=el.dataset.cnote.split("|"), q=QD.quests[id], v=el.textContent;
     if(!v.trim()){if(q.notes?.[k]){dropLoc([q.notes[k]]);delete q.notes[k];if(!Object.keys(q.notes).length)delete q.notes;}qtouch();return;}
-    (q.notes ??= {}); q.notes[k] ??= NEWID(); qsetLoc(q.notes[k],v); qtouch();});
+    (q.notes ??= {}); q.notes[k] ??= NEWID(); qsetLocSync(q.notes[k],v); qtouch();});
   M.querySelectorAll("[data-cdelitem]").forEach(b=>b.onclick=()=>{ch.visitapi.items.splice(+b.dataset.cdelitem,1);qtouch();render();});
   const cn=M.querySelector("[data-chain]"); if(cn)cn.onclick=()=>chainSubs(ch);
   if(!QITEMS&&!qiWait&&M.querySelector(".chitem b"))cItemsFetch();   /* 物品要显示名字：表没拉就拉一趟，回来还在这一页才重画 */

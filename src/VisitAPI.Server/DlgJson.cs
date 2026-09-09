@@ -110,4 +110,28 @@ public static class DlgJson
 
     /// <summary>空串当没有：模型里 bg 之类的默认是 ""，写回去不能变成 `bg: `。</summary>
     static string? Nz(string? s) => string.IsNullOrEmpty(s) ? null : s;
+
+    /// <summary>
+    /// 正文守卫。.dlg 没有转义：台词/旁白/选项文字里出现 ` | `、行首的 `- ` `>` `->` `#` `//` `<名字>`，
+    /// 选项文字里出现 ` -> `，handover 的说明里出现 `,` —— 写出去合法、再读回来就变身（跳转丢、台词变跳转、说明被截）。
+    /// 写手不能改作者的字，只能拒写；JS 那边的 badTexts() 同一套规则，让作者当场看见。
+    /// </summary>
+    static readonly System.Text.RegularExpressions.Regex Lead = new(@"^(- |>|->|#|//|<[A-Za-z0-9_.\-]+>)");
+    public static List<string> BadTexts(DialogTree t)
+    {
+        var bad = new List<string>();
+        static bool Text(string? s) => s != null && (s.Contains(" | ") || Lead.IsMatch(s));
+        foreach (var n in t.Nodes.Values)
+        {
+            if (Text(n.NpcText)) bad.Add($"<{n.Name}> npc");
+            for (var i = 0; i < n.Narration.Count; i++) if (Text(n.Narration[i].Text)) bad.Add($"<{n.Name}> narr {i + 1}");
+            for (var i = 0; i < n.Options.Count; i++)
+            {
+                var o = n.Options[i];
+                if (Text(o.Text) || (o.Text ?? "").Contains(" -> ")) bad.Add($"<{n.Name}> #{i + 1}");
+                if ((o.HandoverLabel ?? "").Contains(',')) bad.Add($"<{n.Name}> #{i + 1} handover");
+            }
+        }
+        return bad;
+    }
 }

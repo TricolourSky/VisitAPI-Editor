@@ -51,8 +51,11 @@ public static class DlgLinks
             // 解析器在别名收口处已经把非法 id 记成警告了，这里挑出来按文件归位
             foreach (var w in t.Warnings)
             {
-                var q = w.LastIndexOf('\''); var p = w.LastIndexOf('\'', q - 1);
-                if (q > 0 && p >= 0 && (w.Contains("24 位十六进制") || w.Contains("24 hex")))
+                // 不带引号的警告（触发器类型错、缺坐标）q 是 -1，再拿 q-1 去 LastIndexOf 直接抛 →
+                // 一份 .dlg 就让 /api/quests/links 500（2026-09-08 审查）。先判再取。
+                var q = w.LastIndexOf('\''); if (q <= 0) continue;
+                var p = w.LastIndexOf('\'', q - 1);
+                if (p >= 0 && (w.Contains("24 位十六进制") || w.Contains("24 hex")))
                     badIds.Add(new DlgBadId(name, w.Substring(p + 1, q - p - 1)));
             }
 

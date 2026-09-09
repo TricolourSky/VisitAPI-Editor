@@ -18,7 +18,7 @@ internal static class TriggerParser
         var hasXyz = xyz != null && xyz.Length == 3;
         if (hasXyz) { tr.X = (float)DialogParser.Num(xyz[0]); tr.Y = (float)DialogParser.Num(xyz[1]); tr.Z = (float)DialogParser.Num(xyz[2]); }
         if (vec.Success) v = Vec.Replace(v, "", 1);
-        var tok = v.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var tok = v.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);   // Tab 也算分隔：JS 那边 \s+ 认，这边不认的话整条触发点被插件忽略
         tr.Kind = tok.Length > 0 ? tok[0].ToLowerInvariant() : "";
         if (tr.Kind != "raid" && tr.Kind != "hideout") { t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 触发器类型须为 raid 或 hideout", $"Line {ln}: trigger type must be raid or hideout")); return; }
         tr.Place = tok.Length > 1 ? tok[1] : "*";
@@ -35,6 +35,7 @@ internal static class TriggerParser
                 case "finish": tr.FinishId = DialogParser.A(t, N(tok, ++i)); break;
                 case "fail": tr.FailId = DialogParser.A(t, N(tok, ++i)); break;
                 case "auto": tr.Auto = true; break;
+                case "once": tr.Once = true; break;
                 case "enter": tr.Enter = (float)DialogParser.Num(N(tok, ++i)); break;
                 case "free": case "door": tr.Free = true; break;
                 default: t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知触发器参数 '{tok[i]}'", $"Line {ln}: unknown trigger parameter '{tok[i]}'")); break;

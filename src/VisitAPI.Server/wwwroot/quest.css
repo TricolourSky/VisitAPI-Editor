@@ -71,7 +71,10 @@
 .trow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line-2)}
 .trow.gate{padding:.34rem .7rem .34rem .8rem}
 .trow.gate::before{background:var(--tech)}
-.trow.goal{padding:.55rem .7rem .55rem .8rem}
+.trow.goal{padding:.55rem .7rem .55rem .8rem;flex-wrap:wrap}
+/* 目标小字（locale `<条件id> desc`）：另起一行贴在目标下面 */
+.trow.goal .odesc{flex:1 0 100%;font-size:11px;line-height:1.5;color:var(--ink-3);padding-left:1.2rem}
+.trow.goal .bar.off{opacity:.25}
 .trow.goal::before{background:var(--y)}
 .trow.fail::before{background:var(--o)}
 /* 对话挂接：这根线连的是另一个文件，用青色（和画布上"入口"同色）标出来 */

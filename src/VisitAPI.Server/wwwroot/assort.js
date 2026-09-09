@@ -79,7 +79,8 @@ function asLoad() {
 /* 当前货架对象（直接指向 AD.files 里那一份，改它就是改模型） */
 function aScheme() {
   if (!acur || !AD?.files) return null;
-  const [file, trader] = acur.split("#");
+  /* 键 = 文件名 [+ "#" + 商人 id]（见 akey）。文件名里也可能有 #，所以只认末尾那段 24 位 id 前面的 #，别 split */
+  const m = /^(.*)#([0-9a-f]{24})$/i.exec(acur), file = m ? m[1] : acur, trader = m ? m[2] : "";
   const root = AD.files[file];
   if (!root) return null;
   return trader ? root[trader] : root;
@@ -531,15 +532,18 @@ function aStockMode(id, inf) {
   if (!inf && (it.upd.StackObjectsCount ?? 0) >= 9999999) it.upd.StackObjectsCount = 1;
   render();
 }
+/* 库存 / 限购 / 盒内数量都是整数：小数 SPT 反序列化会抛，Infinity 会被 JSON.stringify 写成 null（价格那边有 isFinite 守卫，这三处原来没有） */
+const aInt = (n, lo) => Number.isFinite(n) ? Math.max(lo, Math.trunc(n)) : lo;
 function aStock(id, n) {
   const it = aItemOf(id); if (!it) return;
-  const v = Math.max(0, n || 0);
+  const v = aInt(n, 0);
   if (it.upd?.StackObjectsCount === v) return;          /* 值没变就别重画（理由见 aPrice） */
   it.upd = it.upd || {}; it.upd.StackObjectsCount = v;
   aTouch(id);
 }
 function aLimit(id, n) {
   const it = aItemOf(id); if (!it) return;
+  if (n != null) n = aInt(n, 0);
   if (n == null || n <= 0) {
     /* 本来就没有 upd 就别为了删两个键**造**一个出来（原版有 30 件商品本来没有 upd）。
        ⚠️ 反过来也别把空的 upd 整个删掉：根商品的 upd 服务端是不判空就取的。 */
@@ -555,7 +559,7 @@ function aLimit(id, n) {
 }
 function aKid(id, n) {
   const it = aItemOf(id); if (!it) return;
-  const v = Math.max(1, n || 1);
+  const v = aInt(n, 1);
   if (it.upd?.StackObjectsCount === v) return;          /* 值没变就别重画（理由见 aPrice） */
   it.upd = it.upd || {}; it.upd.StackObjectsCount = v;
   aTouch(it.parentId);                                  /* 变的是盒子那块瓦片，不是子件自己 */

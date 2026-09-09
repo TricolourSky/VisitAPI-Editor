@@ -50,20 +50,21 @@ public static class DialogWriter
             case "first": return t.First == null ? null : "first: " + t.First;
             case "actor": return t.Actor == null ? null : "actor: " + t.Actor;
             case "scene": return t.Scene == null ? null : "scene: " + t.Scene;
-            case "tab": return t.TabQuestId == null ? null : $"tab: if {Alias(t, t.TabQuestId)}={Statuses(t.TabStatuses)}";
+            case "tab": return t.TabQuestId == null ? null : "tab: " + Gate("if", Alias(t, t.TabQuestId), t.TabStatuses).Replace("if: ", "if ");
             case "quest":
                 // 名字对不上就当这一行不存在：直接拿去索引是 KeyNotFound，
-                // 保存 / 查看 .dlg 当场 500，而作者只是文件头里写了个没配对的别名
-                if (h.Index >= t.QuestAliasOrder.Count) return null;
+                // 保存 / 查看 .dlg 当场 500，而作者只是文件头里写了个没配对的别名。
+                // 下标为负（前端送坏的 headRaw）同理，别让 ArgumentOutOfRange 顶掉本该给作者的提示
+                if (h.Index < 0 || h.Index >= t.QuestAliasOrder.Count) return null;
                 var k = t.QuestAliasOrder[h.Index];
                 return t.QuestAliases.TryGetValue(k, out var qid) ? $"quest {k} = {qid}" : null;
             case "when":
-                if (h.Index >= t.WhenRules.Count) return null;
+                if (h.Index < 0 || h.Index >= t.WhenRules.Count) return null;
                 var w = t.WhenRules[h.Index];
                 var conds = string.Join(" ", w.Conds.Select(c => $"{c.Field}{(c.LessEq ? "<=" : ">=")}{Num(c.Value)}"));
                 return $"when: {conds} -> {w.Node}";
             case "trigger":
-                if (h.Index >= t.Triggers.Count) return null;
+                if (h.Index < 0 || h.Index >= t.Triggers.Count) return null;
                 var g = t.Triggers[h.Index];
                 return "trigger: " + (g.Raw ?? Trigger(t, g));   // 有原文就照抄，别去动作者手填的坐标
             default: return null;
@@ -83,10 +84,11 @@ public static class DialogWriter
         if (g.Radius != 1.2f) sb.Append(" radius ").Append(Num(g.Radius));   // 漏了这行 = 改过朝向容差的触发器一回写就退回默认
         if (g.Free) sb.Append(" free");
         if (g.Auto) sb.Append(" auto");
+        if (g.Once) sb.Append(" once");
         if (g.AcceptId != null) sb.Append(" accept ").Append(Alias(t, g.AcceptId));
         if (g.FinishId != null) sb.Append(" finish ").Append(Alias(t, g.FinishId));
         if (g.FailId != null) sb.Append(" fail ").Append(Alias(t, g.FailId));
-        if (g.IfQuestId != null) sb.Append($" if {Alias(t, g.IfQuestId)}={Statuses(g.IfStatuses)}");
+        if (g.IfQuestId != null) sb.Append(' ').Append(Gate("if", Alias(t, g.IfQuestId), g.IfStatuses).Replace("if: ", "if "));
         if (g.Prompt != null) sb.Append($" \"{g.Prompt}\"");
         return sb.ToString();
     }
@@ -145,8 +147,8 @@ public static class DialogWriter
         if (o.AcceptIds.Count > 0) d.Add("accept: " + string.Join(" ", o.AcceptIds.Select(x => Alias(t, x))));
         if (o.CompleteIds.Count > 0) d.Add("complete: " + string.Join(" ", o.CompleteIds.Select(x => Alias(t, x))));
         if (o.HandoverId != null) d.Add($"handover: {Alias(t, o.HandoverId)}" + (o.HandoverLabel == null ? "" : " " + o.HandoverLabel));
-        if (o.IfQuestId != null) d.Add($"if: {Alias(t, o.IfQuestId)}={Statuses(o.IfStatuses)}");
-        if (o.IfNotQuestId != null) d.Add($"ifnot: {Alias(t, o.IfNotQuestId)}={Statuses(o.IfNotStatuses)}");
+        if (o.IfQuestId != null) d.Add(Gate("if", Alias(t, o.IfQuestId), o.IfStatuses));
+        if (o.IfNotQuestId != null) d.Add(Gate("ifnot", Alias(t, o.IfNotQuestId), o.IfNotStatuses));
         if (o.SetVarName != null) d.Add($"set: {o.SetVarName}={o.SetVarValue}");
         if (o.IfVarName != null) d.Add($"ifvar: {o.IfVarName}={o.IfVarValue}");
         if (o.StandingTraderId != null || o.StandingDelta != 0)
@@ -176,7 +178,10 @@ public static class DialogWriter
     static string Status(int i) =>
         i >= 0 && i < DialogParser.StatusNames.Length ? DialogParser.StatusNames[i] : i.ToString();
 
-    static string Statuses(List<int> s) => s.Count == 0 ? "" : string.Join("/", s.Select(Status));
+    /// <summary>解析器给的 -1（作者把 Success 拼成 Succes）不写回去：写成 `=-1` 会永久留在文件里且下次照样是 -1。
+    /// 全是 -1 就整个 `=…` 都不写，回来是「门控缺少 =状态」的警告，和作者原来那行一样只是一处要改的地方。</summary>
+    static string Statuses(List<int> s) => string.Join("/", s.Where(x => x >= 0).Select(Status));
+    static string Gate(string key, string id, List<int> s) { var v = Statuses(s); return v.Length == 0 ? $"{key}: {id}" : $"{key}: {id}={v}"; }
 
     static string Kv(params (string k, string v)[] parts)
     {

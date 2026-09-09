@@ -1,3 +1,5 @@
+using VisitAPI.Quests;
+
 namespace VisitAPI.Server;
 
 /// <summary>
@@ -42,9 +44,9 @@ public static class BackupApi
             if (Area(ws, r.Area ?? "") is not { } ar) return Results.BadRequest(new { error = "bad_area", area = r.Area });
             if (ar.Dir == null) return Results.BadRequest(new { error = "no_dir", area = r.Area });
             var name = r.Name ?? "";
-            // 文件名不许带目录、必须以本区的后缀收尾 —— 和兄弟接口同一套牢笼，不开新口子
-            if (name.Contains('/') || name.Contains('\\') ||
-                !name.EndsWith(ar.Suffix, StringComparison.OrdinalIgnoreCase))
+            // 文件名走 SafeName 牢笼、必须以本区的后缀收尾 —— 和兄弟接口同一套，不开新口子
+            //（原来只拦分隔符，`C:x.json.bak` 这种盘符相对路径能把 Move 引到进程当前目录去，2026-09-08 审查）
+            if (!SafeName.Ok(name) || !name.EndsWith(ar.Suffix, StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name });
             var full = Path.Combine(ar.Dir, name);
             if (!File.Exists(full)) return Results.NotFound(new { error = "gone", name });
@@ -55,11 +57,21 @@ public static class BackupApi
                 File.Move(full, live);
                 return Results.Json(new { ok = true, revived = true });
             }
-            var tmp = live + ".swap";                    // 三步对调；上次中途崩掉留下的残件先清掉
-            if (File.Exists(tmp)) File.Delete(tmp);
+            var tmp = live + ".swap";                    // 三步对调
+            // 上次中途失败留下的 .swap 是**那次的现役文件本体**，不能顺手删（原来是删的，2026-09-09 审查）：报出来让人看一眼
+            if (File.Exists(tmp)) return Results.BadRequest(new { error = "swap_leftover", name = Path.GetFileName(tmp) });
             File.Move(live, tmp);
-            File.Move(full, live);
-            File.Move(tmp, full);
+            try { File.Move(full, live); }
+            catch (Exception e)                          // 第二步没成：把现役放回去，等于什么都没发生
+            {
+                File.Move(tmp, live);
+                return Results.Json(new { error = "swap_failed", why = e.Message }, statusCode: 500);
+            }
+            try { File.Move(tmp, full); }
+            catch                                        // 第三步没成：现役已是备份内容，原现役还在 .swap 里，点名告诉用户
+            {
+                return Results.Json(new { ok = true, revived = false, leftover = Path.GetFileName(tmp) });
+            }
             return Results.Json(new { ok = true, revived = false });
         });
     }

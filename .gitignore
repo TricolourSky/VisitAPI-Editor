@@ -24,6 +24,16 @@ visitapi-editor.txt
 # Memory.MD 是开发过程的流水账，含本机绝对路径与大量内部推理，不适合公开。
 # 想公开的话删掉这一行即可。
 Memory.MD
+# Dev_Note.MD 是 Memory.MD 拆出来的技术记录，同一条理由不进仓库。
+Dev_Note.MD
+Memory.MD.bak-*
+# 审查草稿等工作文件（同插件仓库的 .work 惯例）
+.work/
+# 作者自己的剧情大纲，放在 docs 里只是顺手，不是项目文档，不上传
+docs/SORA与Abyss*
+# 测试脚本与内部文档只留本机：SORA 08-30 已把 tests/ 与 docs/ 从 GitHub 删掉，公开仓库只放源码
+tests/
+docs/
 
 # ── 头像原图 ──
 # 程序里用的是 wwwroot/author.jpg（320px，33KB，随源码发布）。
@@ -36,6 +46,8 @@ SORA.png
 tests/BareEFT/
 # test-empty 每次从零搭的空任务库
 tests/EmptyDb/
+# 实验用的假模组目录（test-bots / test-tour 等在这儿建，本该 finally 清掉；漏了也别进仓库）
+tests/FakeEFT/labs/
 # 指向真 SPT 数据库的目录联接（几百 MB，git 会跟着联接爬进去）
 tests/FakeEFT/SPT_Runtime/SPT_Data/database/
 # 探针写回结果用的文件

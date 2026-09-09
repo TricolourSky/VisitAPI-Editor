@@ -11,14 +11,31 @@ public static class DialogParser
     internal static readonly string[] StatusNames = { "Locked", "AvailableForStart", "Started", "AvailableForFinish", "Success", "Fail" };
     static readonly string[] ReservedTargets = { "@close", "@leave", "@trade", "@services", "@tasks", "@visit", "@start" };
 
+    /// <summary>节点名只收 ASCII（与 JS 那份解析器一致）。原来是 \w：C# 的 \w 认中文、JS 的不认，
+    /// 中文节点名这边解得出、编辑器里整块并进上一节点，存一次盘就永久合并。</summary>
+    static readonly Regex NodeHead = new(@"^<([A-Za-z0-9_.\-]+)>\s*(.*)$", RegexOptions.Compiled);
+
     public static DialogTree Parse(string text, string traderId)
     {
         var t = new DialogTree { TraderId = traderId };
         DialogNode n = null;
         var ln = 0;
+        // 记事本存的 BOM（net 的 Trim() 不去 ﻿，首行会变成「未知的文件头」）、老 Mac 的裸 \r（整份被吃成一行）——先归一
+        text = (text ?? "").TrimStart('\uFEFF').Replace("\r\n", "\n").Replace('\r', '\n');
         // 攒着的注释：碰到下一个元素就挂到它头上。空行不算注释，直接扔（回写自己会排版）。
         var pending = new List<string>();
-        foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
+        // 别名预扫：`quest a = <id>` 写在 `trigger:` 行**下面**也要认。原来解析到哪行就查到哪行，
+        // 写在后面的别名在触发器的 accept/finish/fail 里存成字符串 —— 插件 GetConditional("a") 拿 null、
+        // 校验器比不中、sub_no_entry 误报，还冒一条「不是 24 位十六进制」的假警告，而回写字节完全正常所以查不出来。
+        // 只扫文件头（第一个节点之前）；正式登记（顺序、HeadRaw）仍由 DialogHeaderParser 做。
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.StartsWith("<")) break;
+            var qa = Regex.Match(line, @"^quest\s+(\S+)\s*=\s*(\S+)$", RegexOptions.IgnoreCase);
+            if (qa.Success) t.QuestAliases[qa.Groups[1].Value] = qa.Groups[2].Value;
+        }
+        foreach (var raw in text.Split('\n'))
         {
             ln++;
             var line = raw.Trim();
@@ -36,14 +53,19 @@ public static class DialogParser
                 else pending.Add(line);
                 continue;
             }
-            var head = Regex.Match(line, @"^<([\w.\-]+)>\s*(.*)$");
+            var head = NodeHead.Match(line);
             if (head.Success)
             {
                 if (n != null) { n.Tail.AddRange(pending); pending.Clear(); }   // 上一个节点尾巴上的注释
-                n = t.Nodes[head.Groups[1].Value] = new DialogNode { Name = head.Groups[1].Value };
+                var name = head.Groups[1].Value;
+                // 重名：第二份会把第一份整个盖掉，作者看不到任何提示（2026-09-08 审查）
+                if (t.Nodes.ContainsKey(name)) t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 节点 <{name}> 重复，前一份会被覆盖", $"Line {ln}: node <{name}> is defined twice, the earlier one is overwritten"));
+                n = t.Nodes[name] = new DialogNode { Name = name };
                 n.Lead.AddRange(pending); pending.Clear();
-                var d = KV(head.Groups[2].Value.Split(new[] { " | " }, StringSplitOptions.None));
+                // `<root> | bg: x` 也认：文档里就是这么写的，原来第一段成了「| bg」这个键，bg 静默丢
+                var d = KV(head.Groups[2].Value.TrimStart(' ', '|').Split(new[] { " | " }, StringSplitOptions.None));
                 n.Bg = G(d, "bg"); n.Anim = G(d, "anim"); n.Bgm = G(d, "bgm");
+                Unknown(t, d, ln, "bg", "anim", "bgm");
             }
             else if (n == null) DialogHeaderParser.Header(t, line, ln);
             else Body(t, n, line, ln, pending);
@@ -55,17 +77,38 @@ public static class DialogParser
             foreach (var tgt in node.Options.Select(o => o.Target).Append(node.JumpTo))
                 if (tgt != null && !t.Nodes.ContainsKey(tgt) && Array.IndexOf(ReservedTargets, tgt) < 0)
                     t.Warnings.Add(DlgLoc.Pick($"节点 <{node.Name}>: 跳转目标 '{tgt}' 不存在", $"Node <{node.Name}>: jump target '{tgt}' does not exist"));
+        // 文件头里指节点的四样也要查：跳不存在的名字 = 直接关闭，作者只会看到「访问按钮点了没反应」
+        if (t.Nodes.Count > 0)
+        {
+            Ref(t, "start", t.Start); Ref(t, "first", t.First);
+            foreach (var w in t.WhenRules) Ref(t, "when", w.Node);
+            foreach (var tr in t.Triggers) Ref(t, "trigger", tr.Node);
+        }
         return t;
+    }
+
+    static void Ref(DialogTree t, string where, string node)
+    {
+        if (!string.IsNullOrEmpty(node) && !t.Nodes.ContainsKey(node))
+            t.Warnings.Add(DlgLoc.Pick($"{where}: 指向的节点 '{node}' 不存在", $"{where}: points at node '{node}' which does not exist"));
+    }
+
+    /// <summary>白名单以外的键（台词行写 `bg:`、旁白行写 `bgm:`）原来静默丢，回写就没了</summary>
+    static void Unknown(DialogTree t, Dictionary<string, string> d, int ln, params string[] known)
+    {
+        foreach (var k in d.Keys)
+            if (Array.IndexOf(known, k) < 0)
+                t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 这一行不认 '{k}:'，回写会丢掉", $"Line {ln}: '{k}:' is not valid on this line and will be dropped on save"));
     }
 
     static void Body(DialogTree t, DialogNode n, string line, int ln, List<string> pending)
     {
         var seg = line.Split(new[] { " | " }, StringSplitOptions.None);
         if (line.StartsWith("->")) { n.JumpTo = line.Substring(2).Trim(); n.JumpLead.AddRange(pending); }
-        else if (line.StartsWith(">")) { var d = KV(seg.Skip(1)); var nl = new NarrationLine { Text = seg[0].Substring(1).Trim(), Bg = G(d, "bg"), Anim = G(d, "anim"), Audio = G(d, "audio") }; nl.Lead.AddRange(pending); n.Narration.Add(nl); }
+        else if (line.StartsWith(">")) { var d = KV(seg.Skip(1)); Unknown(t, d, ln, "bg", "anim", "audio"); var nl = new NarrationLine { Text = seg[0].Substring(1).Trim(), Bg = G(d, "bg"), Anim = G(d, "anim"), Audio = G(d, "audio") }; nl.Lead.AddRange(pending); n.Narration.Add(nl); }
         else if (line.StartsWith("- ")) Option(t, n, seg, ln, pending);
         // NpcAt 记的是"台词出现时，前面已经有几条旁白" —— 后面再来的 `>` 行就排在台词之后
-        else { n.NpcText = seg[0].Trim(); n.NpcAt = n.Narration.Count; n.NpcAudio = G(KV(seg.Skip(1)), "audio") ?? n.NpcAudio; n.NpcLead.AddRange(pending); }
+        else { var d = KV(seg.Skip(1)); Unknown(t, d, ln, "audio"); n.NpcText = seg[0].Trim(); n.NpcAt = n.Narration.Count; n.NpcAudio = G(d, "audio") ?? n.NpcAudio; n.NpcLead.AddRange(pending); }
         pending.Clear();
     }
 
@@ -97,8 +140,9 @@ public static class DialogParser
             case "complete": o.CompleteIds.AddRange(Ids(t, v)); break;
             case "handover": o.HandoverId = A(t, sp < 0 ? v : v.Substring(0, sp)); o.HandoverLabel = sp < 0 ? null : v.Substring(sp + 1).Trim(); break;
             case "setstatus": o.SetStatusId = A(t, eq < 0 ? v : v.Substring(0, eq).Trim()); if (eq >= 0) o.SetStatusValue = Status(v.Substring(eq + 1), t, ln); break;
-            case "if": o.IfQuestId = A(t, Gate(v, o.IfStatuses, t, ln)); break;
-            case "ifnot": o.IfNotQuestId = A(t, Gate(v, o.IfNotStatuses, t, ln)); break;
+            // 同一选项两条 if:（或两条 ifnot:）模型放不下：任务被后一条盖掉、状态并到一起。原来一声不吭
+            case "if": if (o.IfQuestId != null) Twice(t, ln, "if"); o.IfQuestId = A(t, Gate(v, o.IfStatuses, t, ln)); break;
+            case "ifnot": if (o.IfNotQuestId != null) Twice(t, ln, "ifnot"); o.IfNotQuestId = A(t, Gate(v, o.IfNotStatuses, t, ln)); break;
             case "set": o.SetVarName = Var(v, out o.SetVarValue, t, ln); break;
             case "ifvar": o.IfVarName = Var(v, out o.IfVarValue, t, ln); break;
             case "ifitems": o.IfItems = true; o.IfItemsId = A(t, v); break;
@@ -106,6 +150,9 @@ public static class DialogParser
             default: t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知指令 '{kv[0].Trim()}'", $"Line {ln}: unknown directive '{kv[0].Trim()}'")); break;
         }
     }
+
+    static void Twice(DialogTree t, int ln, string key) =>
+        t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 同一选项写了两条 {key}:，只能留一条（任务取后者、状态合并）", $"Line {ln}: two {key}: on one option; only one fits (quest = the latter, statuses merged)"));
 
     /// <summary>别名 → 真 id。**全文件所有任务引用的唯一收口**：accept/complete/handover/setstatus、
     /// if/ifnot、tab、触发点的 accept/finish/fail 全都从这儿过，所以 id 格式检查放这一处就够。</summary>

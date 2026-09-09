@@ -180,7 +180,9 @@ public static class QuestApi
                 return Results.Json(new { ok = false, roles = Array.Empty<string>() });
             if (_roles is { } c && c.Path == file) return Results.Json(new { ok = true, roles = c.Roles });
             var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-            CollectRoles(JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(file))), set);
+            // 原版 quests.json 坏了/半截（SPT 升级中途）不该让高级参数面板 500，退回"没有选项"
+            try { CollectRoles(JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(file))), set); }
+            catch { return Results.Json(new { ok = false, roles = Array.Empty<string>() }); }
             var made = (file, set.ToArray());
             _roles = made;
             return Results.Json(new { ok = true, roles = made.Item2 });
@@ -206,11 +208,13 @@ public static class QuestApi
         app.MapPost("/api/quests/link", (LinkReq r) =>
         {
             if (!ws.HasRoot) return Results.BadRequest(new { error = "no_workspace" });
-            // 文件名不许带目录：.dlg 只在工作区根下，不该出现路径
-            if (r.File.Contains('/') || r.File.Contains('\\') ||
-                !r.File.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
+            // 文件名走 SafeName 牢笼：.dlg 只在工作区根下，不该出现路径（含 C:x.dlg 这种盘符相对路径）
+            if (!SafeName.Ok(r.File) || !r.File.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name = r.File });
-            var err = DlgLinks.Apply(ws.Root, r.File, r.Node, r.Opt, r.Action, r.QuestId, r.Add);
+            // 解析失败（作者手写坏的 .dlg）不许 500：兄弟调用 Scan 有 broken 机制，这里同口径回一句
+            string? err;
+            try { err = DlgLinks.Apply(ws.Root, r.File, r.Node, r.Opt, r.Action, r.QuestId, r.Add); }
+            catch (Exception e) { return Results.BadRequest(new { error = "broken_file", name = r.File, why = e.Message }); }
             if (err != null) return Results.BadRequest(new { error = err });
             var (links, trigs, _, _) = DlgLinks.Scan(ws.Root);
             return Results.Json(new { ok = true, links, triggers = trigs });
@@ -253,9 +257,11 @@ public static class QuestApi
 
     static Dictionary<string, JsonNode?> Flatten(QuestStore q)
     {
-        var d = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
+        // 和 Owner / QuestStore.All 同口径：id 不分大小写；不是对象的条目不送前端（`"abc": 5` 这种脏数据
+        // 会让 questPage 读 q.traderId 当场崩），校验器另有 bad_entry 把它报出来
+        var d = new Dictionary<string, JsonNode?>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in q.Files.Values)
-            foreach (var kv in file) d[kv.Key] = kv.Value;
+            foreach (var kv in file) if (kv.Value is JsonObject) d[kv.Key] = kv.Value;
         return d;
     }
 
@@ -291,11 +297,15 @@ public static class QuestApi
         // 文案文件读不动的时候不许写：拿空对象覆盖等于把作者整份文案清空
         if (loc.Broken.Count > 0)
             return Results.BadRequest(new { error = "broken_locale", langs = loc.Broken.Keys });
+        // 盘上同一个 id 在两份文件里（dup_id）时不许保存：前端按 owner 只把它装进一份，
+        // 另一份收到去掉它的内容甚至 {} → 那份文件被删。要在**应用请求之前**按盘上状态判，判晚了就看不见了
+        var dup = quests.All().GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+        if (dup != null) return Results.BadRequest(new { error = "dup_id", id = dup.Key });
 
         foreach (var (name, content) in r.Files ?? [])
         {
-            // 文件名不许带目录，也不许 .. 出去
-            if (name.Contains('/') || name.Contains('\\') || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            // 文件名走 SafeName 牢笼（不带目录、不许 ..、不许盘符相对路径/ADS/尾点）
+            if (!SafeName.Ok(name) || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name });
             if (ws.ResolveQuest(Path.Combine("quests", name)) == null)
                 return Results.BadRequest(new { error = "bad_name", name });
@@ -342,7 +352,9 @@ public static class QuestApi
                     .Concat(trigs.Where(t => t.Finish != null).Select(t => t.Finish!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
             catch { }
-        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)));
+        // 原版任务 id 兜底 missing_prereq：没有 SPT 数据就传 null，那条规则自动降成提示
+        var spt = Spt(ws);
+        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null);
     }
 
     public sealed record SaveReq(

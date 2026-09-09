@@ -86,6 +86,7 @@ public class DialogTrigger
     public float X, Y, Z, Dist = 3f, Radius = 1.2f;
     public float Enter = -1f;   // 进图 N 秒后自动起爆；-1 = 普通坐标触发点
     public bool Free, Auto;
+    public bool Once;   // 触发过就永久不再弹（客户端记进 <traderId>.seen.json，按档案区分）；1.3 新增可选参数
 
     /// <summary>
     /// 解析时这一行的原文。回写优先用它，坐标就不会被浮点格式化改样子

@@ -5,13 +5,19 @@ namespace VisitAPI.Server;
 /// <summary>文件相关的接口。全部要求带令牌，全部走 Workspace 的路径牢笼。</summary>
 public static class FileApi
 {
+    /// <summary>.dlg 的乐观锁指纹：修改时间的 Ticks，**按字符串**来回（见 GET /api/dlg 的注释）</summary>
+    static string Stamp(string full) => File.GetLastWriteTimeUtc(full).Ticks.ToString();
+
     public static void Map(WebApplication app, Workspace ws)
     {
         // 令牌闸门：/api/* 一律先验令牌（/api/ping 除外——它不碰文件，只用来判断页面还开着）
         app.Use(async (ctx, next) =>
         {
+            // ⚠️ 路由匹配不分大小写，这里的前缀判断也必须不分：原来 `StartsWith("/api/")` 区分大小写，
+            // 请求 `/API/quit` 就能绕过令牌把编辑器关掉（2026-09-08 审查）。
             var p = ctx.Request.Path.Value ?? "";
-            if (p.StartsWith("/api/") && p != "/api/ping" &&
+            if (p.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) &&
+                !p.Equals("/api/ping", StringComparison.OrdinalIgnoreCase) &&
                 ctx.Request.Headers["X-Token"] != ws.Token)
             {
                 ctx.Response.StatusCode = 403;
@@ -94,14 +100,19 @@ public static class FileApi
 
         app.MapGet("/api/dlg", (string path) =>
         {
+            // 只读剧本（.dlg 和插件带的 .dlg.demo）：这个口子把文件原文吐给浏览器，不限后缀就是"读工作区任意文件"
+            if (!path.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase) && !path.EndsWith(".dlg.demo", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "bad_name", name = path });
             var full = ws.Resolve(path);
             if (full == null || !File.Exists(full)) return Results.NotFound(new { error = "文件不存在" });
-            return Results.Json(new { path, text = File.ReadAllText(full) });
+            // stamp = 文件修改时间：存盘时带回来做乐观锁（quest/assort/bot 早就有，.dlg 一直裸奔，两个窗口互相盖）。
+            // ⚠️ 必须是字符串：Ticks 是 64 位整数，JS 的 number 只有 53 位精度，当数字送出去再收回来永远对不上 → 每次存都 409
+            return Results.Json(new { path, text = File.ReadAllText(full), stamp = Stamp(full) });
         });
 
         // 存盘：**收模型，不收文本**。文本一律由 DialogWriter 生成 ——
         // .dlg 只有一个写手，前端那份 toDlg() 已经退役（它会丢注释和好几个字段）。
-        app.MapPost("/api/dlg", (string path, DlgJson.Doc doc) =>
+        app.MapPost("/api/dlg", (string path, string? stamp, bool? force, DlgJson.Doc doc) =>
         {
             var full = ws.Resolve(path);
             if (full == null) return Results.BadRequest(new { error = "bad_path" });
@@ -110,6 +121,12 @@ public static class FileApi
             // 前端那句 confirm 只是提醒，真正的门必须在服务端，兄弟接口都是这么做的。
             if (!path.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name = path });
+            // 乐观锁：打开之后文件被别处改过（另一个窗口、/api/quests/link、记事本）就先问一句，别默默盖掉
+            if (!string.IsNullOrEmpty(stamp) && force != true && File.Exists(full) && Stamp(full) != stamp)
+                return Results.Json(new { error = "stale" }, statusCode: 409);
+            // 正文守卫（见 DlgJson.BadTexts）：这种文件写得出、读回来就变形，拒写并点名
+            var badText = DlgJson.BadTexts(DlgJson.ToTree(doc));
+            if (badText.Count > 0) return Results.BadRequest(new { error = "bad_text", where = badText });
             // **原因必须说出来。** 这里以前是裸奔的：写手抛一次、或者目录被删了、文件只读、
             // 被别的程序占着，界面上只剩一个光秃秃的 "500"——作者看不懂，我们也无从查起
             // （日志提供者在 Program 里被清掉了，控制台连一行都不会有）。
@@ -122,7 +139,7 @@ public static class FileApi
                 // 覆盖前先留一份 .bak：这是别人几十小时写的剧本，存错一次就毁了
                 if (File.Exists(full)) File.Copy(full, full + ".bak", true);
                 File.WriteAllText(full, text);
-                return Results.Json(new { ok = true, bytes = text.Length, text });
+                return Results.Json(new { ok = true, bytes = text.Length, text, stamp = Stamp(full) });
             }
             catch (Exception e)
             {

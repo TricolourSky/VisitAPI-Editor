@@ -29,6 +29,24 @@ public sealed class SptData
     List<CatRow>? _cats;
     List<string>? _botTypes;
     Dictionary<string, string>? _zh, _en;
+    HashSet<string>? _questIds;
+
+    /// <summary>原版任务的 id（<c>templates\quests.json</c> 的顶层键，只读键不物化整棵树）。
+    /// 校验「前置指向的任务不存在」要拿它兜底：作者的任务接在原版任务后面是最常见的写法，原来一律报 err（2026-09-08 审查）。</summary>
+    public IReadOnlySet<string> QuestIds() => _questIds ??= LoadQuestIds();
+    HashSet<string> LoadQuestIds()
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var p = Path.Combine(_db, "templates", "quests.json");
+        if (!File.Exists(p)) return set;
+        try
+        {
+            using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+            foreach (var e in doc.RootElement.EnumerateObject()) set.Add(e.Name);
+        }
+        catch { }
+        return set;
+    }
 
     /// <summary>
     /// SPT 认识的 bot 类型 ＝ <c>bots\types</c> 下的文件名，**全小写**。
@@ -67,8 +85,8 @@ public sealed class SptData
 
     JsonNode? ReadAppearance(string type)
     {
-        // 类型名是拿来拼文件名的，先把目录穿越掐掉
-        if (type.Length == 0 || type.Contains('/') || type.Contains('\\') || type.Contains("..")) return null;
+        // 类型名是拿来拼文件名的，走 SafeName 牢笼（含 C:x 这种盘符相对路径）
+        if (!SafeName.Ok(type)) return null;
         var p = Path.Combine(_db, "bots", "types", type + ".json");
         if (!File.Exists(p)) return null;
         // 先转字符串再 Parse：JsonBytes.Read 已经去过 BOM，和 BotLookStore 走同一条路子
@@ -87,9 +105,14 @@ public sealed class SptData
         {
             // 用 JsonDocument 而不是 JsonObject：这些文件里有只差大小写的重复键，
             // 往字典里塞会撞车，JsonObject 会直接抛。TryAdd 保留先出现的那个。
-            using var doc = JsonDocument.Parse(JsonBytes.Read(p));
-            foreach (var e in doc.RootElement.EnumerateObject())
-                if (e.Value.ValueKind == JsonValueKind.String) d.TryAdd(e.Name, e.Value.GetString()!);
+            // 坏文件当空表：一份写坏的 global\ch.json 不该让 /api/quests 整个 500（2026-09-08 审查）
+            try
+            {
+                using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+                foreach (var e in doc.RootElement.EnumerateObject())
+                    if (e.Value.ValueKind == JsonValueKind.String) d.TryAdd(e.Name, e.Value.GetString()!);
+            }
+            catch { }
         }
         if (lang == "ch") _zh = d; else _en = d;
         return d;
@@ -108,7 +131,9 @@ public sealed class SptData
         {
             var p = Path.Combine(d, "base.json");
             if (!File.Exists(p)) continue;
-            using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+            JsonDocument doc;
+            try { doc = JsonDocument.Parse(JsonBytes.Read(p)); } catch { continue; }   // 一个商人的 base.json 坏了，跳过它别拖垮全表
+            using var _ = doc;
             var r = doc.RootElement;
             var id = r.TryGetProperty("_id", out var i) ? i.GetString() ?? "" : Path.GetFileName(d);
             var nick = r.TryGetProperty("nickname", out var n) ? n.GetString() ?? "" : "";
@@ -210,8 +235,7 @@ public sealed class SptData
     /// </summary>
     public string? IconPath(string name)
     {
-        if (name.Length == 0 || name.Contains('/') || name.Contains('\\') || name.Contains("..")) return null;
-        if (!name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) return null;
+        if (!SafeName.Ok(name) || !name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) return null;
         var p = Path.Combine(_db, "..", "images", "handbook", name);
         return File.Exists(p) ? p : null;
     }
@@ -238,9 +262,11 @@ public sealed class SptData
         if (_cats != null && _items != null) return (_cats, _items);
         var cats = new List<CatRow>(); var items = new List<ItemRow>();
         var p = Path.Combine(_db, "templates", "handbook.json");
-        if (File.Exists(p))
+        JsonDocument? hb = null;
+        if (File.Exists(p)) { try { hb = JsonDocument.Parse(JsonBytes.Read(p)); } catch { hb = null; } }   // 坏了就当没有 handbook：物品表空、页面不崩
+        if (hb != null)
         {
-            using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+            using var doc = hb;
             var r = doc.RootElement;
             if (r.TryGetProperty("Categories", out var cs))
                 foreach (var c in cs.EnumerateArray())

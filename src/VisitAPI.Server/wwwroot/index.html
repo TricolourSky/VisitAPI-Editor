@@ -422,7 +422,7 @@ svg{display:block}
   font:inherit;padding:0 .18rem;outline:none;cursor:var(--cur-t)}
 .gnode[data-start="1"] .ghead{background:var(--y);color:var(--y-ink);font-weight:700}
 .gnode[data-entry="1"] .ghead{background:var(--o);color:#170A03;font-weight:700}
-.gnode[data-trig="1"] .ghead{background:var(--tech);color:#04201D;font-weight:700}
+.gnode[data-istrig="1"] .ghead{background:var(--tech);color:#04201D;font-weight:700}   /* 节点标记，别叫 data-trig：顶栏那格接线用的是它 */
 .ghead .w{color:var(--err)}
 .bandlab{position:absolute;font:600 9.5px/1 var(--mono);letter-spacing:.2em;color:var(--ink-3);
   pointer-events:none;text-transform:uppercase}
@@ -791,7 +791,9 @@ const ico=n=>`<svg viewBox="0 0 20 20" fill="currentColor" fill-rule="evenodd"><
 const PREFS=window.PREFS||{};
 const pref=k=>PREFS[k]??null;
 function setPref(k,v){
-  if(v==null||v===""){delete PREFS[k];}else{PREFS[k]=String(v);}
+  const nv=v==null||v===""?undefined:String(v);
+  if(PREFS[k]===nv)return;                          /* 值没变不写：开页时 setTheme/setCur 各调一次，原来每次开页都白落盘两回 */
+  if(nv===undefined){delete PREFS[k];}else{PREFS[k]=nv;}
   fetch("/api/pref",{method:"POST",
     headers:{"X-Token":document.querySelector('meta[name=tok]')?.content||"","Content-Type":"application/json"},
     body:JSON.stringify({key:k,value:v==null?"":String(v)})}).catch(()=>{});
@@ -892,7 +894,10 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
       <tr><td><b>只能通过对话接/交</b></td><td>任务列表里的「接受/完成」按钮换成「<b>去找商人</b>」，接和交只能走对话。
         <code>.dlg</code> 里没有对应选项时，按钮直接藏起来</td></tr>
       <tr><td><b>章节图标</b></td><td>剧情页那一列的小图标。填服务端的图片路径，图放模组的 <code>images/quest/icon/</code> 下</td></tr>
+      <tr><td><b>完成后开放访问</b></td><td>这条任务完成之后，列出来的商人才会出现「访问」按钮（1.1 就是这样一位一位放开商人对话的）。没填＝按钮一直在。VisitAPI 1.3+</td></tr>
+      <tr><td><b>剧情任务（1.1 字段）</b></td><td>在上面「开关」那一栏。1.1 的剧情标记：不进商人的普通任务列表、没名字就用章节名、完成文案空着也不寄邮件。<b>移植 1.1 数据才用</b>，自己写的章节子任务不用开</td></tr>
     </tbody></table>
+    <p>目标行的 ⋮ 里还有三样 1.1 的东西（VisitAPI 1.3+）：<b>目标小字</b>（目标下面那行灰字）、<b>达成时解锁日记</b>（这条目标打勾那一刻多出一条日记，不用等任务交掉）、<b>不画计数</b>（「与某人交谈」这类目标不该有进度条）。</p>
     <p>再往下还有两栏，都是给<b>章节</b>用的：</p>
     <table class="hptab"><tbody>
       <tr><td><b>剧情日记</b></td><td>任务到了「开始 / 完成 / 失败」就解锁一条日记，显示在章节卡右下角。留空＝没有这条</td></tr>
@@ -1083,6 +1088,7 @@ when: level&gt;=4 -&gt; root_high
       <tr><td><b>朝向容差</b></td><td>战局里还要"看着它"才出提示，这个值越大越好瞄</td></tr>
       <tr><td><b>任务门控</b></td><td>只在某个任务处于某状态时才出现，写成 <code>任务id=状态</code></td></tr>
       <tr><td><b>走到就直接触发</b></td><td><code>auto</code>。<b>不弹对话</b>，人走到就当场生效——配下面那条用</td></tr>
+      <tr><td><b>只触发一次</b></td><td><code>once</code>。触发成功一次就永远不再弹（按存档记住）。<code>auto</code> 加 <code>node</code> 型的触发点不写它，每局重进都会再弹一次对话</td></tr>
       <tr><td><b>顺带接下哪个任务</b></td><td><code>accept</code>。走过去就把这个任务接了。任务 id 从任务库里挑，不用手打</td></tr>
       <tr><td><b>顺带完成哪个任务</b></td><td><code>finish</code>。走过去就把这个任务判成完成——做「走到某处即完成踩点目标」用这个</td></tr>
       <tr><td><b>顺带判失败哪个任务</b></td><td><code>fail</code>。走过去就把这个任务判失败。剧情里"你没赶上"那种转折靠它</td></tr>
@@ -1138,7 +1144,9 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   g_media:"背景、音乐、语音摆在哪一级",
   g_media_b:`<p>三样东西挂的位置不一样，别放错了：</p>
     <table class="hptab"><tbody>
-      <tr><td><code>bg:</code></td><td>背景图/视频。节点上写一次管整屏；<b>每条旁白也能各写一个</b>，用来分镜</td></tr>
+      <tr><td><code>bg:</code></td><td>背景图/视频。节点上写一次管整屏；<b>每条旁白也能各写一个</b>，用来分镜；
+        视频默认<b>一直循环</b>，文件名后面空一格写 <code>once</code>（例：<code>片子.mp4 once</code>）就播完停在最后一帧。
+        <b>注意是空格不是竖线</b> —— 写成 <code>| once</code> 会被当成选项上的那个 once，静默失效</td></tr>
       <tr><td><code>bgm:</code></td><td>音乐。<b>只能写在节点上</b>，进这个节点就换</td></tr>
       <tr><td><code>audio:</code></td><td>语音。跟着<b>某一句话</b>走：商人台词一条、每条旁白一条</td></tr>
     </tbody></table>
@@ -1258,7 +1266,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_place:"地点",m_tr_node:"打开哪个节点",m_tr_node_no:"（用 start: 那个入口）",
   m_tr_dist:"多近才出现（米）",m_tr_radius:"朝向容差（越大越好瞄）",
   m_tr_free:"单独一个提示（不并进区域菜单）",
-  m_tr_auto:"走到就直接触发（不弹对话）",m_tr_accept:"顺带接下哪个任务",m_tr_accept_no:"不接任务",
+  m_tr_auto:"走到就直接触发（不弹对话）",m_tr_once:"只触发一次（触发过就永远不再弹，按存档记）",
+  m_tr_accept:"顺带接下哪个任务",m_tr_accept_no:"不接任务",
   m_tr_finish:"顺带把哪个任务判完成",m_tr_fail:"顺带把哪个任务判失败（剧情里「计划泡汤」就用它）",m_tr_off:"不设",
   m_tr_gate:"出现条件（某任务处于某状态时才有这个触发点）",m_tr_gate_no:"不设条件（随时出现）",m_tr_gate_off:"去掉条件",
   m_tr_enter:"进图几秒后自动触发（填了就不看坐标）",m_tr_prompt:"提示语",m_tr_prompt_ph:"不填就是「对话」",
@@ -1429,7 +1438,14 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   a_none:"无",a_accept:"接取",a_complete:"完成",a_handover:"上交",
   m_qadd:"再挂一个任务",m_qdel:"摘掉这个",
   m_jump:"跳转到",m_bg:"背景（当前拍）",no_bg:"（无背景）",end_paren:"（结束对话）",pick_q:"（选择任务）",
+  m_bg_play:"视频播放方式",m_bg_once:"播完定格",m_bg_once_img:"图片没有播放方式这一说，这里写的 once 不起作用，删掉也不影响",
+  m_bg_once_d:"只对视频有效。开＝播到最后一帧就停住不动（存进文件是在文件名后面空一格写 once，不是写成 | once —— 那是选项上的另一个东西）；关＝一直循环播。这一拍自己没设背景时，改的是节点上的那个。",
   broken:"处断链",all_ok:"个节点全部连通",entries:"个入口（含",trig_entries:"个触发器入口）",
+  bad_text:"处正文含保留符号",bt_npc:"台词",bt_narr:"旁白",
+  name_ascii:"节点名只能用英文字母、数字、下划线、点和横线（中文名游戏和编辑器各认一半，存一次就把两屏并成一屏）",
+  m_trig_raw_d:"这一行表单认不出来（省了地图名、或提示写在坐标前面），这里直接改原文；改完回车生效",
+  bad_text_save:"没保存：台词/选项里有 「 | 」「 -> 」或行首的「- 」「>」「#」这类保留写法，写进文件再读回来会变形。看顶栏红字里列的那几处",
+  dlg_stale:"这个文件在打开之后被别处改过了（另一个窗口、任务页的挂接、或者手改）。要用现在编辑器里这份盖掉它吗？",
   src_title:".dlg 源码",src_copy:"复制全文",src_close:"关闭",
   src_gen:"由画布实时生成",src_warn:"条解析警告",src_nowarn:"解析无警告",
   saved_sel:"已全选，按 Ctrl+C 复制",
@@ -1450,7 +1466,7 @@ ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品�
   ab_d_dlg:"编 .dlg 剧本：台词、分支、背景图/视频、语音、BGM，右边实时预览加整张流程图。要装 VisitAPI 插件，游戏里才读得到。",
   ab_d_chapter:"编剧情章节：照 1.1 剧情页的样子摆出一章——图标横幅、子任务顺序、主要/可选目标、日记、相关物品，就地能改。要装 VisitAPI 1.2+。",
   ab_d_quest:"编 SPT 任务：目标、奖励、四封邮件、失败分支、任务链，还能把任务挂到对话的某个选项上。不需要 VisitAPI。",
-  ab_d_back:"从自动留下的 .bak 里挑一份还原回去。还没开始做。",
+  ab_d_back:"从自动留下的 .bak 里挑一份还原回去。还原＝和现役文件对调，点错了再点一次就换回来。",
   ab_d_help:"对话和任务怎么写，一张卡讲一件事，都配了例子。",
   ab_env:"ENVIRONMENT",
   ab_e_ws:"工作区（剧本）",ab_e_ws_d:".dlg、背景图、音频都从这里读",
@@ -1503,6 +1519,7 @@ ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品�
   q_root_use:"就用这个",
   q_root_bad:"这个目录用不了：{0}",
   q_root_none:"没扫到 SPT 的 mods 目录。可以直接在下面填一个路径。",
+  q_load_fail:"任务库读取失败：{0}",
   q_root_cur:"当前：{0}",
   q_root_switch:"换任务库",
   q_root_dirty:"还有没保存的任务改动。换任务库会把它们丢掉，确定要换吗？",
@@ -1531,9 +1548,10 @@ ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品�
   q_trader_ack:"这个商人我认识",q_trader_ack_d:"这台机器上没找到它。如果它来自还没装/还没适配的 mod，点一下就不再提醒。",
   q_trader_acked:"已标记为认识",q_trader_unack:"取消标记",
   qe_fail_no_msg:"设了失败条件却没写失败邮件，玩家任务失败时会收到一封空信。",
-  qe_missing_prereq:"{1} 里引用的任务 {0} 不在工作区里。",
+  qe_missing_prereq:"{1} 里引用的任务 {0} 不在工作区里，原版任务表里也没有（读不到原版表时只提示，不断定它不存在）。",
   qe_dup_id:"同一个任务 ID 出现在多个文件里（{0}），游戏里只会留下一个。",
   qe_broken_file:"文件 {0} 读不动：{1}",
+  qe_bad_entry:"文件 {0} 里的「{1}」不是一条任务（值不是对象）。编辑器不显示它，SPT 会把整份文件拒收。",
 /* ── 内容库选择（modroot.js，BOT 外观 / 商人货架共用）── */
 mr_title:"选一个内容库",
 mr_found:"在你的 SPT 里找到 {0} 个模组带着 BOT 外观或商人货架，点一行就用它：",
@@ -1690,6 +1708,8 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   /* 任务编辑器界面 */
   q_load:"读取任务库…",q_reload:"重新载入",q_save:"保存",q_saving:"保存中…",q_saved:"已保存",
   q_dirty:"有未保存改动",q_clean:"全部校验通过",q_issues:"{0} 处问题",q_savefail:"保存失败：{0}",
+  q_dup_nosave:"没保存：两份文件里有同一个任务 id，先在文件里清掉重复（不然会把其中一份删掉）",
+  q_link_has_after:"这条已经接在「{0}」之后了，没有覆盖；要换，先去章节页把它改掉",
   q_stale_ask:"这些文件在编辑器外面被改过了。「重新载入」会丢掉你现在的改动；「强制保存」会盖掉外面的改动。",
   q_force:"强制保存",q_confirm_reload:"当前改动还没保存，确定重新载入吗？",
   q_hdr_file:"文件",q_hdr_trader:"商人",q_hdr_count:"任务",
@@ -1708,8 +1728,9 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_sec_subs:"子任务",q_add_sub:"＋ 子任务",q_m_sub:"挑一条任务当子任务",q_m_newsub:"＋ 新建一条子任务",
   q_e_subs:"还没有子任务——一章至少要有一条",q_sub_missing:"找不到任务 {0}…",q_sub_stat:"{0} 个目标 · {1} 条日记",
   q_ch_auto:"自动接",q_ch_autoFinish:"自动交",q_ch_dlg:"只走对话",q_ch_fin:"终章",
+  q_ch_after:"「{0}」完成后接取",q_ch_manual:"手动接",
   q_a_down:"下移",q_a_goto:"打开这条任务",q_m_chap:"挂进哪一章",
-  q_chap_chain:"串成链",q_chap_chain_d:"给每条子任务加「前置 = 上一条」，玩家只能按顺序推进；已有的不重复加",q_chap_chain_btn:"串起来",
+  q_chap_chain:"串成链",q_chap_chain_d:"给每条子任务加「接在上一条之后」，玩家只能按顺序推进；已经设过的不覆盖",q_chap_chain_btn:"串起来",
   q_chain_done:"加了 {0} 条前置",
   q_prev_st0:"未开放",q_prev_st1:"进行中",q_prev_st2:"已完成",
   q_prev_main:"主要目标",q_prev_opt:"可选目标",q_prev_notes:"日记",q_prev_items:"相关物品",
@@ -1790,15 +1811,25 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_vx_anyOf:"目标二选一",q_vx_anyOf_d:"多个目标里任一达成就可以交任务（原版要求全部达成）",
   q_vx_unlock:"达成即解锁商人",q_vx_unlock_d:"任务一变成可提交，就把发布它的商人解锁（不用等交任务）",
   q_vx_chapter:"这是一个章节",q_vx_chapter_d:"任务页「剧情」页签里的一章；目标里每条「完成任务」就是一个子任务（最后一条勾 isFinisher），本身建议设成隐秘任务",
-  q_vx_auto:"可接时自动接下",q_vx_auto_d:"前置任务一完成、这条一变成可接就自动接下（章节链，不用玩家去点）。子任务要等**所属章节先开始**才会接，所以不会出现「游戏一开就把任务塞给玩家」；想让整章自动开始，把这个开关打在章节上",
+  q_vx_auto:"可接时自动接下",q_vx_auto_d:"这条任务一变成可接就自动接下，不用玩家去点。它跟前置没关系：同一章里的子任务要排先后，得用「什么时候接 → 某条子任务完成后自动接」，写原生前置在打图打到一半是不会解锁的。想让整章自动开始，把这个开关打在章节上。和「接在这条之后」互斥，开一个会清掉另一个",
+  q_vx_startAfter:"接在这条之后",q_vx_startAfter_d:"那条任务完成之后，这一条自动接下来。这是 VisitAPI 自己的前置，打图打到一半也算数；用它的时候原生前置要留空",
   q_vx_autoFinish:"达成即自动交",q_vx_autoFinish_d:"目标一达成就自动交任务、发奖励（1.1 的剧情任务都是这样，不用回去找商人）。章节里的子任务不进支线列表，要么这样自动交、要么在对话里 complete:",
   q_vx_dialogOnly:"只能通过对话接/交",q_vx_dialogOnly_d:"任务列表里的「接受/完成」按钮换成「去找商人」，接交只走 .dlg 对话；.dlg 里没有对应选项时按钮直接藏起来",
   q_vx_icon:"章节图标",q_vx_icon_d:"章节列的小图标，填服务端图片路径（图放模组的 images/quest/icon/ 下，横幅用上面的任务图）",q_vx_icon_ph:"/files/quest/icon/…",
+  q_sw_isStoryQuest:"剧情任务（1.1 字段）",q_sw_isStoryQuest_d:"1.1 的剧情标记：不进商人的普通任务列表；没名字时游戏里用所属章节的名字；完成文案空着也不寄邮件。移植 1.1 数据用，自己写的章节子任务不用开",
+  q_sec_unlock:"完成后开放访问",q_unlock_note:"这条任务完成之后，下面这些商人的「访问」按钮才会出现（1.1 靠奖励逐步解锁商人对话，插件 1.3 认这个键）。没填 = 按钮一直在",
+  q_add_trader:"＋ 商人",q_tag_trader:"商人",q_m_unlock:"完成后开放哪位商人的访问",q_unlock_none:"商人表里的都已经挂上了",
+  q_a_desc:"目标小字",q_ask_desc:"目标下面那行小字（留空 = 去掉）",
+  q_a_cnote:"达成时解锁日记",q_ask_cnote:"这条目标打勾那一刻多出来的一条日记（留空 = 去掉）",q_tag_cnote:"日记",
+  q_a_counter_off:"不画计数/进度条",q_a_counter_on:"恢复计数/进度条",q_nocounter:"不计数",
+  q_add_note_item:"＋ 给这条日记挂物品",q_m_nltype:"挂什么",
+  ch_order:"显示顺序",ch_order_d:"章节在剧情页里的顺序，小的在前；留空的排在有数字的后面、按文件原序",
   q_sec_notes:"剧情日记",q_notes_note:"章节页右下角的日记：任务到了对应状态就解锁一条，按当前内容语言写。留空＝没有这条日记",
   q_note_Started:"开始时",q_note_Started_d:"接下这条任务时解锁（章节：任一子任务开始时）",
   q_note_Success:"完成时",q_note_Success_d:"这条任务完成时解锁",
   q_note_Fail:"失败时",q_note_Fail_d:"这条任务失败时解锁",q_note_ph:"（没有这条日记）",
-  q_sec_items:"相关物品",q_items_note:"章节页底部「相关物品」栏额外展示的物品；上交/找到类目标里的物品会自动出现，不用重复填",q_add_item:"＋ 物品",
+  q_sec_items:"相关物品",q_items_note:"章节页底部「相关物品」栏展示的物品；可标成配方（藏身处制作）或商品（商人出售），游戏里画不同角标。目标里的物品不会自动出现，要显示就填在这里",q_add_item:"＋ 物品",
+  q_it_item:"物品",q_it_craft:"配方",q_it_offer:"商品",q_a_it_item:"当作物品",q_a_it_craft:"当作配方（藏身处制作）",q_a_it_offer:"当作商品（商人出售）",
   qe_anyof_one:"开了「目标二选一」但目标不到两个，开关没有意义。",
   qe_chapter_no_subs:"开了「这是一个章节」但目标里没有一条「完成任务」——章节的子任务就是这些目标。",
   qe_chapter_not_secret:"章节任务建议打开「隐秘任务」，否则它会和子任务一起挤在商人的任务列表里。",
@@ -1809,12 +1840,24 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   qe_story_native_notify:"剧情任务开着「游戏内通知」——接/交时会和 VisitAPI 的章节横幅双响，建议关掉。",
   q_saved_restart:"已保存 · 记得重启 SPT 服务端",
   q_saved_restart_d:"SPT 只在启动时读一次 db/quests。改完任务不重启服务端，游戏里拿到的还是旧数据（开关、前置全是旧的）。另外：已经接下的任务不会因为改 json 就退回去，要清任务或换个存档测。",
-  qe_sub_prereq_is_chapter:"死锁：这条子任务把「所在的章节」当成了前置——章节要等所有子任务完成才算完成，子任务又要等章节完成才接得到，两边互相等，永远开不了。删掉这条前置。",
-  qe_sub_no_entry:"这条是章节子任务，但既没开「自动接」、.dlg 里也没有 accept: 它的选项——玩家接不到它。",
+  qe_sub_prereq_is_chapter:"死锁：这条子任务把「所在的章节」当成了前置——章节要等所有子任务完成才算完成，子任务又要等章节完成才接得到，两边互相等，永远开不了。删掉这条前置；如果是 startAfter 指着章节，把它改指向同章的兄弟子任务。",
+  qe_sub_no_entry:"这条是章节子任务，但既没开「自动接」、也没写「接在某条子任务之后」、.dlg 里还没有 accept: 它的选项——玩家接不到它。",
   qe_sub_no_exit:"这条是章节子任务，但既没开「自动交」、.dlg 里也没有 complete: 它的选项——达成了也交不掉。",
+  qe_sub_prereq_is_sub:"这条子任务把同一章里的另一条子任务 {0} 写成了原生前置。战局内不生效——被锁住的任务根本不在玩家的任务书里，打图打到一半解不开。改用「什么时候接 → 某条子任务完成后自动接」，并把这条原生前置删掉。",
+  qe_startafter_with_prereq:"这条任务写了 startAfter，却还留着指向 {0} 的原生前置。原生前置没满足时服务端根本不会把这条任务发给客户端，startAfter 一点机会都没有。把原生前置清空。",
+  qe_startafter_bad:"visitapi.startAfter 指向的 {0} 不是一条能用的任务（找不到，或者就是这条任务自己）。这条任务永远接不下来。",
+  qe_startafter_cycle:"startAfter 绕成了一个圈（顺着 {0} 一路走回到了这条任务自己）。圈上的子任务一条都接不下来。",
+  qe_startafter_outside:"startAfter 指向的 {0} 不是同一章的兄弟子任务。它完成的那一刻不会立刻接下这一条，要等下次登录或这条任务自己下一次状态变化。建议只在同一章里挑。",
+  qe_startafter_dialogonly:"这条任务同时写了 startAfter 和 dialogOnly。startAfter 会把它自动接下来，任务列表上那个「去找 X」的按钮就永远不会出现，dialogOnly 等于白写。二选一。",
   qe_bad_note_id:"日记「{0}」的 id 不是 24 位十六进制，服务端会把整份文件拒收。",
   qe_note_no_text:"日记「{0}」没有正文（两种语言都空着）。",
-  qe_bad_item:"相关物品 id「{0}」不是 24 位十六进制。",
+  qe_bad_item:"相关物品 id「{0}」不是 24 位十六进制（可以带 craft: / offer: 前缀，冒号后面那段要是 id）。",
+  qe_cond_autostart_bucket:"conditions 里有一个 AutoStart 桶（1.1 的新状态），SPT 4.1 的客户端读到它整份任务表拒收、登录无限转圈。把这个桶整个删掉。",
+  qe_bad_unlock_trader:"「完成后开放访问」里的商人 id「{0}」不是 24 位十六进制。",
+  qe_unlock_unknown_trader:"「完成后开放访问」指向的商人 {0}… 在这台机器上没找到（自制商人的模组没装？）。游戏里找不到就等于没解锁。",
+  qe_bad_order:"visitapi.order 不是数字，插件会当没标处理（排到最后）。",
+  qe_notelink_orphan:"noteLinks 里的日记 {0}… 不是这条任务的任何一条日记，挂在它下面的物品游戏里不会显示。",
+  qe_bad_note_link:"日记 {0}… 下挂的物品「{1}」不对：物品必须是 24 位十六进制，类型只能是 item / offer / craft。",
   q_on:"开",q_off:"关",
   q_ro_id:"任务 id",q_ro_status:"出现状态 status",q_ro_file:"所在文件",
   q_ro_dlgid:"dialogueId",q_ro_empty:"（空）",q_ro_dlgid_d:"原版 558 个里 29 个用了它",
@@ -1832,8 +1875,11 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_k_MinusStanding:"扣商人好感",q_k_MinusExp:"扣经验",
   bad_qid:"任务 id 写错",bad_qid_d:"这不是 24 位十六进制，游戏里查不到任何任务——而且自动门控会顺手把这个选项藏起来，进游戏只会看到「选项莫名其妙不出现」",
   qe_dlg_bad_qid:"剧本 {0} 里有个引用不到任何任务的 id「{1}」：不是 24 位十六进制。挂着它的那个选项在游戏里不会出现。",
-  q_a_vis:"显示条件",q_m_vis:"哪条目标完成后，这一条才显示出来",q_vis_none:"随时显示（不设条件）",
-  q_vis_after:"跟在「{0}」之后",q_vis_d:"前一条目标完成之前，玩家在任务界面上看不到这一条（原版 197 处这么用）",
+  q_a_vis:"显示条件",q_m_vis:"哪条目标完成后，这一条才显示出来。只对『目标真的一条条完成』的任务有效；靠触发点或对话直接改状态的任务，加了也一样全部显示",q_vis_none:"随时显示（不设条件）",
+  q_vis_after:"「{0}」完成后显示",q_vis_d:"前一条目标完成之前，玩家在任务界面上看不到这一条（原版 197 处这么用）。只对『目标真的一条条完成』的任务有效；靠触发点或对话直接改状态的任务，加了也一样全部显示",
+  q_a_when:"什么时候接",q_m_when:"这条子任务什么时候接下来",
+  q_when_auto:"跟章节一起自动接",q_when_after:"某条子任务完成后自动接",q_when_manual:"靠触发点或对话接",
+  q_m_after:"接在哪一条子任务之后",q_after_alone:"这一章只有这一条子任务，没得挑",
   q_a_item:"换物品",q_a_num:"改数量",q_a_val:"改数值",q_a_up:"上移",q_a_del:"删除",
   q_a_quest:"换任务",q_ask_num:"需要多少个？",q_ask_val:"数值",
   q_a_adv:"高级设置",q_m_adv:"高级参数",q_adv_yes:"要求",q_adv_no:"不要求",
@@ -1888,6 +1934,7 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_link_dup:"这条前置已经有了",
   q_link_cycle:"这样会绕成环：「{0}」本来就（间接）要求先完成「{1}」",
   q_link_ok:"已把「{0}」设为「{1}」的前置",
+  q_link_after:"「{0}」完成后自动接下「{1}」",
   /* ══ 工程 ══ 三根打包成 .vaproj 一键切换 */
   pj_cur:"当前组合",pj_save:"存成工程",pj_go:"打开",
   pj_ask_path:"工程文件存到哪？（.vaproj 结尾的完整路径）",
@@ -1905,6 +1952,8 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   bk_ask:"把「{0}」和它的备份对调？再点一次可以换回来。",
   bk_ask_gone:"复活「{0}」？它的备份会被用掉。",
   bk_done:"已还原：{0}",bk_fail:"还原失败：{0}",
+  bk_swap_left:"没动：目录里有上次还原中途失败留下的 {0}——那是当时的现役文件本体。先决定它是留是删（改名或删掉），再来还原",
+  bk_done_left:"已还原，但把备份换回去那一步没成：原来的现役文件留在 {0} 里，要的话手工改名回 .bak",
 
   todo:"这一页还没做——先把「对话编辑」定下来，其余照抄同一套卡片和控件。"},
 en:{
@@ -2011,7 +2060,10 @@ but refuse to sell.</p>`,
       <tr><td><b>Auto-complete when done</b></td><td>The moment the objectives are met it <b>hands itself in and pays out</b>, no trip back to the trader. This is how every 1.1 story quest works</td></tr>
       <tr><td><b>Dialogue only</b></td><td>The Accept/Complete button in the quest list becomes "<b>Go see the trader</b>"; taking and handing in only happen through dialogue. If the <code>.dlg</code> has no matching option, the button is hidden entirely</td></tr>
       <tr><td><b>Chapter icon</b></td><td>The small icon in the story column. Give a server image path; put the file under your mod's <code>images/quest/icon/</code></td></tr>
+      <tr><td><b>Unlocks visits when done</b></td><td>Only after this quest is completed do the listed traders get their Visit button (this is how 1.1 opens trader dialogue one trader at a time). Empty = the button is always there. VisitAPI 1.3+</td></tr>
+      <tr><td><b>Story quest (1.1 field)</b></td><td>Up in the <b>Switches</b> section. The 1.1 story flag: kept out of the trader's normal list, an empty name falls back to the chapter's name, an empty success text sends no mail. <b>For ported 1.1 data</b> — your own chapter sub-quests don't need it</td></tr>
     </tbody></table>
+    <p>The ⋮ on an objective row has three more 1.1 things (VisitAPI 1.3+): <b>objective subtext</b> (the grey line under it), <b>note unlocked on completion</b> (a journal entry that appears the moment this objective is ticked, before the quest is handed in) and <b>hide counter</b> (a "talk to X" objective has no business showing a progress bar).</p>
     <p>Two more sections below it, both for <b>chapters</b>:</p>
     <table class="hptab"><tbody>
       <tr><td><b>Story journal</b></td><td>One journal entry unlocks when the quest is <b>started / completed / failed</b>. Shown at the bottom right of the chapter card. Leave blank for none</td></tr>
@@ -2214,6 +2266,7 @@ when: level&gt;=4 -&gt; root_high
       <tr><td><b>Aim tolerance</b></td><td>in a raid the player also has to look at it; bigger is easier to hit</td></tr>
       <tr><td><b>Quest gate</b></td><td>only show while a quest is in a given status: <code>questId=status</code></td></tr>
       <tr><td><b>Fires on approach</b></td><td><code>auto</code>. <b>No dialogue opens</b> — it just happens when the player walks up. Pair it with the next one</td></tr>
+      <tr><td><b>Only once</b></td><td><code>once</code>. After it fires once it never shows again (remembered per profile). Without it an <code>auto</code> + <code>node</code> trigger re-opens the dialogue every raid</td></tr>
       <tr><td><b>Also hand out a quest</b></td><td><code>accept</code>. Walking up takes the quest. Pick the id from your quest library, no typing</td></tr>
       <tr><td><b>Also complete a quest</b></td><td><code>finish</code>. Walking up marks it complete — this is how you do "reach the spot, objective done"</td></tr>
       <tr><td><b>Also fail a quest</b></td><td><code>fail</code>. Walking up marks it failed. For the "you were too late" beat</td></tr>
@@ -2274,7 +2327,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   g_media_b:`<p>The three attach at different levels — this is easy to get wrong:</p>
     <table class="hptab"><tbody>
       <tr><td><code>bg:</code></td><td>image or video. On the node it covers the whole screen;
-        <b>each narration line can carry its own</b>, which is how you cut between shots</td></tr>
+        <b>each narration line can carry its own</b>, which is how you cut between shots;
+        a video <b>loops forever</b> by default — put <code>once</code> after the file name, separated by a space
+        (e.g. <code>clip.mp4 once</code>), to play it through and hold the last frame.
+        <b>Space, not a pipe</b> — writing <code>| once</code> is the option-level once and is silently dropped</td></tr>
       <tr><td><code>bgm:</code></td><td>music. <b>Node level only</b> — entering the node changes the track</td></tr>
       <tr><td><code>audio:</code></td><td>voice. Belongs to <b>one spoken line</b>: the trader's line, or one narration line</td></tr>
     </tbody></table>
@@ -2399,7 +2455,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_place:"Place",m_tr_node:"Which node to open",m_tr_node_no:"(the start: entry)",
   m_tr_dist:"How close (metres)",m_tr_radius:"Aim tolerance (bigger = easier to hit)",
   m_tr_free:"Its own prompt (don't merge into the area menu)",
-  m_tr_auto:"Fires on approach (no dialogue)",m_tr_accept:"Also hand out which quest",
+  m_tr_auto:"Fires on approach (no dialogue)",m_tr_once:"Fires only once (remembered per profile)",
+  m_tr_accept:"Also hand out which quest",
   m_tr_accept_no:"Don't hand out a quest",
   m_tr_finish:"Also mark this quest complete",m_tr_fail:"Also mark this quest failed (for story beats where the plan falls through)",m_tr_off:"none",
   m_tr_gate:"Condition (only while a quest is in a status)",m_tr_gate_no:"No condition (always there)",m_tr_gate_off:"Remove condition",
@@ -2564,7 +2621,14 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   a_none:"None",a_accept:"Accept",a_complete:"Complete",a_handover:"Hand over",
   m_qadd:"Add another quest",m_qdel:"Remove this one",
   m_jump:"Jump to",m_bg:"Background (this beat)",no_bg:"(no background)",end_paren:"(end dialogue)",pick_q:"(pick a quest)",
+  m_bg_play:"Video playback",m_bg_once:"Freeze on last frame",m_bg_once_img:"Images have no playback mode — the once written here does nothing, and removing it changes nothing",
+  m_bg_once_d:"Videos only. On = play through once and hold the last frame (saved as once after the file name, separated by a space — not after a | , that is a different thing on options); off = loop forever. When this beat has no background of its own, this edits the one on the node.",
   broken:"broken link(s)",all_ok:"nodes, all connected",entries:"entry points (incl.",trig_entries:"from triggers)",
+  bad_text:"text(s) with reserved syntax",bt_npc:"line",bt_narr:"narration",
+  name_ascii:"Node names can only use letters, digits, underscore, dot and dash (the game and the editor disagree on anything else, and one save merges two screens into one)",
+  m_trig_raw_d:"The form can't read this line (map name missing, or the prompt comes before the coordinates) — edit the raw text here; Enter applies",
+  bad_text_save:"Not saved: a line or option contains reserved syntax ( | , -> , or a leading - , >, #). It would be misread the next time the file is opened. The status bar lists where",
+  dlg_stale:"This file was changed elsewhere after you opened it (another window, a quest-page link, or by hand). Overwrite it with what the editor has now?",
   src_title:".dlg source",src_copy:"Copy all",src_close:"Close",
   src_gen:"generated live from the canvas",src_warn:"parse warning(s)",src_nowarn:"no parse warnings",
   saved_sel:"Selected — press Ctrl+C",
@@ -2582,7 +2646,7 @@ ab_d_assort:"Change what a trader sells, for how much, and at which level. It al
   ab_d_dlg:"Edit a .dlg script: lines, branches, backgrounds and video, voice, music — live preview on the right plus the whole flow graph. Needs the VisitAPI plugin for the game to read it.",
   ab_d_chapter:"Edit story chapters laid out like the 1.1 STORY page — icon and banner, sub-quest order, main/optional objectives, journal, related items — all editable in place. Needs VisitAPI 1.2+.",
   ab_d_quest:"Edit SPT quests: objectives, rewards, all four mails, the failure branch, quest chains, and which dialogue option hands a quest out. VisitAPI not required.",
-  ab_d_back:"Roll a file back to one of the .bak copies this tool leaves behind. Not started yet.",
+  ab_d_back:"Roll a file back to the .bak copy this tool leaves behind. Restore = swap with the live file, so a second click swaps back.",
   ab_d_help:"How to write dialogue and quests — one card per idea, each with an example.",
   ab_env:"ENVIRONMENT",
   ab_e_ws:"Workspace (scripts)",ab_e_ws_d:".dlg files, backgrounds and audio are read from here",
@@ -2632,6 +2696,7 @@ ab_d_assort:"Change what a trader sells, for how much, and at which level. It al
   q_root_use:"Use this",
   q_root_bad:"Can't use that folder: {0}",
   q_root_none:"No SPT mods folder found. Type a path below instead.",
+  q_load_fail:"Quest library failed to load: {0}",
   q_root_cur:"Current: {0}",
   q_root_switch:"Switch library",
   q_root_dirty:"You have unsaved quest changes. Switching libraries throws them away — switch anyway?",
@@ -2660,9 +2725,10 @@ ab_d_assort:"Change what a trader sells, for how much, and at which level. It al
   q_trader_ack:"I know this trader",q_trader_ack_d:"Not found on this machine. If it comes from a mod that isn't installed or updated yet, click here to stop the warning.",
   q_trader_acked:"marked as known",q_trader_unack:"Unmark",
   qe_fail_no_msg:"There are fail conditions but no fail mail, so failing sends the player a blank letter.",
-  qe_missing_prereq:"Quest {0}, referenced from {1}, isn't in this workspace.",
+  qe_missing_prereq:"Quest {0}, referenced from {1}, is neither in this workspace nor in the vanilla quest table (only a warning when the vanilla table can't be read).",
   qe_dup_id:"The same quest ID appears in more than one file ({0}) — only one survives in game.",
   qe_broken_file:"File {0} can't be read: {1}",
+  qe_bad_entry:"\"{1}\" in file {0} is not a quest (its value isn't an object). The editor hides it; SPT rejects the whole file.",
 /* ── Content folder picker (modroot.js, shared by Outfits / Trader Goods) ── */
 mr_title:"Pick a content folder",
 mr_found:"Found {0} mod(s) in your SPT with bot outfits or trader goods — click one to use it:",
@@ -2818,6 +2884,8 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_broken_locale:"Locale file {0}.json can't be read: {1}",
   q_load:"Loading quests…",q_reload:"Reload",q_save:"Save",q_saving:"Saving…",q_saved:"Saved",
   q_dirty:"Unsaved changes",q_clean:"All checks passed",q_issues:"{0} issue(s)",q_savefail:"Save failed: {0}",
+  q_dup_nosave:"Not saved: the same quest id lives in two files — fix that in the files first, or saving would delete one of them",
+  q_link_has_after:"This one already starts after {0}; not overwritten — change it on the Chapter page first",
   q_stale_ask:"These files changed outside the editor. Reload discards your current edits; Save anyway overwrites theirs.",
   q_force:"Save anyway",q_confirm_reload:"You have unsaved changes. Reload anyway?",
   q_hdr_file:"file",q_hdr_trader:"trader",q_hdr_count:"quests",
@@ -2836,8 +2904,9 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_sec_subs:"Sub-quests",q_add_sub:"+ Sub-quest",q_m_sub:"Pick a quest as sub-quest",q_m_newsub:"+ New sub-quest",
   q_e_subs:"No sub-quests yet — a chapter needs at least one",q_sub_missing:"quest {0}… not found",q_sub_stat:"{0} objectives · {1} notes",
   q_ch_auto:"auto-accept",q_ch_autoFinish:"auto-complete",q_ch_dlg:"dialog only",q_ch_fin:"finisher",
+  q_ch_after:"starts after {0}",q_ch_manual:"manual start",
   q_a_down:"Move down",q_a_goto:"Open this quest",q_m_chap:"Which chapter",
-  q_chap_chain:"Chain",q_chap_chain_d:"Give every sub-quest “prerequisite = the previous one”, so the player advances in order; existing links are kept",q_chap_chain_btn:"Chain them",
+  q_chap_chain:"Chain",q_chap_chain_d:"Give every sub-quest a start-after-the-previous-one rule so the player advances in order; existing settings are kept",q_chap_chain_btn:"Chain them",
   q_chain_done:"{0} prerequisite(s) added",
   q_prev_st0:"Unavailable",q_prev_st1:"Active",q_prev_st2:"Complete",
   q_prev_main:"Main objectives",q_prev_opt:"Optional objectives",q_prev_notes:"Journal",q_prev_items:"Related items",
@@ -2918,15 +2987,25 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_vx_anyOf:"Any one objective",q_vx_anyOf_d:"Completing any single objective makes the quest ready to hand in (stock requires all of them)",
   q_vx_unlock:"Unlock trader when ready",q_vx_unlock_d:"The moment the quest becomes ready to hand in, its trader is unlocked (no need to turn it in first)",
   q_vx_chapter:"This is a chapter",q_vx_chapter_d:"A chapter on the STORY tab of the tasks screen; every \"complete quest\" objective is one sub-quest (tick isFinisher on the last one). Best kept a secret quest",
-  q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically the moment its prerequisites are met (chapter chain, no click needed). A sub-quest waits until its chapter has started, so it can never be dumped on the player at login; put this switch on the chapter itself to make a whole chapter start automatically",
+  q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically as soon as it becomes acceptable — no click needed. It has nothing to do with prerequisites: to order sub-quests inside one chapter use When it starts, auto-accept after another sub-quest; a stock prerequisite never unlocks mid-raid. Put this switch on the chapter itself to make a whole chapter start automatically. Mutually exclusive with Starts after — turning one on clears the other",
+  q_vx_startAfter:"Starts after",q_vx_startAfter_d:"Once that quest succeeds this one is accepted automatically — a prerequisite owned by VisitAPI, so it also works mid-raid; leave the stock prerequisites empty",
   q_vx_autoFinish:"Auto-complete when done",q_vx_autoFinish_d:"Turned in and rewarded the moment its objectives are met (how 1.1 story tasks work). Chapter sub-quests are hidden from the side-quest list, so they need this or a dialog complete:",
   q_vx_dialogOnly:"Accept/complete via dialog only",q_vx_dialogOnly_d:"The Accept/Complete button in the task list turns into \"Visit trader\"; accepting and handing in go through the .dlg dialog. With no matching option in any .dlg the button is hidden",
   q_vx_icon:"Chapter icon",q_vx_icon_d:"Small icon in the chapter column — a server image path (put the file under the mod's images/quest/icon/; the banner is the quest image above)",q_vx_icon_ph:"/files/quest/icon/…",
+  q_sw_isStoryQuest:"Story quest (1.1 field)",q_sw_isStoryQuest_d:"The 1.1 story flag: kept out of the trader's normal quest list; an empty name falls back to the chapter's name in game; an empty success text sends no mail. For ported 1.1 data — your own chapter sub-quests don't need it",
+  q_sec_unlock:"Unlocks visits when done",q_unlock_note:"Once this quest is completed the Visit button of these traders appears (1.1 unlocks trader dialogue step by step through rewards; plugin 1.3 reads this key). Empty = the button is always there",
+  q_add_trader:"+ Trader",q_tag_trader:"trader",q_m_unlock:"Whose visit opens up when this quest is done",q_unlock_none:"Every trader in the table is already listed",
+  q_a_desc:"Objective subtext",q_ask_desc:"The small line under the objective (empty = remove)",
+  q_a_cnote:"Note unlocked on completion",q_ask_cnote:"A note that appears the moment this objective is ticked (empty = remove)",q_tag_cnote:"note",
+  q_a_counter_off:"Hide counter / progress bar",q_a_counter_on:"Show counter / progress bar again",q_nocounter:"no counter",
+  q_add_note_item:"+ Attach an item to this note",q_m_nltype:"Attach as",
+  ch_order:"Order",ch_order_d:"Position of the chapter on the story page, smallest first; chapters without a number come after, in file order",
   q_sec_notes:"Story notes",q_notes_note:"The journal at the bottom right of the chapter page: one entry unlocks when the quest reaches that state, written in the current content language. Empty = no entry",
   q_note_Started:"On start",q_note_Started_d:"Unlocks when this quest is accepted (chapter: when any sub-quest starts)",
   q_note_Success:"On completion",q_note_Success_d:"Unlocks when this quest is completed",
   q_note_Fail:"On failure",q_note_Fail_d:"Unlocks when this quest fails",q_note_ph:"(no entry)",
-  q_sec_items:"Related items",q_items_note:"Extra items shown in the \"Related items\" strip at the bottom of the chapter page; items from hand-over / find objectives show up automatically",q_add_item:"+ Item",
+  q_sec_items:"Related items",q_items_note:"Items shown in the \"Related items\" strip at the bottom of the chapter page; mark one as a craft (hideout) or an offer (trader) to get the matching badge in game. Items from objectives no longer show up on their own — list them here",q_add_item:"+ Item",
+  q_it_item:"Item",q_it_craft:"Craft",q_it_offer:"Offer",q_a_it_item:"As item",q_a_it_craft:"As craft (hideout)",q_a_it_offer:"As offer (trader)",
   qe_anyof_one:"\"Any one objective\" is on but there are fewer than two objectives — the switch does nothing.",
   qe_chapter_no_subs:"\"This is a chapter\" is on but there is no \"complete quest\" objective — those objectives are the chapter's sub-quests.",
   qe_chapter_not_secret:"A chapter quest should be a secret quest, otherwise it shows up in the trader's task list next to its own sub-quests.",
@@ -2937,12 +3016,24 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_story_native_notify:"A story quest has the in-game notification switch on — it will fire alongside VisitAPI's chapter banner. Turn it off.",
   q_saved_restart:"Saved · restart the SPT server",
   q_saved_restart_d:"SPT reads db/quests once, at startup. Without a server restart the game still sees the old data (old switches, old prerequisites). Note too that quests already accepted are not rolled back by editing the json — clear them or test on another profile.",
-  qe_sub_prereq_is_chapter:"Deadlock: this sub-quest lists its own chapter as a prerequisite. The chapter only completes once every sub-quest succeeds, and the sub-quest cannot start until the chapter succeeds — neither ever happens. Remove the prerequisite.",
-  qe_sub_no_entry:"This is a chapter sub-quest, but neither auto-accept is on nor does any .dlg option accept: it — the player cannot get it.",
+  qe_sub_prereq_is_chapter:"Deadlock: this sub-quest lists its own chapter as a prerequisite. The chapter only completes once every sub-quest succeeds, and the sub-quest cannot start until the chapter succeeds — neither ever happens. Remove the prerequisite; if startAfter is the one pointing at the chapter, point it at a sibling sub-quest of the same chapter instead.",
+  qe_sub_no_entry:"This is a chapter sub-quest, but neither auto-accept is on, nor does it start after another sub-quest, nor does any .dlg option accept: it — the player cannot get it.",
   qe_sub_no_exit:"This is a chapter sub-quest, but neither auto-complete is on nor does any .dlg option complete: it — it can never be turned in.",
+  qe_sub_prereq_is_sub:"This sub-quest lists another sub-quest of the same chapter ({0}) as a stock prerequisite. It never unlocks mid-raid — a locked quest is not in the player quest book at all. Use When it starts, auto-accept after another sub-quest instead, and delete the stock prerequisite.",
+  qe_startafter_with_prereq:"This quest sets startAfter but still keeps a stock prerequisite pointing at {0}. While a stock prerequisite is unmet the server never sends the quest to the client, so startAfter never gets a chance. Clear the stock prerequisites.",
+  qe_startafter_bad:"visitapi.startAfter points at {0}, which is not a usable quest — it is missing, or it is this quest itself. This quest can never start.",
+  qe_startafter_cycle:"startAfter forms a loop — following {0} leads back to this quest. None of the quests on the loop can ever start.",
+  qe_startafter_outside:"startAfter points at {0}, which is not a sub-quest of the same chapter. It is not picked up the moment that quest succeeds — it waits for the next login or the next status change on this quest. Prefer a sibling in the same chapter.",
+  qe_startafter_dialogonly:"This quest sets both startAfter and dialogOnly. startAfter accepts it automatically, so the Visit X button in the task list never appears and dialogOnly does nothing. Pick one.",
   qe_bad_note_id:"Note \"{0}\" has an id that isn't 24 hex characters; the server rejects the whole file.",
   qe_note_no_text:"Note \"{0}\" has no text (empty in both languages).",
-  qe_bad_item:"Related item id \"{0}\" isn't 24 hex characters.",
+  qe_bad_item:"Related item id \"{0}\" isn't 24 hex characters (a craft: / offer: prefix is fine; the part after the colon must be the id).",
+  qe_cond_autostart_bucket:"conditions has an AutoStart bucket (a 1.1 status). The SPT 4.1 client rejects the whole quest table on it and the login spins forever. Delete the bucket.",
+  qe_bad_unlock_trader:"Trader id \"{0}\" under Unlocks visits isn't 24 hex characters.",
+  qe_unlock_unknown_trader:"Unlocks visits points at trader {0}… which wasn't found on this machine (mod not installed?). If the game can't find it, nothing is unlocked.",
+  qe_bad_order:"visitapi.order isn't a number; the plugin treats it as unset (sorted last).",
+  qe_notelink_orphan:"noteLinks names note {0}… which isn't one of this quest's notes; the items under it never show in game.",
+  qe_bad_note_link:"Item \"{1}\" under note {0}… is wrong: the item must be 24 hex characters and the type item / offer / craft.",
   q_on:"On",q_off:"Off",
   q_ro_id:"Quest id",q_ro_status:"AppearStatus",q_ro_file:"File",
   q_ro_dlgid:"dialogueId",q_ro_empty:"(empty)",q_ro_dlgid_d:"29 of the 558 stock quests use it",
@@ -2960,8 +3051,11 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_k_MinusStanding:"Lose trader standing",q_k_MinusExp:"Lose experience",
   bad_qid:"bad quest id",bad_qid_d:"Not 24 hex characters — it matches no quest in game, and the automatic gate then hides the option entirely. In game it just looks like the option never shows up",
   qe_dlg_bad_qid:"Script {0} references a quest id that matches nothing: “{1}” is not 24 hex characters. The option carrying it will never appear in game.",
-  q_a_vis:"Visible after",q_m_vis:"Show this objective only once another one is done",q_vis_none:"Always visible",
-  q_vis_after:"after “{0}”",q_vis_d:"Hidden from the player until the objective it follows is complete (used in 197 places by stock quests)",
+  q_a_vis:"Visible after",q_m_vis:"Show this objective only once another one is done. Only works when the objectives are really completed one by one — a quest whose status is pushed by a trigger or a dialog option shows all of them anyway",q_vis_none:"Always visible",
+  q_vis_after:"shown after {0}",q_vis_d:"Hidden from the player until the objective it follows is complete (used in 197 places by stock quests). Only works when the objectives are really completed one by one — a quest whose status is pushed by a trigger or a dialog option shows all of them anyway",
+  q_a_when:"When it starts",q_m_when:"When does this sub-quest start",
+  q_when_auto:"Auto-accept when the chapter starts",q_when_after:"Auto-accept after another sub-quest",q_when_manual:"Started by a trigger or a dialog option",
+  q_m_after:"Start after which sub-quest",q_after_alone:"This chapter has only one sub-quest, nothing to pick",
   q_a_item:"Change item",q_a_num:"Change count",q_a_val:"Change value",q_a_up:"Move up",q_a_del:"Delete",
   q_a_quest:"Change quest",q_ask_num:"How many?",q_ask_val:"Value",
   q_a_adv:"Advanced",q_m_adv:"Advanced settings",q_adv_yes:"Required",q_adv_no:"Not required",
@@ -3014,6 +3108,7 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_link_dup:"That prerequisite is already there",
   q_link_cycle:"That would make a loop: \"{0}\" already requires \"{1}\" (directly or not)",
   q_link_ok:"\"{0}\" is now a prerequisite of \"{1}\"",
+  q_link_after:"{1} will now start after {0}",
   /* ══ Projects ══ three roots bundled into a .vaproj */
   pj_cur:"Current setup",pj_save:"Save as project",pj_go:"Open",
   pj_ask_path:"Where to save the project file? (full path ending in .vaproj)",
@@ -3031,6 +3126,8 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   bk_ask:"Swap \"{0}\" with its backup? Restore again to swap back.",
   bk_ask_gone:"Revive \"{0}\"? Its backup will be used up.",
   bk_done:"Restored: {0}",bk_fail:"Restore failed: {0}",
+  bk_swap_left:"Nothing changed: the folder still holds {0} from a restore that failed halfway — that is the live file from back then. Decide what to do with it (rename or delete), then restore again",
+  bk_done_left:"Restored, but swapping the backup back failed: the previous live file is left in {0}; rename it back to .bak if you want it",
 
   todo:"Not built yet — Dialogue comes first, then the rest reuses the same cards and controls."}};
 let lang=pref("lang")
@@ -3089,8 +3186,11 @@ const RESERVED=["@close","@leave","@trade","@services","@tasks","@visit","@start
 function parseDlg(text){
   /* headRaw 按原顺序记下文件头每一行（含注释），存盘时照原样吐回去，
      否则回写会把用户写的注释和行序全洗掉——SORA 那两条坐标注释就是这么丢的 */
+  /* order：节点在文件里的顺序。JS 对象会把 "1"、"10" 这类整数形键排到最前面，只靠 Object.keys 存一次盘节点就换位 */
   const t={trader:null,name:null,start:"root",first:null,tab:null,tabS:[],when:[],triggers:[],
-           alias:{},aliasOrder:[],nodes:{},headRaw:[],warn:[]};
+           alias:{},aliasOrder:[],nodes:{},order:[],headRaw:[],warn:[]};
+  /* 白名单以外的键（台词行写 bg:、旁白行写 bgm:）原来静默丢，回写就没了 —— 和 C# 的 Unknown() 同口径 */
+  const unk=(d,known)=>Object.keys(d).forEach(k=>{if(!known.includes(k))t.warn.push(`第 ${ln} 行: 这一行不认 '${k}:'，回写会丢掉`);});
   let n=null,ln=0;
   /* 攒着的注释：碰到下一个元素就挂到它头上（和 C# 的 DialogParser 同一套做法）。
      以前这里是"进了节点就直接丢"，于是节点体里的注释存一次就没了 —— SORA 那份
@@ -3108,17 +3208,21 @@ function parseDlg(text){
     if(e<0){t.warn.push(`第 ${ln} 行: 门控缺少 '=状态'`);return v.trim();}
     v.slice(e+1).split("/").forEach(s=>into.push(ST(s)));return v.slice(0,e).trim();};
 
-  for(const raw of text.replace(/\r\n/g,"\n").split("\n")){
+  /* 记事本的 BOM 和老 Mac 的裸 \r 先归一（C# 那边同样做），否则首行成「未知的文件头」/ 整份被吃成一行 */
+  for(const raw of String(text||"").replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n").split("\n")){
     ln++;const line=raw.trim();
     if(!line||line[0]==="#"||line.startsWith("//")){
       if(!n)t.headRaw.push({k:"raw",v:line});          /* 文件头里的注释和空行都要留住（空行是作者的分段） */
       else if(line)pend.push(line);                    /* 节点体里的挂到下一个元素上 */
       continue;}
-    const head=line.match(/^<([\w.\-]+)>\s*(.*)$/);
-    if(head){const d=KV(head[2].split(" | "));
+    /* 节点名只收 ASCII（C# 那边 2026-09-08 起同款正则）；`<root> | bg: x` 的前导竖线也认，原来会成「| bg」这个键、bg 静默丢 */
+    const head=line.match(/^<([A-Za-z0-9_.\-]+)>\s*(.*)$/);
+    if(head){const d=KV(head[2].replace(/^\|\s*/,"").split(" | ")); unk(d,["bg","anim","bgm"]);
       /* 归属规则和 C# 的 DialogParser 逐行对齐：<节点> 前面那几行注释算**上一个节点的尾巴**，
          只有第一个节点之前的才算它自己的头。两边不一致的话，回写位置就会漂。 */
       if(n)n.tail=take();
+      if(t.nodes[head[1]])t.warn.push(`第 ${ln} 行: 节点 <${head[1]}> 重复，前一份会被覆盖`);
+      else t.order.push(head[1]);
       n=t.nodes[head[1]]={name:head[1],bg:d.bg||"",anim:d.anim,bgm:d.bgm,narr:[],npc:"",npcAt:null,
                           jump:null,opts:[],lead:take(),npcLead:[],jumpLead:[],tail:[]};
       continue;}
@@ -3132,7 +3236,9 @@ function parseDlg(text){
       /* 这一行没能变成模型（语法错、或我们不认识的头）：把刚占的位子换成原文照抄 */
       const keepRaw=()=>{t.headRaw.pop();t.headRaw.push({k:"raw",v:line});};
       if(k==="trader"){const m=v.match(/^(\S+)?\s*"(.*)"/);
-        if(m){t.trader=m[1]||null;t.name=m[2];}else t.name=v;}
+        if(m){t.trader=m[1]||null;t.name=m[2];}
+        else if(/^[0-9a-fA-F]{24}$/.test(v)){t.trader=v;t.name="";}   /* 只写了 id 没写名字：别把 id 塞进引号当名字 */
+        else t.name=v;}
       else if(k==="start")t.start=v; else if(k==="first")t.first=v;
       /* 这两行进模型（界面上能改），头行的位置按 k 记着，回写由 DialogWriter 重新生成。
          以前是"存下值、同时把整行当原文留住"——那时没有入口，改不了才没露馅。 */
@@ -3153,7 +3259,7 @@ function parseDlg(text){
     /* 节点体 */
     const seg=line.split(" | ");
     if(line.startsWith("->")){n.jump=line.slice(2).trim();n.jumpLead=take();continue;}
-    if(line.startsWith(">")){const d=KV(seg.slice(1));
+    if(line.startsWith(">")){const d=KV(seg.slice(1)); unk(d,["bg","anim","audio"]);
       /* anim 也要收：以前只收了 bg/audio，旁白上的 anim 存一次就没了 */
       n.narr.push({text:seg[0].slice(1).trim(),bg:d.bg||"",anim:d.anim,audio:d.audio,lead:take()});continue;}
     if(line.startsWith("- ")){
@@ -3181,6 +3287,8 @@ function parseDlg(text){
         /* 一个选项上 if 和 ifnot 可以同时存在。界面只编辑 gate 这一个，
            另一个原样搁在 gate2 里带回去 —— 不然存一次就少一条门控。 */
         else if(key==="if"||key==="ifnot"){const s=[];const g={kind:key,q:A(gate(v,s)),s};
+          /* 同一选项两条 if:（或两条 ifnot:）模型放不下：C# 写手会把任务取后者、状态合并。原来一声不吭 */
+          if([o.gate,o.gate2].some(x=>x&&x.kind===key))t.warn.push(`第 ${ln} 行: 同一选项写了两条 ${key}:，只能留一条`);
           if(!o.gate)o.gate=g; else o.gate2=g;}
         else if(key==="standing")o.standing={who:eq<0?null:v.slice(0,eq).trim(),d:parseFloat(eq<0?v:v.slice(eq+1))||0};
         else t.warn.push(`第 ${ln} 行: 未知指令 '${key}'`);});
@@ -3188,7 +3296,7 @@ function parseDlg(text){
     /* npcAt 记的是"台词出现时前面已经有几条旁白"——后面再来的 `>` 行就排在台词之后。
      不记的话行序在这一刻就丢了，存一次盘台词后面的旁白会被永久挪到前面去。 */
   n.npc=seg[0].trim();n.npcAt=n.narr.length;n.npcLead=take();
-    const d=KV(seg.slice(1));if(d.audio)n.audio=d.audio;
+    const d=KV(seg.slice(1));unk(d,["audio"]);if(d.audio)n.audio=d.audio;
   }
   if(n)n.tail=(n.tail||[]).concat(pend);        /* 文件末尾剩下的注释 */
   /* 跳转校验 */
@@ -3196,6 +3304,11 @@ function parseDlg(text){
     [...nd.opts.map(o=>o.to),nd.jump].forEach(tg=>{
       if(tg&&!t.nodes[tg]&&!RESERVED.includes(tg))
         t.warn.push(`节点 <${nd.name}>: 跳转目标 '${tg}' 不存在`);});});
+  /* 文件头里指节点的四样也查：跳不存在的名字 = 直接关闭，作者只会看到「访问按钮点了没反应」 */
+  if(Object.keys(t.nodes).length){
+    const ref=(where,nd)=>{if(nd&&!t.nodes[nd])t.warn.push(`${where}: 指向的节点 '${nd}' 不存在`);};
+    ref("start",t.start);ref("first",t.first);t.when.forEach(w=>ref("when",w.node));
+    t.triggers.forEach(l=>{const tr=trigParse(l);if(tr)ref("trigger",tr.node);});}
   return t;
 }
 /* 有草稿就先吃草稿——刷新一下不至于把刚写的剧情全丢了。
@@ -3461,21 +3574,54 @@ function telem(){
   $("telLinks").textContent=links;}
 
 /* 画布 */
+/* ══ bg 的尾缀（once / loop）══ 全前端唯一懂它的地方，别在别处再写第二份。
+   ① 与插件 DialogBackground.cs 里 OnDialog 剥尾缀那一行逐字对齐：大小写敏感、按最后一个空格切、
+      切完 TrimEnd。（跨仓引用**只写函数名不写行号** —— 行号一漂这套对齐机制就开始骗人。）
+      写 Once / ONCE / 全角空格：两边都不认这个尾缀、整串当文件名，于是两边都找不到文件
+      （插件打 [bg] file not found 警告且不显示背景，编辑器出缺失提示）。既有行为，本次不改。
+   ② bgVid 照抄插件 DialogBackground.cs 里判视频后缀那一行认的四种后缀，**不看 ASSETS**：/api/assets 的
+      Media.IsVideo 只认 .mp4/.webm，拿它当判据的话，写 .m4v/.mov 的作者就看不到定格开关。
+   ③ 前提：素材名必然带 Media.Mime 白名单里的扩展名（FileApi.cs:72），永远不可能以一个空格加
+      once 结尾 —— 这是 bgCut 能安全作用在素材名上、bgWith 不可能拼出双尾缀的原因。
+      日后放宽 Mime 白名单，要回来看这一句。 */
+const bgCut=s=>{s=String(s||"");return s.endsWith(" once")||s.endsWith(" loop")?s.slice(0,s.lastIndexOf(" ")).trimEnd():s;};
+const bgOnce=s=>String(s||"").endsWith(" once");
+const bgWith=(f,o)=>f&&o?f+" once":f;
+const bgVid=s=>/\.(mp4|webm|m4v|mov)$/i.test(bgCut(s));
+/* 「这个 bg 指的是不是这个素材」的唯一一把尺子：剥完尾缀后不分大小写比。
+   Windows 文件系统和插件的 File.Exists 都不分大小写，界面三处（找素材/高亮/写入守卫）必须同一把尺，
+   否则作者写 clip.MP4 时预览播得好好的、列表里那一项却不高亮，点一下还会被当成「换了文件」 */
+const bgSame=(v,name)=>bgCut(v).toLowerCase()===String(name||"").toLowerCase();
+/* 只读「这一格自己写的 bg」，不做回落 —— 用来决定**写哪一格**，不是用来决定开关显不显示 */
+const bgOwn=()=>{const n=N();return(isTalk()?n.bg:narAt(n,beat)?.bg)||"";};
+/* 写 bg 的唯一出口。here=true 写当前这一拍（挑背景就是给这一拍设），here=false 写节点。
+   收尾用 autosave() 而不是 markDirty(true)：它拿 docSnap() 跟 savedText 比，会自愈 */
+const bgPut=(v,here)=>{const n=N();if(here&&!isTalk())narAt(n,beat).bg=v;else n.bg=v;autosave();};
 function curBg(){const n=N();
   if(!isTalk()&&narAt(n,beat)?.bg)return narAt(n,beat).bg;
   return n.bg;}
 function drawStage(){
   const b=curBg(),layer=$("bglayer");
-  layer.innerHTML="";layer.style.backgroundImage="";
+  const asset=ASSETS.bg.find(a=>bgSame(b,a.name));
+  /* 素材没换就复用同一个 video 元素：游戏里视频是跨拍连着播的（后面几拍在 BgByDialog 里查不到
+     key 就早退），每次重建 DOM 会让片子从头再播一遍，作者永远看不到 once 的定格。
+     ⚠️ 比的是 dataset.n 不是 .src —— DOM 的 .src 读出来是绝对 URL，跟 mediaUrl() 的相对串永远不相等 */
+  const ov=layer.querySelector("video"),keep=!!(b&&asset&&asset.video&&ov&&ov.dataset.n===asset.name);
+  if(!keep){layer.innerHTML="";layer.style.backgroundImage="";}
   layer.classList.toggle("empty",!b);
-  const asset=ASSETS.bg.find(a=>a.name.toLowerCase()===String(b||"").toLowerCase());
-  if(b&&asset&&asset.video){
-    const v=document.createElement("video");v.src=mediaUrl(asset.name);
-    v.autoplay=v.loop=v.muted=v.playsInline=true;layer.appendChild(v);}
+  /* 关掉定格要主动续播：video 播完就 paused，光把 .loop 设回 true 不会自己动，开关看起来像坏了。
+     判据必须是 .paused —— 给 video 设 .loop=true 会当场把 .ended 清成 false（实测），
+     拿 .ended 判等于写了一段永远不执行的死代码 */
+  if(keep){ov.loop=!bgOnce(b);if(ov.loop&&ov.paused)ov.play().catch(()=>{});}
+  else if(b&&asset&&asset.video){
+    const v=document.createElement("video");v.src=mediaUrl(asset.name);v.dataset.n=asset.name;
+    v.autoplay=v.muted=v.playsInline=true;v.loop=!bgOnce(b);layer.appendChild(v);}
   else if(b&&asset) layer.style.backgroundImage=`url("${mediaUrl(asset.name)}")`;
-  else if(b) layer.innerHTML=`<div class="bghint">${b} ${T("bg_missing")}<br><small>${
+  else if(b) layer.innerHTML=`<div class="bghint">${esc(bgCut(b))} ${T("bg_missing")}<br><small>${
       !WS.ok?T("why_nows"):!WS.hasBg?T("why_nobg"):T("why_nofile")}</small></div>`;
   else layer.innerHTML=`<div class="bghint">${T("bg_set")}</div>`;
+  /* 这一行**故意不剥尾缀**，印的就是文件里的原文：顶栏那条灰字是作者确认自己写的 once
+     真的进了文件的唯一读数。剥掉就成了「解析对了但界面看不见」。后来人别顺手改掉。 */
   $("bgtag").textContent=b?"bg: "+b:"";
   drawBody();drawBeats();}
 function drawBody(){
@@ -3485,7 +3631,7 @@ function drawBody(){
     $("body").querySelector(".narr").oninput=e=>{narAt(n,beat).text=e.target.textContent;soft();};return;}
   const jumpRow=n.jump?`<div class="optrow"><span style="width:18px"></span>
     <span class="otext" style="color:var(--g-dim);font-style:italic">${T("autojump")}</span>
-    <button class="jump" data-j="-1">→ ${n.jump}</button></div>`:"";
+    <button class="jump" data-j="-1">→ ${esc(n.jump)}</button></div>`:"";
   $("body").innerHTML=`<div class="npc" contenteditable="plaintext-only" data-ph="${T('ph_npc')}">${esc(n.npc)}</div>`+
     n.opts.map((o,i)=>{const bad=o.to&&!isReal(o.to)&&!isRsv(o.to);
       return `<div class="optrow"><button class="kebab" data-k="${i}" title="${T('tip_more')}">⋮</button>
@@ -3500,7 +3646,7 @@ function drawBody(){
         ${o.ifvar?`<span class="chip g">${T("only_if")} ${esc(o.ifvar.n)}=${o.ifvar.v}</span>`:""}
         ${o.ifitems?`<span class="chip g" title="${esc(T("m_items_d"))}">${T("m_items_chip")}</span>`:""}
         ${o.once?`<span class="chip g">${T("once")}</span>`:""}${o.always?`<span class="chip g">always</span>`:""}
-        <button class="jump${bad?" bad":o.to?"":" end"}" data-j="${i}">→ ${o.to||T("end_dlg")}</button>
+        <button class="jump${bad?" bad":o.to?"":" end"}" data-j="${i}">→ ${esc(o.to||T("end_dlg"))}</button>
         <button class="del" data-d="${i}">✕</button></div>`;}).join("")+jumpRow+
     `<button class="addopt" id="addOpt">${T("add_opt")}</button>`;
   $("body").querySelector(".npc").oninput=e=>{n.npc=e.target.textContent;soft();};
@@ -3599,7 +3745,7 @@ function drawGraph(){
       <span class="sock${isReal(n.jump)?"":" bad"}"></span></div>`:"";
     return `<div class="gnode${R.has(name)?"":" orphan"}" data-n="${name}" data-cur="${name===cur?1:0}"
       data-start="${name===doc.start?1:0}" data-entry="${entries.has(name)?1:0}"
-      data-trig="${TRIG.has(name)?1:0}"
+      data-istrig="${TRIG.has(name)?1:0}"
       style="left:${n.x}px;top:${n.y}px">
       <div class="ghead" data-drag="${name}" title="${T('tip_rename')}">&lt;${name}&gt;${bad?'<span class="w">⚠</span>':""}<em>${n.opts.length?"×"+n.opts.length:"END"}</em><i class="grole" data-role="${name}" title="${esc(T('tip_role'))}">⋮</i></div>
       ${showPeek&&n.npc?`<div class="gpeek">${esc(n.npc.slice(0,26))}${n.npc.length>26?"…":""}</div>`:""}
@@ -3624,6 +3770,8 @@ function editName(old){
      等于你点别的输入框那一下被这次失焦顺手吃掉。 */
   const commit=ok=>{if(done)return;done=true;
     const neo=inp.value.trim().replace(/\s+/g,"_");
+    /* 只收 ASCII：中文名 C# 原来解得出、JS 解不出，重开文件那一块就并进上一节点，存一次盘永久合并 */
+    if(ok&&neo&&neo!==old&&!/^[A-Za-z0-9_.\-]+$/.test(neo)){say(T("name_ascii"));head.replaceChildren(...prev);return;}
     if(ok&&neo&&neo!==old&&!doc.nodes[neo]){renameNode(old,neo);refresh();}
     else head.replaceChildren(...prev);};
   inp.onkeydown=e=>{if(e.key==="Enter")commit(true);if(e.key==="Escape")commit(false);};
@@ -3633,6 +3781,7 @@ function renameNode(old,neo){
   const next={};                                    /* 重建对象是为了保住节点顺序 */
   Object.entries(doc.nodes).forEach(([k,v])=>{next[k===old?neo:k]=v;});
   doc.nodes=next;
+  doc.order=(doc.order||[]).map(k=>k===old?neo:k); /* 文件顺序表跟着改名 */
   Object.values(doc.nodes).forEach(n=>{
     if(n.jump===old)n.jump=neo;
     n.opts.forEach(o=>{if(o.to===old)o.to=neo;});});
@@ -3694,15 +3843,25 @@ function wireGraph(){const g=$("graph");applyView();
   $("addNode").onclick=()=>{let i=1;while(doc.nodes["node"+i])i++;const name="node"+i;
     doc.nodes[name]={x:Math.round((-gx+90)/gs),y:Math.round((-gy+70)/gs),
       bg:"",narr:[],npc:"",opts:[]};
+    (doc.order ??= []).push(name);
     cur=name;beat=0;refresh();};
   $("delNode").onclick=()=>{
     if(Object.keys(doc.nodes).length<2)return;
-    const gone=cur;delete doc.nodes[gone];
+    const gone=cur;delete doc.nodes[gone];doc.order=(doc.order||[]).filter(k=>k!==gone);
     Object.values(doc.nodes).forEach(n=>{                 /* 顺手把指向它的跳转清空，免得留断链 */
       if(n.jump===gone)n.jump="";
       n.opts.forEach(o=>{if(o.to===gone)o.to="";});});
     if(doc.start===gone)doc.start=Object.keys(doc.nodes)[0];
+    /* 文件头里指着它的也要清：first / when / 触发点的 node。留着回写就是 `first: 已删节点`，游戏里等于直接关闭（2026-09-08 审查） */
+    if(doc.first===gone)doc.first=null;
+    for(let i=doc.when.length-1;i>=0;i--)if(doc.when[i].node===gone)dropHead("when",i);
+    doc.triggers=doc.triggers.map(l=>{const t=trigParse(l);return t&&t.node===gone?(t.node="",trigLine(t)):l;});
     cur=Object.keys(doc.nodes)[0];beat=0;refresh();};}
+/* 删掉第 i 条 when / trigger：列表和文件头记录一起动，后面的下标往前挪，不然回写会串行 */
+function dropHead(k,i){
+  (k==="when"?doc.when:doc.triggers).splice(i,1);
+  doc.headRaw=doc.headRaw.filter(h=>!(h.k===k&&h.i===i));
+  doc.headRaw.forEach(h=>{if(h.k===k&&h.i>i)h.i--;});}
 /* 竖分隔：拖的是左侧视口的宽度，不是流程区的高度。
    ⚠️ 拖到的宽度必须记进 splitW——切页会把 #main 整页重建，行内样式活不过一次 render()，
    只写 style 不写变量的话，切出去再回来预览就弹回默认宽（Tech Leader 实测抓到的）。 */
@@ -3719,6 +3878,10 @@ function wireSplit(){$("split").onmousedown=e=>{e.preventDefault();
    它当年丢过：节点体里的注释、旁白上的 anim、setstatus 的状态值、
    standing 的商人 id、同一选项上的第二条门控。
    现在**唯一的写手是 C# 的 DialogWriter**，前端只把模型发过去。 */
+/* 节点按文件顺序（doc.order）吐给写手；新建的、order 里没记的排在后面。
+   直接 Object.keys 的话 "1"、"10" 这种整数形名字会被 JS 排到最前面，存一次盘节点就换位 */
+const nodeOrder=()=>{const o=(doc.order||[]).filter(n=>doc.nodes[n]);
+  for(const n of Object.keys(doc.nodes))if(!o.includes(n))o.push(n);return o;};
 const docJson=()=>({
   trader:doc.trader,name:doc.name,start:doc.start,first:doc.first,
   actor:doc.actor||null,scene:doc.scene||null,
@@ -3726,7 +3889,7 @@ const docJson=()=>({
   /* v 用 ?? 不用 ||：空行的 v 是 ""，用 || 会被当成没有，那一行就没了 */
   headRaw:(doc.headRaw||[]).map(e=>({k:e.k,i:e.i||0,v:e.v??null})),
   when:doc.when,triggers:doc.triggers,alias:doc.alias,aliasOrder:doc.aliasOrder,
-  nodes:Object.entries(doc.nodes).map(([nm,n])=>({
+  nodes:nodeOrder().map(nm=>[nm,doc.nodes[nm]]).map(([nm,n])=>({
     name:nm,bg:n.bg,anim:n.anim,bgm:n.bgm,npc:n.npc,audio:n.audio,jump:n.jump,
     narr:n.narr,npcAt:n.npcAt??null,opts:n.opts,
     lead:n.lead,npcLead:n.npcLead,jumpLead:n.jumpLead,tail:n.tail})),
@@ -3752,19 +3915,33 @@ function badQids(){
   if(doc.tab)add("tab",doc.tab);
   return out;
 }
+/* ⚠️ 这里曾有一条「一屏没有安全出口」的提示（09-09 加、当天撤）：那是 08-30 记忆里写的「1.2.1 需求 4」，
+   SORA 说从没提过这个需求。插件 1.3 自己会在选项全被藏掉时补「（结束）」，编辑器不再提示。要再加先问 SORA。 */
+/* 正文守卫（与服务端 DlgJson.BadTexts 同一套规则）：.dlg 没有转义，正文里出现分隔符或行首保留符号，写出去再读回就变形 */
+const LEAD_RE=/^(- |>|->|#|\/\/|<[A-Za-z0-9_.\-]+>)/;
+const badText=(s,opt)=>{s=String(s||"");return s.includes(" | ")||LEAD_RE.test(s)||(!!opt&&s.includes(" -> "));};
+function badTexts(){const out=[];
+  Object.entries(doc.nodes).forEach(([n,d])=>{
+    if(badText(d.npc))out.push(`<${n}> ${T("bt_npc")}`);
+    d.narr.forEach((b,i)=>{if(badText(b.text))out.push(`<${n}> ${T("bt_narr")} ${i+1}`);});
+    d.opts.forEach((o,i)=>{if(badText(o.t,true))out.push(`<${n}> #${i+1}`);
+      if(o.act&&o.act.kind==="handover"&&/,/.test(o.act.label||""))out.push(`<${n}> #${i+1} handover`);});});
+  return out;}
 function stat(){const bad=[];
   Object.entries(doc.nodes).forEach(([n,d])=>{
     [...d.opts.map(o=>o.to),d.jump].forEach(to=>{
       if(to&&!isReal(to)&&!isRsv(to))bad.push(`<${n}> → '${to}'`);});});
-  const bq=badQids();
+  const bq=badQids(), bt=badTexts();
   const e=$("stat");if(!e)return;
-  const n=bad.length+bq.length;
+  const n=bad.length+bq.length+bt.length;
   e.className="stat"+(n?"":" clean");
   $("tape")?.classList.toggle("hot",n>0);
-  e.title=n?[...bad.map(x=>T("broken")+": "+x),...bq.map(x=>T("bad_qid")+": "+x)].join("\n"):"";
+  e.title=n?[...bad.map(x=>T("broken")+": "+x),...bq.map(x=>T("bad_qid")+": "+x),
+             ...bt.map(x=>T("bad_text")+": "+x)].join("\n"):"";
   const parts=[];
   if(bad.length)parts.push(`${bad.length} ${T("broken")}: ${bad.slice(0,2).join(" · ")}${bad.length>2?"…":""}`);
   if(bq.length)parts.push(`${bq.length} ${T("bad_qid")}: ${bq.slice(0,2).join(" · ")}${bq.length>2?"…":""}`);
+  if(bt.length)parts.push(`${bt.length} ${T("bad_text")}: ${bt.slice(0,2).join(" · ")}${bt.length>2?"…":""}`);
   e.textContent=n?"⚠ "+parts.join("　|　")
     :`✓ ${Object.keys(doc.nodes).length} ${T("all_ok")} · ${entryNodes().size} ${T("entries")} ${TRIG.size} ${T("trig_entries")}`;}
 /* ⚠️ `e.currentTarget` **只在一次派发进行中有值**，派发一结束就变回 null。
@@ -3940,12 +4117,24 @@ function jumpMenu(e,i){const n=N();const o=i>=0?n.opts[i]:null;
   p.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
     const v=b.dataset.t===T("end_paren")?null:b.dataset.t;
     if(o)o.to=v;else n.jump=v;refresh();hide();});}
-function bgMenu(e){const n=N();const list=[...ASSETS.bg.map(a=>a.name),T("no_bg")];
+function bgMenu(e){const own=bgOwn(),eff=curBg()||"",list=[...ASSETS.bg.map(a=>a.name),T("no_bg")];
+  /* 显隐和勾选读**生效的**背景（curBg 会回落到节点），写回找真正的持有者 own —— 否则
+     「节点写 once、下面几拍不写 bg」这个最常见的姿势下，列表里那一项还高亮着、开关却不见了 */
+  /* 局部名叫 playHtml 不叫 play：同一份 index.html 的 3597 行有个顶格的 function play(name)（试听音频），
+     在这儿声明一个 const play 会把它整个函数体遮住 —— 现在用不着，日后谁在这里加试听就当场 TDZ 报错 */
+  const playHtml=bgVid(eff)
+    ?`<h4>${T("m_bg_play")}</h4><div class="opts2"><button data-once aria-pressed="${bgOnce(eff)}">${T("m_bg_once")}</button></div><div class="hint">${T("m_bg_once_d")}</div>`
+    :bgOnce(eff)?`<div class="hint">${T("m_bg_once_img")}</div>`:"";
   const p=place(e,`<h4>${T("m_bg")}</h4><div class="opts2">`+list.map(b=>
-    `<button data-bg="${b}" aria-pressed="${curBg()===b||(!curBg()&&b===T("no_bg"))}">${b}</button>`).join("")+`</div>`);
+    `<button data-bg="${esc(b)}" aria-pressed="${(eff&&bgSame(eff,b))||(!eff&&b===T("no_bg"))}">${esc(b)}</button>`).join("")+`</div>`+playHtml);
   p.querySelectorAll("[data-bg]").forEach(b=>b.onclick=()=>{
     const v=b.dataset.bg===T("no_bg")?"":b.dataset.bg;
-    if(!isTalk())narAt(n,beat).bg=v;else n.bg=v;drawStage();hide();});}
+    /* 文件名没换就一个字符都不动：作者手写的 loop、多打的空格原样留着，
+       也不给一条本来继承节点背景的旁白凭空造出一行 bg */
+    if(!(v&&bgSame(eff,v)))bgPut(bgWith(v,bgVid(v)&&bgOnce(eff)),true);
+    drawStage();if(bgVid(v))bgMenu({currentTarget:$("bglayer")});else hide();});
+  const oc=p.querySelector("[data-once]");
+  if(oc)oc.onclick=()=>{bgPut(bgWith(bgCut(eff),!bgOnce(eff)),!!own);drawStage();bgMenu({currentTarget:$("bglayer")});};}
 /* ══ 文件头的 scene: / actor: ══
    解析器和 DialogWriter 一直支持这两行，只是没有入口，作者拿工具写不出来。
    **不做成下拉**：能填什么要等 VisitAPI Rework 那边的原生房间分析出结果，
@@ -4044,7 +4233,7 @@ function trigParse(line){
   const m=TRIG_RE.exec(line||""); if(!m)return null;
   const xyz=(m[3]||"").split(",").map(s=>s.trim());
   const t={kind:m[1].toLowerCase(),place:m[2],x:xyz[0]||"0",y:xyz[1]||"0",z:xyz[2]||"0",
-           node:"",dist:"",radius:"",free:false,auto:false,accept:"",finish:"",fail:"",gate:"",prompt:"",enter:""};
+           node:"",dist:"",radius:"",free:false,auto:false,once:false,accept:"",finish:"",fail:"",gate:"",prompt:"",enter:""};
   let rest=m[4];
   const q=rest.match(/"([^"]*)"/); if(q){t.prompt=q[1];rest=rest.replace(q[0],"");}
   const tok=rest.split(/\s+/).filter(Boolean);
@@ -4059,6 +4248,8 @@ function trigParse(line){
        文件照样能存、不报错，进游戏才发现"走过去不会自动接任务了"。 */
     else if(k==="accept")t.accept=tok[++i]||"";
     else if(k==="auto")t.auto=true;
+    /* once 是插件 1.3 加的（触发过就永远不弹，按存档记）。C# 那边三处早认了，这边不认就是同一个坑再踩一次 */
+    else if(k==="once")t.once=true;
     else if(k==="enter")t.enter=tok[++i]||"";
     else if(k==="finish")t.finish=tok[++i]||"";
     else if(k==="fail")t.fail=tok[++i]||"";
@@ -4069,7 +4260,7 @@ function trigParse(line){
 /* 生成的顺序照 C# 的 DialogWriter.Trigger 来，两边看起来才是一份东西 */
 const trigLine=t=>[t.kind,t.place||"*",t.enter?"enter "+t.enter:`(${t.x}, ${t.y}, ${t.z})`,
   t.node?"node "+t.node:"", t.dist?"dist "+t.dist:"", t.radius?"radius "+t.radius:"",
-  t.free?"free":"", t.auto?"auto":"", t.accept?"accept "+t.accept:"",
+  t.free?"free":"", t.auto?"auto":"", t.once?"once":"", t.accept?"accept "+t.accept:"",
   t.finish?"finish "+t.finish:"", t.fail?"fail "+t.fail:"",
   t.gate?"if "+t.gate:"", t.prompt?`"${t.prompt}"`:""].filter(Boolean).join(" ");
 const trigDesc=l=>{const t=trigParse(l);
@@ -4077,7 +4268,7 @@ const trigDesc=l=>{const t=trigParse(l);
 
 /* render() 之后手上这个按钮就成了游离节点（量位置全是 0，菜单会飘到屏幕左上角）。
    还挂在页面上就用它，不在了才退回顶栏那一格。节点 ⋮ 进来的也走这条路。 */
-const trigAt=el=>(el&&el.isConnected?el:document.querySelector("[data-trig]"));
+const trigAt=el=>(el&&el.isConnected?el:document.querySelector(".cart [data-trig]"));
 function trigMenu(el){
   el=trigAt(el);
   const rows=doc.triggers.map((l,i)=>
@@ -4094,10 +4285,21 @@ function trigMenu(el){
     doc.headRaw.push({k:"trigger",i:doc.triggers.length-1});
     markDirty(true);trigEdit(el,doc.triggers.length-1);};
 }
+/* 表单认不出的触发点（省了地图名、提示写在坐标前面……）原来直接拿默认模板顶上、一动就整行覆盖；改成给原文一个输入框 */
+function trigRaw(el,i){
+  const p=placeAt(el,`<h4>${TF("m_trig_one",i+1)}</h4><div class="hint">${T("m_trig_raw_d")}</div>
+    <label class="fld"><i>trigger:</i><input data-raw value="${esc(doc.triggers[i])}"></label>
+    <div class="opts2" style="margin-top:.5rem"><button data-del>${T("m_trig_del")}</button><button data-back>${T("m_trig_back")}</button></div>`);
+  const inp=p.querySelector("[data-raw]");
+  inp.onchange=()=>{doc.triggers[i]=inp.value.trim();markDirty(true);refresh();render();};
+  p.querySelector("[data-back]").onclick=()=>trigMenu(el);
+  p.querySelector("[data-del]").onclick=async()=>{if(!await confirm2(T("m_trig_delask")))return;
+    dropHead("trigger",i);markDirty(true);refresh();render();hide();};
+}
 function trigEdit(el,i){
   el=trigAt(el);
-  const t=trigParse(doc.triggers[i])||{kind:"hideout",place:"",x:"0",y:"0",z:"0",
-    node:"",dist:"",radius:"",free:false,auto:false,accept:"",finish:"",fail:"",gate:"",prompt:"",enter:""};
+  const t=trigParse(doc.triggers[i]);
+  if(!t)return trigRaw(el,i);
   /* 条件拆成「哪个任务」+「什么状态」两块来编；多状态（a/b）只认第一个，点过状态芯片就写成单个 */
   const ge=t.gate.indexOf("="),gq=ge<0?t.gate:t.gate.slice(0,ge),gs0=ge<0?"":t.gate.slice(ge+1).split("/")[0];
   const gs=/^\d$/.test(gs0)?+gs0:STATUS.findIndex(x=>x.toLowerCase()===gs0.toLowerCase());
@@ -4118,7 +4320,8 @@ function trigEdit(el,i){
     ${fld("dist","m_tr_dist","3")}
     ${fld("radius","m_tr_radius","1.2")}
     <div class="opts2"><button data-free aria-pressed="${!!t.free}">${T("m_tr_free")}</button>
-      <button data-auto aria-pressed="${!!t.auto}">${T("m_tr_auto")}</button></div>
+      <button data-auto aria-pressed="${!!t.auto}">${T("m_tr_auto")}</button>
+      <button data-once aria-pressed="${!!t.once}">${T("m_tr_once")}</button></div>
     <h4>${T("m_tr_accept")}</h4>
     <button class="trrow" data-tacc><b>${esc(qidLabel(t.accept))}</b><span>⋮</span></button>
     ${t.accept?`<div class="opts2"><button data-tacc0>${T("m_tr_accept_no")}</button></div>`:""}
@@ -4145,6 +4348,7 @@ function trigEdit(el,i){
   p.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{t.kind=b.dataset.k;put();trigEdit(el,i);});
   p.querySelector("[data-free]").onclick=()=>{t.free=!t.free;put();trigEdit(el,i);};
   p.querySelector("[data-auto]").onclick=()=>{t.auto=!t.auto;put();trigEdit(el,i);};
+  p.querySelector("[data-once]").onclick=()=>{t.once=!t.once;put();trigEdit(el,i);};
   /* 任务 id 一律从任务库里挑，和选项那边同一个窗口 */
   p.querySelector("[data-tacc]").onclick=()=>
     qidMenu(()=>trigAt(el),t.accept,q=>{t.accept=q;put();trigEdit(el,i);});
@@ -4167,10 +4371,7 @@ function trigEdit(el,i){
   p.querySelector("[data-back]").onclick=()=>trigMenu(el);
   p.querySelector("[data-del]").onclick=async()=>{
     if(!await confirm2(T("m_trig_delask")))return;
-    doc.triggers.splice(i,1);
-    /* 头行里记的是"第几条触发器"，删一条后面的下标要跟着往前挪，不然回写会串行 */
-    doc.headRaw=doc.headRaw.filter(h=>!(h.k==="trigger"&&h.i===i));
-    doc.headRaw.forEach(h=>{if(h.k==="trigger"&&h.i>i)h.i--;});
+    dropHead("trigger",i);            /* 头行下标跟着挪，见 dropHead */
     markDirty(true);refresh();render();hide();};
 }
 
@@ -4462,31 +4663,44 @@ function openSrc(sel){
     .then(d=>{$("srcPre").value=d.text;
       if(sel){const t=$("srcPre");t.readOnly=false;t.focus();t.select();t.readOnly=true;}})
     .catch(e=>{$("srcPre").value=String(e.message);});}
-async function saveDlg(){
+let dlgStamp=null;   /* 打开时文件的修改时间，存盘带回去做乐观锁（见 FileApi /api/dlg） */
+async function saveDlg(force){
   if(!filePath){note(T("save_nofile"),"dirty");return;}
+  /* 没改过就别写：服务端每次落盘都先把 .bak 换成当前内容，干净态再按一次 Ctrl+S 就把唯一一代备份毁了（2026-09-08 审查） */
+  if(!dirty){note(T("saved_ok"),"hot");return;}
   /* .dlg.demo 是插件带的示例，游戏只读 *.dlg —— 存回 .demo 等于白改，这里拦一下 */
   if(/\.dlg\.demo$/i.test(filePath)){
     const real=filePath.replace(/\.demo$/i,"");
     if(!await confirm2(T("demo_save").replace("{0}",real)))return;
-    filePath=real; const fp=$("fpath"); if(fp)fp.textContent=real;
+    filePath=real; dlgStamp=null; const fp=$("fpath"); if(fp)fp.textContent=real;
   }
   const snap=docSnap();
-  api("/api/dlg?path="+encodeURIComponent(filePath),
-    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(docJson())})
-    .then(()=>{savedText=snap;markDirty(false);note(T("saved_ok"),"hot");
-      linksRescan();})            /* 选项上挂的任务可能刚被改过，任务页那份挂接表跟着更新 */
-    .catch(e=>note(T("save_fail")+" "+e.message,"dirty"));}
-/* 离开页面前拦一下——没有草稿兜底了，改了不存就是真丢 */
-addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+  const url="/api/dlg?path="+encodeURIComponent(filePath)+(dlgStamp!=null?"&stamp="+dlgStamp:"")+(force?"&force=true":"");
+  try{
+    const d=await api(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(docJson())});
+    dlgStamp=d.stamp??dlgStamp;savedText=snap;markDirty(false);note(T("saved_ok"),"hot");
+    linksRescan();               /* 选项上挂的任务可能刚被改过，任务页那份挂接表跟着更新 */
+  }catch(e){
+    const msg=String(e.message||"");
+    /* 409：打开之后文件被别处改过（另一个窗口、任务页挂接、记事本）。问一句再盖，别默默盖 */
+    if(/"stale"/.test(msg)){if(await confirm2(T("dlg_stale")))return saveDlg(true);return;}
+    if(/bad_text/.test(msg))return note(T("bad_text_save"),"dirty");   /* 顶栏状态条里列着是哪几处 */
+    note(T("save_fail")+" "+msg,"dirty");}}
+/* 离开页面前拦一下——没有草稿兜底了，改了不存就是真丢。
+   四个页面各有各的脏标记（对话 dirty / 任务·章节 qdirty / 服装 bdirty / 货架 adirty），原来只看对话那一个，
+   任务改了没存按 F5 直接丢（2026-09-08 审查）。切工程那处（pjOpen）早就是四个一起看的，这里对齐 */
+const anyDirty=()=>dirty||(typeof qdirty==="function"&&qdirty())||(typeof bdirty==="function"&&bdirty())||(typeof adirty==="function"&&adirty());
+addEventListener("beforeunload",e=>{if(anyDirty()){e.preventDefault();e.returnValue="";}});
 function render(){
   drawNav();const m=$("main");
   if(page==="dlg"){m.innerHTML=dlgPage();
     $("bglayer").onclick=e=>bgMenu(e);
     $("srcBtn").onclick=()=>openSrc(false);
-    document.querySelectorAll("[data-head]").forEach(b=>b.onclick=headMenu);
-    document.querySelectorAll("[data-trig]").forEach(b=>b.onclick=e=>trigMenu(e.currentTarget));
-    document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=e=>tabMenu(e.currentTarget));
-    document.querySelectorAll("[data-compat]").forEach(b=>b.onclick=e=>compatPane(e.currentTarget));
+    /* 接线只从顶栏 .cart 往下找：document 级选择器会把别处同名的 data-* 一起选上（bot.js 也有 data-tab；1.0.3 就是这么写坏存档的） */
+    m.querySelectorAll(".cart [data-head]").forEach(b=>b.onclick=headMenu);
+    m.querySelectorAll(".cart [data-trig]").forEach(b=>b.onclick=e=>trigMenu(e.currentTarget));
+    m.querySelectorAll(".cart [data-tab]").forEach(b=>b.onclick=e=>tabMenu(e.currentTarget));
+    m.querySelectorAll(".cart [data-compat]").forEach(b=>b.onclick=e=>compatPane(e.currentTarget));
     $("saveBtn").onclick=saveDlg;
     $("openBtn").onclick=openPicker;
     $("vfold").onclick=()=>{
@@ -4720,12 +4934,16 @@ async function pjOpen(path){
     .then(d=>{pjApply();say(TF("pj_done",d.name||""));})
     .catch(e=>say(TF("pj_fail",String(e.message).slice(0,120))));
 }
+/* 起手模板重置：切工程 / 切语言都走这一处。漏掉 relaid=false 节点就没坐标（贴在 (0,0) 被侧栏遮住、fit 不跑），
+   漏掉 TRIG/COMPAT 顶栏就还挂着上一份文件的触发入口和 4.0.13 角标（2026-09-08 审查） */
+function resetDoc(){
+  filePath=null;doc=parseDlg(srcText());cur=doc.start;beat=0;picked=false;
+  TRIG=triggerEntries();COMPAT=[];relaid=false;savedText=docSnap();}
 function pjApply(){
   /* 换工程=三根齐换：挂在旧根上的缓存一个不留（QL 是挂接缓存，单换任务库时漏清过一次）。
      对话页打开的文件路径已越界，退回起手模板；素材清单和工作区横幅重新拉。 */
   QD=null;QROOTS=null;QL=null;BD=null;AD=null;ATPL={};ABENV=null;PJ=null;
-  filePath=null;doc=parseDlg(srcText());cur=doc.start;beat=0;picked=false;
-  applyStatic();savedText=docSnap();markDirty(false);
+  resetDoc();applyStatic();markDirty(false);
   api("/api/workspace").then(w=>{WS=w;showWs();}).catch(()=>{});
   api("/api/assets").then(a=>{ASSETS={bg:a.bg||[],audio:a.audio||[]};}).catch(()=>{});
   render();
@@ -4765,8 +4983,10 @@ function wireSettings(){
     document.documentElement.lang=lang==="zh"?"zh-CN":"en";
     /* 还没打开过任何文件、也没动过手 → 起手模板重新按新语言生成。
        打开过文件就绝不动：那是人家的剧本，不能因为切了个界面语言就被换掉。 */
-    if(!filePath&&!dirty)doc=parseDlg(srcText());
-    applyStatic();render();savedText=docSnap();markDirty(false);});
+    /* ⚠️ savedText/markDirty(false) 只许在真的换了模板时做。原来无条件做，
+       打开的剧本改了没存、去切个语言，就被标成「已保存」，关页直接丢改动（2026-09-08 审查）。 */
+    if(!filePath&&!dirty)resetDoc();
+    applyStatic();render();markDirty(dirty);});
   const ps=$("pjSave"); if(ps)ps.onclick=async()=>{
     const def=((PJ&&PJ.eft)?PJ.eft+"\\":"")+(lang==="zh"?"我的工程":"my-project")+".vaproj";
     const p=await ask(T("pj_ask_path"),def); if(!p)return;
@@ -4814,11 +5034,17 @@ $("srcCopy").onclick=()=>{const t=$("srcPre");
     const x0=e.clientX,y0=e.clientY,w0=r.width,h0=r.height;
     grab(e,ev=>{
       if(m!=="s")w.style.width=Math.max(340,w0+ev.clientX-x0)+"px";
-      if(m!=="e")w.style.height=Math.max(200,h0+ev.clientY-y0)+"px";});});
+      if(m!=="e")w.style.height=Math.max(200,h0+ev.clientY-y0)+"px";},
+      m==="s"?"ns":m==="e"?"ew":"nwse");                         /* 缩放期指针按方向锁，cursor.css 备好了这三套 */});
 })();
 
+/* Ctrl+S 存的是**当前页**：原来不分页面一律 saveDlg()，在任务页按一下写的是 .dlg（2026-09-08 审查） */
 addEventListener("keydown",e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveDlg();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();
+    if(page==="dlg")saveDlg();
+    else if(page==="quest"||page==="chapter"){if(typeof questSave==="function")questSave(false);}
+    else if(page==="cloth"){if(typeof bPost==="function")bPost(false);}
+    else if(page==="assort"){if(typeof aPost==="function")aPost(false);}}
   if(e.key==="Escape")$("srcwrap").classList.remove("on");});
 applyStatic();render();savedText=docSnap();markDirty(false);   /* 初始基线：刚开页面不算"改过" */
 /* 开局就把「打开」弹出来。界面里那份是空白起手模板，不是从磁盘读的——
@@ -4854,7 +5080,10 @@ ping();setInterval(ping,10000);
 try{
   const live=new EventSource("/live?t="+encodeURIComponent(TOK));
   live.onopen=alive;
-  live.onerror=()=>{ if(live.readyState===EventSource.CLOSED||live.readyState===EventSource.CONNECTING)serverGone(); };
+  live.onerror=()=>{
+    if(live.readyState===EventSource.CLOSED){serverGone();return;}
+    /* CONNECTING 也可能只是瞬断重连（onopen 会撤遮罩），别一闪一闪；等两秒半还没连上再说人走了 */
+    setTimeout(()=>{if(live.readyState!==EventSource.OPEN)serverGone();},2500);};
 }catch(_){ /* 没有 EventSource 就退回上面那套心跳，服务端也留着旧的超时兜底 */ }
 /* 从后台切回来立刻补一发：别等下一个 tick，被掐着的时候那可能是一分钟以后 */
 addEventListener("visibilitychange",()=>{if(!document.hidden)ping();});
@@ -4910,6 +5139,9 @@ async function loadDoc(path,gotoNode){
   if(dirty&&!await confirm2(T("confirm_discard")))return;
   api("/api/dlg?path="+encodeURIComponent(path)).then(d=>{
     doc=parseDlg(d.text);filePath=d.path;relaid=false;savedText="";
+    /* 空文件（帮助页教的起手法：建个空文本改名 .dlg）：没有节点整条渲染链会在 curBg() 上抛，半页空白零提示。补一个入口节点 */
+    if(!Object.keys(doc.nodes).length){doc.start=doc.start||"root";doc.nodes[doc.start]={x:40,y:40,bg:"",narr:[],npc:"",opts:[]};doc.order=[doc.start];}
+    dlgStamp=d.stamp??null;                          /* 存盘时带回去做乐观锁 */
     TRIG=triggerEntries();
     COMPAT=compatScan(d.text);                       /* 旧版写法自动认一下 */
     cur=gotoNode&&doc.nodes[gotoNode]?gotoNode

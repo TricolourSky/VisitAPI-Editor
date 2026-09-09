@@ -120,6 +120,10 @@ public static class BotApi
         foreach (var (name, content) in r.Files ?? [])
         {
             if (Bad(ws, name)) return Results.BadRequest(new { error = "bad_name", name });
+            // 只差大小写的名字（bosskilla.json vs 盘上的 BossKilla.json）：表和 NTFS 都当同一份，
+            // 收下就是拿新内容覆盖人家那份（空 appearance 还会把它删掉）。前端已拦，这里是第二道。
+            var clash = looks.Files.Keys.FirstOrDefault(k => k != name && k.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (clash != null) return Results.BadRequest(new { error = "bad_name", name, existing = clash });
             looks.Files[name] = content;
         }
         // 只写这次送来的文件；盘上有、请求里没有的不动。
@@ -139,7 +143,7 @@ public static class BotApi
 
     /// <summary>文件名不许带目录、不许 <c>..</c> 出去、必须是 .json。</summary>
     static bool Bad(Workspace ws, string name) =>
-        name.Contains('/') || name.Contains('\\') ||
+        !SafeName.Ok(name) ||
         !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
         ws.ResolveMod(Path.Combine("CustomBotLoadouts", name)) == null;
 

@@ -21,6 +21,8 @@ public sealed class BotLookStore
 
     /// <summary>读不动的文件：文件名 → 原因。必须报出来，否则作者看到的是"我的配置不见了"。</summary>
     public Dictionary<string, string> Broken { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>每份文件读入时的样式，写回照原样（见 JsonFile）。</summary>
+    public Dictionary<string, JsonFile.Style> Styles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public string Dir { get; }
 
@@ -28,7 +30,7 @@ public sealed class BotLookStore
 
     public void Load()
     {
-        Files.Clear(); Broken.Clear();
+        Files.Clear(); Broken.Clear(); Styles.Clear();
         if (!Directory.Exists(Dir)) return;
         foreach (var f in Directory.GetFiles(Dir, "*.json").OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
         {
@@ -38,6 +40,7 @@ public sealed class BotLookStore
                 if (JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(f))) is not JsonObject o)
                 { Broken[name] = "not_object"; continue; }
                 Files[name] = o;
+                Styles[name] = JsonFile.Sniff(f);
             }
             catch (Exception e) { Broken[name] = e.Message; }
         }
@@ -56,15 +59,8 @@ public sealed class BotLookStore
         return d;
     }
 
-    static readonly JsonSerializerOptions Pretty = new()
-    {
-        WriteIndented = true,
-        // 中文不该被转成 \uXXXX：这些文件作者要用记事本打开看的
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
     /// <summary>
-    /// 写回一个文件，覆盖前留 .bak（和任务库、.dlg 同一条规矩）。
+    /// 写回一个文件，覆盖前留 .bak（和任务库、.dlg 同一条规矩）；没变不写、照原样式、先 .tmp 再顶上（见 JsonFile）。
     /// <b>空的 appearance ＝ 把这份文件删掉</b>：留着一个什么都不改的文件只会让 WTT 白读一遍。
     /// </summary>
     public void SaveFile(string name)
@@ -72,14 +68,13 @@ public sealed class BotLookStore
         if (!Files.TryGetValue(name, out var obj)) return;
         Directory.CreateDirectory(Dir);
         var path = Path.Combine(Dir, name);
-        if (File.Exists(path)) File.Copy(path, path + ".bak", true);
         if (IsEmpty(obj))
         {
-            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(path)) { File.Copy(path, path + ".bak", true); File.Delete(path); }
             Files.Remove(name);
             return;
         }
-        File.WriteAllText(path, obj.ToJsonString(Pretty));
+        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
     }
 
     /// <summary>整份文件除了空的 appearance 之外什么都没有。</summary>

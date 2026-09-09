@@ -42,6 +42,11 @@
   padding:.4rem .7rem;transform:skewX(var(--sk));background:var(--ink-3);color:var(--ground)}
 .chcard[data-st="active"] .chstate{background:var(--y);color:var(--y-ink);font-weight:700}
 .chcard[data-st="done"] .chstate{background:var(--tech);color:var(--ground);font-weight:700}
+/* 显示顺序格：挂在状态牌下面 */
+.chban .chorder{position:absolute;right:.9rem;top:2.7rem;display:flex;align-items:center;gap:.35rem;font:10px/1 var(--mono);letter-spacing:.1em;color:var(--ink-2)}
+.chban .chorder input{width:3.4rem;border:0;outline:0;padding:.25rem .35rem;font:11px var(--mono);color:var(--ink);
+  background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px var(--line-2)}
+.chban .chorder input:focus{box-shadow:inset 0 0 0 1px var(--y)}
 .chpick{position:absolute;right:.9rem;bottom:.8rem;border:0;cursor:var(--cur-p);font-size:11px;padding:.3rem .6rem;
   background:rgba(0,0,0,.55);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2)}
 .chpick:hover{background:var(--y);color:var(--y-ink);font-weight:700;box-shadow:none}
@@ -147,3 +152,6 @@
   font-style:normal;background:var(--panel);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2)}
 .cfgraph .qnode .chips b{color:var(--y);box-shadow:inset 0 0 0 1px var(--y)}
 .cbook .hsplit{flex:0 0 auto;z-index:4}
+/* 目标行上的「跟在某条目标之后才显示」标记：任务页那条挂在 .trow 下，章节目标行是 .chobj，单开一条 */
+.chvis{flex:0 0 auto;font:10px/1.4 var(--mono);color:var(--tech);box-shadow:inset 0 0 0 1px var(--tech);
+  padding:.15rem .3rem;max-width:30%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

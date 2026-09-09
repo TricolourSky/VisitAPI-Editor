@@ -24,13 +24,15 @@ public sealed class AssortStore
     /// <summary>相对 db 的文件名（<c>assort.json</c> 或 <c>CustomAssortSchemes/x.json</c>）→ 整份文件。</summary>
     public Dictionary<string, JsonObject> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Broken { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>每份文件读入时的样式，写回照原样（见 JsonFile）。</summary>
+    public Dictionary<string, JsonFile.Style> Styles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public string Db { get; }
     public AssortStore(string modDbDir) => Db = modDbDir;
 
     public void Load()
     {
-        Files.Clear(); Broken.Clear();
+        Files.Clear(); Broken.Clear(); Styles.Clear();
         One("assort.json", Path.Combine(Db, "assort.json"));
         var dir = Path.Combine(Db, WttDir);
         if (!Directory.Exists(dir)) return;
@@ -46,6 +48,7 @@ public sealed class AssortStore
             if (JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(path))) is not JsonObject o)
             { Broken[name] = "not_object"; return; }
             Files[name] = o;
+            Styles[name] = JsonFile.Sniff(path);
         }
         catch (Exception e) { Broken[name] = e.Message; }
     }
@@ -93,19 +96,11 @@ public sealed class AssortStore
     public static string Str(JsonObject o, string k) =>
         o[k] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
 
-    static readonly JsonSerializerOptions Pretty = new()
-    {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
-    /// <summary>写回一份文件，覆盖前留 .bak（全项目同一条规矩）。</summary>
+    /// <summary>写回一份文件，覆盖前留 .bak（全项目同一条规矩）；没变不写、照原样式、先 .tmp 再顶上（见 JsonFile）。</summary>
     public void SaveFile(string name)
     {
         if (!Files.TryGetValue(name, out var obj)) return;
         var path = Path.Combine(Db, name.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        if (File.Exists(path)) File.Copy(path, path + ".bak", true);
-        File.WriteAllText(path, obj.ToJsonString(Pretty));
+        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
     }
 }

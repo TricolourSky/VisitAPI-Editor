@@ -102,7 +102,7 @@ public static class AssortValidator
     }
 
     static int Count(JsonObject item) =>
-        item["upd"]?["StackObjectsCount"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 1;
+        (item["upd"] as JsonObject)?["StackObjectsCount"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 1;
 
     /// <summary>
     /// 价格条目本身是否站得住：外层是"几种付法（或）"、内层是"要一起给的东西（且）"，

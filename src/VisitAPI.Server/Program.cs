@@ -102,6 +102,9 @@ public static class Program
         b.Logging.ClearProviders();                 // ASP.NET 默认日志太吵，控制台留给我们自己说话
         // 只绑回环地址。绝不能绑 0.0.0.0——那等于把「随便读写你硬盘」开放给整个局域网。
         b.WebHost.UseUrls(url);
+        // Host 头也要锁：默认 AllowedHosts=*，恶意网页把自己的域名 DNS 重绑到 127.0.0.1 后就成了同源，
+        // 能读 <meta name="tok">，令牌那道闸就白设了（2026-09-08 审查）。默认管线自带 HostFiltering 中间件，改这一项即可。
+        b.Configuration["AllowedHosts"] = "127.0.0.1;localhost;[::1]";
         var app = b.Build();
 
         FileApi.Map(app, ws);
@@ -136,14 +139,18 @@ public static class Program
             ctx.Response.Headers["Cache-Control"] = "no-store";
             ctx.Response.Headers["X-Accel-Buffering"] = "no";
             ctx.Response.ContentType = "text/event-stream";
+            // 页面断了、或者进程要退（/api/quit）都要从这个循环里出来：原来只看 RequestAborted，
+            // quit 之后长连接还挂着，要等 HostOptions.ShutdownTimeout（30 秒）才真退
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, app.Lifetime.ApplicationStopping);
+            var tok = stop.Token;
             try
             {
-                while (!ctx.RequestAborted.IsCancellationRequested)
+                while (!tok.IsCancellationRequested)
                 {
                     // 冒号开头是 SSE 的注释帧，客户端不会当成消息，纯粹用来保活
-                    await ctx.Response.WriteAsync(": hi\n\n", ctx.RequestAborted);
-                    await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
-                    await Task.Delay(TimeSpan.FromSeconds(20), ctx.RequestAborted);
+                    await ctx.Response.WriteAsync(": hi\n\n", tok);
+                    await ctx.Response.Body.FlushAsync(tok);
+                    await Task.Delay(TimeSpan.FromSeconds(20), tok);
                 }
             }
             catch (OperationCanceledException) { /* 页面走了，正常路径 */ }

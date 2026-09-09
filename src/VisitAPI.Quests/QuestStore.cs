@@ -27,13 +27,16 @@ public sealed class QuestStore
     /// </summary>
     public Dictionary<string, string> Broken { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>每份文件读入时的样式（换行/缩进/BOM），写回照原样，见 <see cref="JsonFile"/>。</summary>
+    public Dictionary<string, JsonFile.Style> Styles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public string Dir { get; }
 
     public QuestStore(string questDbDir) => Dir = Path.Combine(questDbDir, "quests");
 
     public void Load()
     {
-        Files.Clear(); Owner.Clear(); Broken.Clear();
+        Files.Clear(); Owner.Clear(); Broken.Clear(); Styles.Clear();
         if (!Directory.Exists(Dir)) return;
         foreach (var f in Directory.GetFiles(Dir, "*.json").OrderBy(x => x))
         {
@@ -43,6 +46,7 @@ public sealed class QuestStore
                 if (JsonNode.Parse(File.ReadAllText(f)) is not JsonObject obj)
                 { Broken[name] = "not_object"; continue; }    // 顶层得是 { "<id>": {...} }
                 Files[name] = obj;
+                Styles[name] = JsonFile.Sniff(f);
                 foreach (var kv in obj) Owner[kv.Key] = name;
             }
             catch (Exception e) { Broken[name] = e.Message; }
@@ -56,15 +60,8 @@ public sealed class QuestStore
                  .Where(q => q.Value is JsonObject)
                  .Select(q => (q.Key, kv.Key, (JsonObject)q.Value!)));
 
-    static readonly JsonSerializerOptions Pretty = new()
-    {
-        WriteIndented = true,
-        // 中文不该被转成 \uXXXX：这些文件作者要用记事本打开看的
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
     /// <summary>
-    /// 写回一个文件。覆盖前留 .bak —— 和 .dlg 那边同一条规矩。
+    /// 写回一个文件。覆盖前留 .bak —— 和 .dlg 那边同一条规矩；内容没变就不写也不换 .bak、照原样式写、先 .tmp 再顶上（见 JsonFile）。
     ///
     /// **空对象 = 把这份文件删掉。** 界面把"这个文件里的任务被删光了"表达成一个 <c>{}</c>，
     /// 服务端不能照着写下去：那样 <c>db\quests</c> 里会攒一堆空文件，SPT 的加载器还得每个都读一遍。
@@ -75,14 +72,13 @@ public sealed class QuestStore
         if (!Files.TryGetValue(name, out var obj)) return;
         Directory.CreateDirectory(Dir);
         var path = Path.Combine(Dir, name);
-        if (File.Exists(path)) File.Copy(path, path + ".bak", true);
         if (obj.Count == 0)
         {
-            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(path)) { File.Copy(path, path + ".bak", true); File.Delete(path); }
             Files.Remove(name);
             foreach (var id in Owner.Where(kv => kv.Value == name).Select(kv => kv.Key).ToList()) Owner.Remove(id);
             return;
         }
-        File.WriteAllText(path, obj.ToJsonString(Pretty));
+        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
     }
 }

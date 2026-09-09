@@ -352,13 +352,16 @@ function bCard(w) {
    （别攥 e.currentTarget 留着以后用 —— 出了事件派发期它就是 null） */
 function wireBot() {
   hide();                                   /* 从对话页切过来时那个「打开」浮层可能还开着 */
-  document.querySelectorAll("[data-tab]").forEach(el =>
+  /* 接线只从本页根节点往下找（1.0.3 的教训：document 级选择器把 <html> 和别页同名的 data-* 一起选上）；
+     取不到根就不接，失败要关闭 */
+  const R = $("main"); if (!R) return;
+  R.querySelectorAll("[data-tab]").forEach(el =>
     el.onclick = () => { bTab = el.dataset.tab; render(); });
-  document.querySelectorAll("[data-pick]").forEach(el =>
+  R.querySelectorAll("[data-pick]").forEach(el =>
     el.onclick = () => bPut(bTab, el.dataset.pick));
-  document.querySelectorAll("[data-all]").forEach(el =>
+  R.querySelectorAll("[data-all]").forEach(el =>
     el.onclick = () => bPutAll(el.dataset.all));
-  document.querySelectorAll("[data-def]").forEach(el =>
+  R.querySelectorAll("[data-def]").forEach(el =>
     el.onclick = () => bBack(el.dataset.def));
   const q = $("bQ");
   if (q) q.oninput = () => {
@@ -377,6 +380,7 @@ function wireBot() {
    替换：该部位**整个换成**只有一件、权重 1000000 的字典。
    留着原来那一池再加一条的话，游戏照样有几率抽到原版的，作者会以为"没生效"。 */
 function bSet(k, dict) {
+  if (!BPARTS.includes(k)) return;          /* 先认人再落笔：野值进来（别处同名的 data-* 冒泡上来）不许写进 appearance */
   const f = bfile(); if (!f) return;
   f.appearance = f.appearance || {};
   f.appearance[k] = dict;
@@ -468,7 +472,9 @@ function bModal(title, body, wire) {
    必须从 SPT 真实的 bot 类型里挑：WTT 拿文件名直接查表，表的 key 全小写，
    名字写错它只 log 一句就跳过 —— 服务端一个错都不报，作者只会觉得"配了没生效"。 */
 async function bNew() {
-  const have = new Set(Object.keys(BD.files || {}).map(btype));
+  /* 比名字要不分大小写：盘上是 BossKilla.json、这里新建 bosskilla，服务端的表和 NTFS 都当同一个文件，
+     保存等于把人家那份覆盖掉（空 appearance 还会触发"删文件"）。2026-09-08 审查 */
+  const have = new Set(Object.keys(BD.files || {}).map(n => btype(n).toLowerCase()));
   const left = (BD.botTypes || []).filter(t => !have.has(t));
   if (!left.length) return say(T("b_alltypes"));
   const t = await ask(TF("b_newask", left.length), left[0]);

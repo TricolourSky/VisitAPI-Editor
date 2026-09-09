@@ -54,13 +54,25 @@ public sealed class Workspace
 
     public List<Quests.ModRoot> ScanModRoots() => Quests.ModLooks.ScanRoots(EftRoot);
 
+    /// <summary>
+    /// 手填路径允许新建几层：<c>&lt;模组&gt;\db</c> 两层是「从零开一个新模组」的正常起点；再深多半是打错了盘符/目录名，
+    /// 不该在别处凭空建一棵树再把库指过去、之后的保存全落错地方（2026-09-09 审查）。盘符不存在也算不能建。
+    /// </summary>
+    static bool CanCreate(string full, int maxNew = 2)
+    {
+        var d = full; var n = 0;
+        while (d != null && !Directory.Exists(d)) { n++; d = Path.GetDirectoryName(d); }
+        return d != null && n <= maxNew;
+    }
+
     public bool SetModDb(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;
         try
         {
             var full = Path.GetFullPath(path);
-            Directory.CreateDirectory(full);          // 指到一个还不存在的目录＝从零开一个新模组
+            if (!CanCreate(full)) return false;
+            Directory.CreateDirectory(full);          // 指到一个还不存在的目录＝从零开一个新模组（最多新建两层）
             ModDb = full;
             Save();
             return true;
@@ -122,6 +134,7 @@ public sealed class Workspace
         try
         {
             var full = Path.GetFullPath(path);
+            if (!CanCreate(full)) return false;       // 同 SetModDb：最多新建 <模组>\db 两层，打错的路径别在别处建树
             Directory.CreateDirectory(Path.Combine(full, "quests"));
             Directory.CreateDirectory(Path.Combine(full, "locales"));
             QuestDb = full;
@@ -260,7 +273,10 @@ public sealed class Workspace
     public string? Resolve(string relative)
     {
         if (!HasRoot) return null;
-        var full = Path.GetFullPath(Path.Combine(Root, relative ?? ""));
+        string full;
+        // 路径里混进 \0 之类的非法字符 GetFullPath 会抛 ArgumentException → 500；越界和非法一视同仁给 null
+        try { full = Path.GetFullPath(Path.Combine(Root, relative ?? "")); }
+        catch { return null; }
         var root = Root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         return full == Root.TrimEnd(Path.DirectorySeparatorChar) || full.StartsWith(root, StringComparison.OrdinalIgnoreCase)
             ? full : null;
