@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 namespace VisitAPI.Quests;
 
 public sealed record NamedId(string Id, string Zh, string En);
+/// <summary>藏身处设备：<c>Type</c> 就是任务条件 HideoutArea 的 areaType 号，<c>Max</c> 是它的最高等级（0 = 不知道，不查）。</summary>
+public sealed record AreaRow(int Type, string Zh, string En, int Max);
 public sealed record ItemRow(string Id, string Cat, string Zh, string En, int Price);
 /// <param name="Icon">
 /// 分类图标，形如 <c>/files/handbook/icon_ammo_boxes.png</c>，对应
@@ -25,6 +27,7 @@ public sealed class SptData
     public bool Ok => _db.Length > 0 && Directory.Exists(_db);
 
     List<NamedId>? _traders, _maps;
+    List<AreaRow>? _areas;
     List<ItemRow>? _items;
     List<CatRow>? _cats;
     List<string>? _botTypes;
@@ -172,6 +175,29 @@ public sealed class SptData
         "sandbox_high" => ("（高级）", " (high)"),
         _ => ("", ""),
     };
+
+    /// <summary>藏身处设备表。名字以全局文案 <c>hideout_area_&lt;n&gt;_name</c> 为准（圣诞树这种季节设备 areas.json 里没有、文案里有），
+    /// 最高等级取 <c>hideout\areas.json</c> 的 stages 键。任务条件 HideoutArea 的 areaType 填的就是这个号（原版 Cheer Up：21；1.1 用了 7 次）。</summary>
+    public List<AreaRow> Areas() => _areas ??= LoadAreas();
+    List<AreaRow> LoadAreas()
+    {
+        var max = new Dictionary<int, int>();
+        var p = Path.Combine(_db, "hideout", "areas.json");
+        if (File.Exists(p))
+            try
+            {
+                using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+                foreach (var a in doc.RootElement.EnumerateArray())
+                    if (a.TryGetProperty("type", out var t) && t.TryGetInt32(out var type) && a.TryGetProperty("stages", out var st) && st.ValueKind == JsonValueKind.Object)
+                        max[type] = st.EnumerateObject().Select(s => int.TryParse(s.Name, out var n) ? n : 0).DefaultIfEmpty(0).Max();
+            }
+            catch { }   // 坏文件只丢等级上限，名字表照给
+        var list = new List<AreaRow>();
+        foreach (var (k, en) in Loc("en"))
+            if (k.StartsWith("hideout_area_", StringComparison.Ordinal) && k.EndsWith("_name", StringComparison.Ordinal) && int.TryParse(k[13..^5], out var type))
+                list.Add(new AreaRow(type, Loc("ch").GetValueOrDefault(k, en), en, max.GetValueOrDefault(type)));
+        return list.OrderBy(x => x.Type).ToList();
+    }
 
     /// <summary>整读的上限，纯粹防将来 SPT 把 base.json 撑大。实测目前最大 322KB。</summary>
     const int MaxPeek = 8 * 1024 * 1024;

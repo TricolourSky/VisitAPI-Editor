@@ -134,8 +134,8 @@ function chObjGroup(s,main){
 const chObjRow=x=>{const o=objText(x.c), txt=(x.c.id&&qloc(x.c.id))||o.text, a=visOf(x.c)[0];
   return `<div class="chobj"><i class="tick"></i>
     <span class="tt" contenteditable="plaintext-only" ${x.c.id?`data-lockey="${esc(x.c.id)}"`:""}>${esc(txt)}</span>
-    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}</small>
-    ${a?`<span class="chvis" title="${esc(T("q_vis_d"))}">${esc(TF("q_vis_after",condLabel(x.s,a)))}</span>`:""}
+    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}${inGrp(x.s,x.c)?` · ${esc(T("q_tag_grp"))}`:""}</small>
+    ${a?`<span class="chvis" title="${esc(T("q_vis_d"))}">${esc(grpOf(x.s)?.includes(a)?T("q_vis_after_grp"):TF("q_vis_after",condLabel(x.s,a)))}</span>`:""}
     <button class="nec" data-cnec="${x.s._id}|${x.i}" title="${esc(T("ch_nec_tip"))}">${T(x.c.isNecessary===false?"ch_optional":"ch_main")}</button>
     <button class="dots" data-cmenu="${x.s._id}|${x.i}">⋮</button></div>`;};
 

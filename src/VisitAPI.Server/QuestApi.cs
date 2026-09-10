@@ -156,6 +156,7 @@ public static class QuestApi
                 traders,
                 knownTraders = ws.KnownTraders,     /* 界面要靠它显示"已标记为认识" */
                 maps = spt.Ok ? spt.Maps() : [],
+                areas = spt.Ok ? spt.Areas() : [],   /* 藏身处设备表：HideoutArea 目标/门槛挑设备用 */
                 issues = Validate(ws, quests, loc, known),
                 sptData = spt.Ok ? ws.SptData : null,
             });
@@ -354,7 +355,8 @@ public static class QuestApi
             catch { }
         // 原版任务 id 兜底 missing_prereq：没有 SPT 数据就传 null，那条规则自动降成提示
         var spt = Spt(ws);
-        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null);
+        var areas = spt.Ok ? spt.Areas() : [];   // 设备表空着（没 SPT 文案）就传 null：扫不到 ≠ 不存在，别把每条 HideoutArea 都报成坏号
+        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null, areas.Count > 0 ? areas : null);
     }
 
     public sealed record SaveReq(

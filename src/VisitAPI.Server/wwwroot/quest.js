@@ -69,6 +69,8 @@ const qtrader=id=>(QD.traders||[]).find(t=>t.id===id)?.[lang==="zh"?"zh":"en"]
   ||TF("q_unknown_trader",String(id||"").slice(0,8));
 const qmap=id=>(QD.maps||[]).find(m=>m.id===(id||"any"))?.[lang==="zh"?"zh":"en"]
   ||TF("q_unknown_map",String(id||"").slice(0,8));
+/* 藏身处设备（HideoutArea 的 areaType 号）：名字和最高等级随 /api/quests 的 areas 来，都出自游戏数据 */
+const areaName=t=>{const a=(QD.areas||[]).find(a=>a.type===+t);return a?(lang==="zh"?a.zh:a.en):TF("q_unknown_area",String(t));};
 const ROMAN=["—","Ⅰ","Ⅱ","Ⅲ","Ⅳ"];
 const NEWID=()=>Array.from({length:24},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
 const num=n=>Number(n||0).toLocaleString(lang==="zh"?"zh-CN":"en-US");
@@ -87,6 +89,7 @@ function objText(c){
     HandoverItem:()=>TF("q_c_HandoverItem",val(x),(x.target||[]).length),
     FindItem:()=>TF("q_c_FindItem",val(x),(x.target||[]).length),
     Skill:()=>TF("q_c_Skill",x.target,val(x)),
+    HideoutArea:()=>TF("q_c_HideoutArea",areaName(x.areaType),x.compareMethod||">=",val(x)),
     Quest:()=>TF("q_c_Quest",QD.quests[x.target]?qname(QD.quests[x.target]):x.target),
     Level:()=>TF("q_c_Level",x.compareMethod||"≥",val(x)),
     TraderStanding:()=>TF("q_c_TraderStanding",qtrader(x.target),x.compareMethod||"≥",val(x)),
@@ -307,6 +310,10 @@ function cardPane(q){
     <div style="height:.9rem"></div>
   </div>`;
 }
+/* ── 二选一组（插件 09-10 起）：visitapi.anyOf 写成目标 id 数组 = 组内任一达成算组达成、组外照旧全要；
+   显示条件指向组内任一条的，组达成就算门开。写 true 还是老意思（全部目标都在组里） ── */
+const grpOf=q=>Array.isArray(q?.visitapi?.anyOf)?q.visitapi.anyOf:null;
+const inGrp=(q,c)=>q?.visitapi?.anyOf===true||!!(c.id&&grpOf(q)?.includes(c.id));
 /* 目标行比门槛行高一档，右边挂进度槽 —— 只有目标有"完成多少"这件事 */
 function goalRow(c,i,q){
   const o=objText(c), txt=(c.id&&qloc(c.id))||o.text, opt=c.isNecessary===false, after=visOf(c)[0];
@@ -315,8 +322,9 @@ function goalRow(c,i,q){
   return `<div class="trow goal${opt?" opt":""}">
     <span class="tag"><s>${esc(o.kind)}</s></span>
     <span class="tt" contenteditable="plaintext-only" ${c.id?`data-lockey="${esc(c.id)}"`:""}>${esc(txt)}</span>
-    ${after?`<span class="tag vis" title="${esc(T("q_vis_d"))}"><s>${esc(TF("q_vis_after",condLabel(q,after)))}${visOf(c).length>1?" +"+(visOf(c).length-1):""}</s></span>`:""}
+    ${after?`<span class="tag vis" title="${esc(T("q_vis_d"))}"><s>${esc(grpOf(q)?.includes(after)?T("q_vis_after_grp"):TF("q_vis_after",condLabel(q,after)))}${visOf(c).length>1?" +"+(visOf(c).length-1):""}</s></span>`:""}
     ${c.questNoteId?`<span class="tag vis" title="${esc(qloc(c.questNoteId))}"><s>${T("q_tag_cnote")}</s></span>`:""}
+    ${inGrp(q,c)?`<span class="tag vis" title="${esc(T("q_grp_d"))}"><s>${T("q_tag_grp")}</s></span>`:""}
     ${nc?`<span class="bar off"></span><span class="num">${T("q_nocounter")}</span>`:`<span class="bar"></span><span class="num">0 / ${esc(o.value)}</span>`}
     <button class="nec" data-nec="${i}" title="${esc(T("ch_nec_tip"))}">${T(opt?"ch_optional":"ch_main")}</button>
     <button class="dots" data-menu="obj" data-i="${i}">⋮</button>
@@ -391,7 +399,7 @@ function propPane(q){
     <div class="tsec" data-sec="q_sec_vx"><h5>${T("q_sec_vx")}</h5></div>
     <div class="tnote">${T("q_vx_note")}</div>
     ${VX.map(([p,k])=>row(k,k+"_d",
-      `<button class="sw" data-sw="${p}" aria-pressed="${!!dig(q,p)}">${dig(q,p)?T("q_on"):T("q_off")}</button>`)).join("")}
+      `<button class="sw" data-sw="${p}" aria-pressed="${dig(q,p)===true}">${dig(q,p)===true?T("q_on"):Array.isArray(dig(q,p))?TF("q_grp_n",dig(q,p).length):T("q_off")}</button>`)).join("")}
     ${chaptersOf(qcur).map(c=>row("q_chap_in","q_chap_in_d",
       `<button class="pv" data-gochap="${c}">${esc(qname(QD.quests[c]))}</button>`)).join("")}
     ${qafter(q)?row("q_vx_startAfter","q_vx_startAfter_d",`<span class="pv">${esc(qafterName(q))}</span>`):""}
@@ -855,6 +863,7 @@ const ADV={
          ["savageRole","roles","q_adv_roles"],["bodyPart","parts","q_adv_parts"],
          ["weapon","items","q_adv_weap"]],
   Quest:[["availableAfter","num","q_adv_after"]],
+  HideoutArea:[["compareMethod","cmp","q_adv_cmp"]],   /* 1.1 有一处用 "==" 0（还没建）当接取条件 */
 };
 const dig=(o,p)=>p.split(".").reduce((x,k)=>x==null?x:x[k],o);
 function put(o,p,v){const k=p.split("."),last=k.pop();for(const x of k)o=(o[x] ??= {});o[last]=v;}
@@ -959,9 +968,9 @@ function advMenu(btn,rows){
       put(o,f,cur); qtouch(); advMenu(btn,rows);});});
 }
 
-const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","Skill","Quest"];
+const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","Skill","HideoutArea","Quest"];
 const REW_KINDS=["Experience","Money","Item","TraderStanding","AssortmentUnlock"];
-const GATE_KINDS=["Quest","Level","Skill","TraderStanding"];
+const GATE_KINDS=["Quest","Level","Skill","TraderStanding","HideoutArea"];
 const kindItems=ks=>ks.map(k=>({a:k,n:T("q_k_"+k),d:I18N[lang]["q_k_"+k+"_d"]?"q_k_"+k+"_d":null}));
 
 function qAdd(what,btn){
@@ -1014,6 +1023,7 @@ function addObjective(k,q){
   else if(k==="VisitPlace")L.push({...counter({conditionType:"VisitPlace",id:NEWID(),target:"visitapi_new_trigger",value:1}),id:c.id});
   else if(k==="Skill")L.push({conditionType:"Skill",...c,target:"Endurance",value:3});
   else if(k==="Quest")L.push({conditionType:"Quest",...c,target:otherQuest(),status:[4],value:1});
+  else if(k==="HideoutArea")L.push({conditionType:"HideoutArea",...c,areaType:11,compareMethod:">=",value:1});   /* 默认情报中心 1 级 */
   qtouch();render();
 }
 function addGate(k,q){
@@ -1023,6 +1033,7 @@ function addGate(k,q){
   else if(k==="Level")          L.push({conditionType:"Level",...c,compareMethod:">=",value:5});
   else if(k==="Skill")          L.push({conditionType:"Skill",...c,compareMethod:">=",target:"Endurance",value:3});
   else if(k==="TraderStanding") L.push({conditionType:"TraderStanding",...c,compareMethod:">=",target:q.traderId,value:0.2});
+  else if(k==="HideoutArea")    L.push({conditionType:"HideoutArea",...c,areaType:11,compareMethod:">=",value:1});
   qtouch();render();
 }
 function addFailCond(k,q){
@@ -1086,10 +1097,13 @@ function qRowMenu(kind,i,btn){
     if(inner&&(inner.conditionType==="HandoverItem"||inner.conditionType==="FindItem"))
       items.push({a:"item",n:T("q_a_item")});
     if(inner&&inner.conditionType==="Quest")items.push({a:"quest",n:T("q_a_quest")});
-    items.push({a:"num",n:T("q_a_num")});
+    const isArea=!!inner&&inner.conditionType==="HideoutArea";   /* 设备等级：value 就是等级，菜单上别写成"数量" */
+    if(isArea)items.push({a:"area",n:T("q_a_area")});
+    items.push({a:"num",n:T(isArea?"q_a_lvl":"q_a_num")});
     if(advOf(row,inner).length)items.push({a:"adv",n:T("q_a_adv")});
     if(kind==="obj")items.push({a:"vis",n:T("q_a_vis")},{a:"desc",n:T("q_a_desc")},{a:"cnote",n:T("q_a_cnote")},
-      {a:"counter",n:T(row.showCounter===false?"q_a_counter_on":"q_a_counter_off")});
+      {a:"counter",n:T(row.showCounter===false?"q_a_counter_on":"q_a_counter_off")},
+      ...(row.id?[{a:"grp",n:T(grpOf(q)?.includes(row.id)?"q_a_grp_out":"q_a_grp_in")}]:[]));
     if(kind==="obj"&&i>0)items.push({a:"up",n:T("q_a_up")});
   }
   items.push({a:"del",n:T("q_a_del")});
@@ -1110,6 +1124,12 @@ function qRowMenu(kind,i,btn){
       qMenu(btn,"q_m_vis",[{a:"",n:T("q_vis_none")},...others.map(o=>({a:o.x.id,n:condLabel(q,o.x.id)}))],
         visOf(row)[0]||"",v=>{visSet(row,v);hide();qtouch();render();});
       return;}
+    if(a==="grp"){const g=grpOf(q)||[];   /* 总开关是 true 时改成只圈这一条：其余目标从此必须完成 */
+      if(g.includes(row.id)){const r=g.filter(x=>x!==row.id);if(r.length)q.visitapi.anyOf=r;else del(q,"visitapi.anyOf");}
+      else (q.visitapi ??= {}).anyOf=[...g,row.id];
+      hide();qtouch();render();return;}
+    if(a==="area"){hide();qMenu(btn,"q_m_area",(QD.areas||[]).map(x=>({a:String(x.type),n:(lang==="zh"?x.zh:x.en)+(x.max?" ≤"+x.max:"")})),
+      String(inner.areaType),v=>{inner.areaType=+v;hide();qtouch();render();});return;}
     if(a==="adv"){advMenu(btn,advOf(row,inner));return;}
     /* 目标级三样（1.1 / 插件 1.3）：小字存 locale `<条件id> desc`；达成时解锁的日记 = questNoteId（正文存 locale，第一次输入才生成 id）；
        showCounter:false = 目标行不画计数。清空一律删键 + 清文案，别留空壳 */
@@ -1120,7 +1140,7 @@ function qRowMenu(kind,i,btn){
         else if(row.questNoteId){dropLoc([row.questNoteId]);delete row.questNoteId;}
         qtouch();render();}return;}
     if(a==="counter"){if(row.showCounter===false)delete row.showCounter; else row.showCounter=false; hide();qtouch();render();return;}
-    if(a==="num"){hide();const v=await ask(T("q_ask_num"),String(row.value??1));
+    if(a==="num"){hide();const v=await ask(T(row.conditionType==="HideoutArea"?"q_ask_lvl":"q_ask_num"),String(row.value??1));
       if(v!=null){row.value=+v||1;qtouch();render();}return;}
     if(a==="val"){hide();const v=await ask(T("q_ask_val"),String(row.value??1));
       if(v!=null){row.value=String(v);
@@ -1136,6 +1156,8 @@ function qRowMenu(kind,i,btn){
          一条目标挂多个门时（原版 197 处里有 20 条挂 2~6 个），别的门会被一起静默抹掉 */
       if(kind==="obj"&&row.id)["AvailableForStart","AvailableForFinish","Fail"].forEach(g=>(q.conditions?.[g]||[]).forEach(x=>{
         if(visOf(x).includes(row.id))x.visibilityConditions=(x.visibilityConditions||[]).filter(v=>v.target!==row.id);}));
+      /* 二选一组里也摘掉它，空了删键 */
+      const gd=grpOf(q);if(kind==="obj"&&gd&&row.id){const r=gd.filter(x=>x!==row.id);if(r.length)q.visitapi.anyOf=r;else del(q,"visitapi.anyOf");}
       if(kind!=="rew")dropLoc(condKeys([row]));      /* 连它那行文案一起清掉 */
     }
     if(kind==="obj"&&isChap(q))normFin(q);           /* 章节的子任务表从任务卡这边动了顺序，终章标记和 index 也要跟着重算 */

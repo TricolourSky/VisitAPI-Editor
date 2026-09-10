@@ -23,7 +23,8 @@ public static class QuestValidator
     /// <param name="vanillaQuests">原版任务 id；null = 没有 SPT 数据，「前置不存在」只能降成提示（扫不到 ≠ 不存在）</param>
     public static List<Issue> Run(QuestStore quests, LocaleStore loc, IReadOnlySet<string> knownTraders,
                                   IReadOnlySet<string>? dlgAccept = null, IReadOnlySet<string>? dlgComplete = null,
-                                  IEnumerable<(string File, string Id)>? dlgBadIds = null, IReadOnlySet<string>? vanillaQuests = null)
+                                  IEnumerable<(string File, string Id)>? dlgBadIds = null, IReadOnlySet<string>? vanillaQuests = null,
+                                  IReadOnlyList<AreaRow>? areas = null)
     {
         var all = quests.All().ToList();
         var ids = all.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -57,7 +58,16 @@ public static class QuestValidator
             if (Text(loc, q, "successMessageText").Length == 0) { if (story) Warn("no_success_msg"); else Err("no_success_msg"); }
             if (Conds(q, "AvailableForFinish").Count == 0) Err("no_objectives");
             var vx = q["visitapi"] as JsonObject;   // 一律 as JsonObject：`"visitapi": true` 这种脏数据不能让整页 500
-            if (Bool(vx, "anyOf") && Conds(q, "AvailableForFinish").Count < 2) Warn("anyof_one");
+            // anyOf：true = 全部目标任一达成即可交；数组 = 「二选一组」的目标 id（09-10，插件同日改：组内任一达成算组达成、组外照旧全要）。
+            // 组里的 id 必须是本任务的目标（插件一条都对不上会退回原生「全部达成」）；不到两条没意义；别的写法插件当没开
+            if (vx?["anyOf"] is JsonArray anyGrp)
+            {
+                var finIds = Conds(q, "AvailableForFinish").Select(c => Str(c, "id")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var g in anyGrp) { var gid = g is JsonValue gv && gv.TryGetValue<string>(out var gs) ? gs : g?.ToJsonString() ?? ""; if (!finIds.Contains(gid)) Err("anyof_bad_id", Cut(gid)); }
+                if (anyGrp.Count < 2) Warn("anyof_one");
+            }
+            else if (vx?["anyOf"] is JsonNode an && !(an is JsonValue av && av.TryGetValue<bool>(out _))) Err("anyof_bad_id", an.ToJsonString());
+            else if (Bool(vx, "anyOf") && Conds(q, "AvailableForFinish").Count < 2) Warn("anyof_one");
             // 1.1 的条件表多一个 AutoStart 桶（EQuestStatus 新值），0.16 客户端把它当字典键反序列化直接抛 → 登录无限转圈（插件 #129）
             if ((q["conditions"] as JsonObject)?.ContainsKey("AutoStart") == true) Err("cond_autostart_bucket");
 
@@ -121,6 +131,15 @@ public static class QuestValidator
                 else if (!LocaleStore.Known.Any(l => !string.IsNullOrWhiteSpace(loc.Get(l, cn)))) Warn("note_no_text", "cond:" + Cut(Str(c, "id")));
                 noteIds.Add(cn);
             }
+            // 藏身处设备等级（HideoutArea：原版 Cheer Up、1.1 用了 7 次）：设备号要是这台 SPT 认识的，等级不能超过它的最高级（图书馆只有 1 级）。
+            // 目标和接取条件两个桶都查；没有设备表（areas == null）就不查——扫不到 ≠ 不存在
+            if (areas != null)
+                foreach (var c in Conds(q, "AvailableForStart").Concat(Conds(q, "AvailableForFinish")).Where(x => Str(x, "conditionType") == "HideoutArea"))
+                {
+                    var a = c["areaType"] is JsonValue tv && tv.TryGetValue<int>(out var t) ? areas.FirstOrDefault(x => x.Type == t) : null;
+                    if (a == null) Err("bad_area", Cut(Str(c, "id")), c["areaType"]?.ToJsonString() ?? "");
+                    else if (a.Max > 0 && c["value"] is JsonValue vv && vv.TryGetValue<double>(out var lv) && lv > a.Max) Err("area_level_high", a.Zh, a.En, ((int)lv).ToString(), a.Max.ToString());
+                }
             // 日记挂的物品 visitapi.noteLinks{日记id:[{type:item|offer|craft, tpl}]}：键必须是本任务的某条日记，物品必须是 24 位 hex
             foreach (var (nid, arr) in (vx?["noteLinks"] as JsonObject) ?? new JsonObject())
             {

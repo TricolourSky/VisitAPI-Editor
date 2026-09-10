@@ -886,7 +886,7 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
   g_q_vx_b:`<p>任务编辑页往下拉，有一栏叫 <b>VisitAPI 扩展</b>。这些开关<b>只有装了 VisitAPI 的玩家才生效</b>——
     没装的话它们被忽略，任务照原版 SPT 的规则跑，不会坏。</p>
     <table class="hptab"><tbody>
-      <tr><td><b>目标二选一</b></td><td>好几个目标，<b>随便达成一个</b>就能交。原版是必须全部达成。做"三条路你走哪条都行"用这个</td></tr>
+      <tr><td><b>目标二选一</b></td><td>好几个目标，<b>随便达成一个</b>就能交。原版是必须全部达成。做"三条路你走哪条都行"用这个。只想让其中几条二选一、其余照旧要做：目标行 ⋮ →「加入二选一组」（指向组内目标的显示条件，组达成就算开门）</td></tr>
       <tr><td><b>达成即解锁商人</b></td><td>任务一变成「可提交」就把发这条任务的商人解锁，<b>不用等玩家去交</b></td></tr>
       <tr><td><b>这是一个章节</b></td><td>把这条任务变成剧情页里的<b>一章</b>。详见右栏 <code>G17</code>——建章节直接去<b>章节编辑</b>页，别在这儿手动开</td></tr>
       <tr><td><b>可接时自动接下</b></td><td>前置一完成、这条一变成可接，就<b>自动接下</b>，不用玩家去点「接受」</td></tr>
@@ -1808,7 +1808,9 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_sw_isKey:"钥匙任务",q_sw_isKey_d:"客户端用来标记这是解锁类任务",
   q_sw_canShowNotificationsInGame:"战局内弹提示",q_sw_canShowNotificationsInGame_d:"目标完成时在战局里弹一条提示",
   q_sec_vx:"VisitAPI 扩展",q_vx_note:"只有装了 VisitAPI 的玩家才生效；没装的话这些项被忽略，任务照原版规则跑",
-  q_vx_anyOf:"目标二选一",q_vx_anyOf_d:"多个目标里任一达成就可以交任务（原版要求全部达成）",
+  q_vx_anyOf:"目标二选一",q_vx_anyOf_d:"多个目标里任一达成就可以交任务（原版要求全部达成）。只想让其中几条二选一、其余照旧必须完成：去目标行 ⋮ 里「加入二选一组」",
+  q_grp_n:"二选一组 {0} 条",q_a_grp_in:"加入二选一组",q_a_grp_out:"移出二选一组",q_tag_grp:"二选一",q_vis_after_grp:"「二选一组」任一完成后显示",
+  q_grp_d:"和组里其它目标任一达成即可，组外的目标照旧全部要做；显示条件指向组内任一条的，组达成就算门开。需要插件 09-10 之后的版本",
   q_vx_unlock:"达成即解锁商人",q_vx_unlock_d:"任务一变成可提交，就把发布它的商人解锁（不用等交任务）",
   q_vx_chapter:"这是一个章节",q_vx_chapter_d:"任务页「剧情」页签里的一章；目标里每条「完成任务」就是一个子任务（最后一条勾 isFinisher），本身建议设成隐秘任务",
   q_vx_auto:"可接时自动接下",q_vx_auto_d:"这条任务一变成可接就自动接下，不用玩家去点。它跟前置没关系：同一章里的子任务要排先后，得用「什么时候接 → 某条子任务完成后自动接」，写原生前置在打图打到一半是不会解锁的。想让整章自动开始，把这个开关打在章节上。和「接在这条之后」互斥，开一个会清掉另一个",
@@ -1830,7 +1832,8 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_note_Fail:"失败时",q_note_Fail_d:"这条任务失败时解锁",q_note_ph:"（没有这条日记）",
   q_sec_items:"相关物品",q_items_note:"章节页底部「相关物品」栏展示的物品；可标成配方（藏身处制作）或商品（商人出售），游戏里画不同角标。目标里的物品不会自动出现，要显示就填在这里",q_add_item:"＋ 物品",
   q_it_item:"物品",q_it_craft:"配方",q_it_offer:"商品",q_a_it_item:"当作物品",q_a_it_craft:"当作配方（藏身处制作）",q_a_it_offer:"当作商品（商人出售）",
-  qe_anyof_one:"开了「目标二选一」但目标不到两个，开关没有意义。",
+  qe_anyof_one:"「目标二选一」开着、或二选一组里不到两条，没有意义。",
+  qe_anyof_bad_id:"二选一组里的 {0}… 不是这条任务的目标 id。插件一条都对不上时会退回原版「全部达成」。",
   qe_chapter_no_subs:"开了「这是一个章节」但目标里没有一条「完成任务」——章节的子任务就是这些目标。",
   qe_chapter_not_secret:"章节任务建议打开「隐秘任务」，否则它会和子任务一起挤在商人的任务列表里。",
   qe_chapter_no_finisher:"最后一条子任务没有标 isFinisher——章节面里挪一下顺序就会自动补上。",
@@ -1856,6 +1859,8 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   qe_bad_unlock_trader:"「完成后开放访问」里的商人 id「{0}」不是 24 位十六进制。",
   qe_unlock_unknown_trader:"「完成后开放访问」指向的商人 {0}… 在这台机器上没找到（自制商人的模组没装？）。游戏里找不到就等于没解锁。",
   qe_bad_order:"visitapi.order 不是数字，插件会当没标处理（排到最后）。",
+  qe_bad_area:"条件 {0}… 的藏身处设备号 {1} 这台机器的 SPT 不认识，游戏里这条永远完不成。",
+  qe_area_level_high:"「{0}」最高只有 {3} 级，条件却要 {2} 级，永远完不成。",
   qe_notelink_orphan:"noteLinks 里的日记 {0}… 不是这条任务的任何一条日记，挂在它下面的物品游戏里不会显示。",
   qe_bad_note_link:"日记 {0}… 下挂的物品「{1}」不对：物品必须是 24 位十六进制，类型只能是 item / offer / craft。",
   q_on:"开",q_off:"关",
@@ -1870,6 +1875,8 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_k_Kills:"击杀",q_k_Kills_d:"可限定地图",q_k_Skill:"技能等级",
   q_k_Quest:"完成前置任务",q_k_Quest_d:"这条会画进任务链图",
   q_k_Level:"玩家等级",q_k_TraderStanding:"商人好感",q_k_TraderStanding_d:"小数，0.2 就是 +0.2",
+  q_k_HideoutArea:"藏身处设备等级",q_k_HideoutArea_d:"某个设备建到几级：情报中心、安保、健身区…设备表来自游戏数据",
+  q_a_area:"换设备",q_m_area:"哪个藏身处设备",q_a_lvl:"改等级",q_ask_lvl:"要建到几级？",q_unknown_area:"未知设备 {0}",q_adv_cmp:"比较方式",
   q_k_Experience:"经验",q_k_Money:"金钱",q_k_Item:"物品",q_k_AssortmentUnlock:"解锁商品",
   q_k_QuestDone:"另一个任务完成了",q_k_InRaid:"在战局里做了某件事",
   q_k_MinusStanding:"扣商人好感",q_k_MinusExp:"扣经验",
@@ -1893,7 +1900,7 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_c_VisitPlace:"到达 / 触发「{0}」",q_c_Kills:"击杀 {0} 个{1}",q_c_savage:"野人",q_c_target:"目标",
   q_c_at:"（{0}）",q_c_HandoverItem:"上交 {0} 件指定物品（{1} 种可选）",
   q_c_FindItem:"在战局中找到 {0} 件指定物品（{1} 种可选）",
-  q_c_Skill:"{0} 技能达到 {1} 级",q_c_Quest:"完成前置任务：{0}",
+  q_c_Skill:"{0} 技能达到 {1} 级",q_c_Quest:"完成前置任务：{0}",q_c_HideoutArea:"{0} 等级 {1} {2}",
   q_c_Level:"玩家等级 {0} {1}",q_c_TraderStanding:"{0} 好感 {1} {2}",q_c_TraderLoyalty:"{0} 信赖等级 ≥ {1}",
   q_c_unknown:"（未知条件 {0}）",q_unknown_trader:"未知商人 {0}",q_unknown_map:"未知地图 {0}",
   q_r_Experience:"经验",q_r_rub:"卢布",q_r_usd:"美元",q_r_eur:"欧元",q_r_Item:"物品",
@@ -2053,7 +2060,7 @@ but refuse to sell.</p>`,
     switches <b>only do anything for players who have VisitAPI installed</b> — without it they are ignored
     and the quest runs by plain SPT rules. Nothing breaks.</p>
     <table class="hptab"><tbody>
-      <tr><td><b>Any one objective</b></td><td>Several objectives, <b>any one of them</b> is enough to hand in. Vanilla requires all of them. Good for "take whichever of the three routes you like"</td></tr>
+      <tr><td><b>Any one objective</b></td><td>Several objectives, <b>any one of them</b> is enough to hand in. Vanilla requires all of them. Good for "take whichever of the three routes you like". To make only some of them interchangeable and keep the rest required: objective row ⋮ → "Join either-group" (a visibility condition pointing at a group member opens once the group is done)</td></tr>
       <tr><td><b>Unlock trader on ready</b></td><td>The moment the quest becomes ready to hand in, the trader who gave it is unlocked — <b>without waiting for the player to hand it in</b></td></tr>
       <tr><td><b>This is a chapter</b></td><td>Turns this quest into <b>one chapter</b> of the story page. See <code>G17</code> — build chapters on the <b>Chapters</b> page rather than flipping this by hand</td></tr>
       <tr><td><b>Auto-accept when available</b></td><td>As soon as the prerequisites clear and this becomes available, it is <b>taken automatically</b> — the player never clicks Accept</td></tr>
@@ -2984,7 +2991,9 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_sw_isKey:"Key quest",q_sw_isKey_d:"Marks it as an unlock quest for the client",
   q_sw_canShowNotificationsInGame:"In-raid popups",q_sw_canShowNotificationsInGame_d:"Pops a notice in raid when an objective completes",
   q_sec_vx:"VisitAPI extras",q_vx_note:"Only take effect for players who have VisitAPI installed; without it they're ignored and the quest runs by stock rules",
-  q_vx_anyOf:"Any one objective",q_vx_anyOf_d:"Completing any single objective makes the quest ready to hand in (stock requires all of them)",
+  q_vx_anyOf:"Any one objective",q_vx_anyOf_d:"Completing any single objective makes the quest ready to hand in (stock requires all of them). To make only some of them interchangeable and keep the rest required, use ⋮ → \"Join either-group\" on the objective row",
+  q_grp_n:"either-group of {0}",q_a_grp_in:"Join either-group",q_a_grp_out:"Leave either-group",q_tag_grp:"either",q_vis_after_grp:"shown after any of the either-group",
+  q_grp_d:"Any one objective in the group counts for the whole group; objectives outside it stay required. A visibility condition pointing at any group member opens once the group is done. Needs the plugin from 2026-09-10 or later",
   q_vx_unlock:"Unlock trader when ready",q_vx_unlock_d:"The moment the quest becomes ready to hand in, its trader is unlocked (no need to turn it in first)",
   q_vx_chapter:"This is a chapter",q_vx_chapter_d:"A chapter on the STORY tab of the tasks screen; every \"complete quest\" objective is one sub-quest (tick isFinisher on the last one). Best kept a secret quest",
   q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically as soon as it becomes acceptable — no click needed. It has nothing to do with prerequisites: to order sub-quests inside one chapter use When it starts, auto-accept after another sub-quest; a stock prerequisite never unlocks mid-raid. Put this switch on the chapter itself to make a whole chapter start automatically. Mutually exclusive with Starts after — turning one on clears the other",
@@ -3006,7 +3015,8 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_note_Fail:"On failure",q_note_Fail_d:"Unlocks when this quest fails",q_note_ph:"(no entry)",
   q_sec_items:"Related items",q_items_note:"Items shown in the \"Related items\" strip at the bottom of the chapter page; mark one as a craft (hideout) or an offer (trader) to get the matching badge in game. Items from objectives no longer show up on their own — list them here",q_add_item:"+ Item",
   q_it_item:"Item",q_it_craft:"Craft",q_it_offer:"Offer",q_a_it_item:"As item",q_a_it_craft:"As craft (hideout)",q_a_it_offer:"As offer (trader)",
-  qe_anyof_one:"\"Any one objective\" is on but there are fewer than two objectives — the switch does nothing.",
+  qe_anyof_one:"\"Any one objective\" is on, or the either-group has fewer than two objectives — it does nothing.",
+  qe_anyof_bad_id:"{0}… in the either-group is not an objective id of this quest. If none match, the plugin falls back to stock \"all objectives\".",
   qe_chapter_no_subs:"\"This is a chapter\" is on but there is no \"complete quest\" objective — those objectives are the chapter's sub-quests.",
   qe_chapter_not_secret:"A chapter quest should be a secret quest, otherwise it shows up in the trader's task list next to its own sub-quests.",
   qe_chapter_no_finisher:"The last sub-quest is not marked isFinisher — reordering once on the Chapter pane fixes it automatically.",
@@ -3032,6 +3042,8 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_bad_unlock_trader:"Trader id \"{0}\" under Unlocks visits isn't 24 hex characters.",
   qe_unlock_unknown_trader:"Unlocks visits points at trader {0}… which wasn't found on this machine (mod not installed?). If the game can't find it, nothing is unlocked.",
   qe_bad_order:"visitapi.order isn't a number; the plugin treats it as unset (sorted last).",
+  qe_bad_area:"Hideout area number {1} in condition {0}… is unknown to the SPT on this machine; it can never complete.",
+  qe_area_level_high:"“{1}” only goes up to level {3}, but the condition asks for {2}; it can never complete.",
   qe_notelink_orphan:"noteLinks names note {0}… which isn't one of this quest's notes; the items under it never show in game.",
   qe_bad_note_link:"Item \"{1}\" under note {0}… is wrong: the item must be 24 hex characters and the type item / offer / craft.",
   q_on:"On",q_off:"Off",
@@ -3046,6 +3058,8 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_k_Kills:"Kills",q_k_Kills_d:"Can be limited to a map",q_k_Skill:"Skill level",
   q_k_Quest:"Finish a prerequisite",q_k_Quest_d:"This one gets drawn into the chain graph",
   q_k_Level:"Player level",q_k_TraderStanding:"Trader standing",q_k_TraderStanding_d:"A decimal — 0.2 means +0.2",
+  q_k_HideoutArea:"Hideout area level",q_k_HideoutArea_d:"An area built to a given level: Intelligence Center, Security, Gym… the list comes from game data",
+  q_a_area:"Change area",q_m_area:"Which hideout area",q_a_lvl:"Change level",q_ask_lvl:"Which level?",q_unknown_area:"Unknown area {0}",q_adv_cmp:"Compare",
   q_k_Experience:"Experience",q_k_Money:"Money",q_k_Item:"Item",q_k_AssortmentUnlock:"Unlock stock",
   q_k_QuestDone:"Another quest finished",q_k_InRaid:"Did something in raid",
   q_k_MinusStanding:"Lose trader standing",q_k_MinusExp:"Lose experience",
@@ -3069,7 +3083,7 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_c_VisitPlace:"Reach / trigger \"{0}\"",q_c_Kills:"Kill {0} {1}",q_c_savage:"scavs",q_c_target:"targets",
   q_c_at:"({0})",q_c_HandoverItem:"Hand over {0} of the listed items ({1} accepted)",
   q_c_FindItem:"Find {0} of the listed items in raid ({1} accepted)",
-  q_c_Skill:"{0} skill reaches level {1}",q_c_Quest:"Finish prerequisite: {0}",
+  q_c_Skill:"{0} skill reaches level {1}",q_c_Quest:"Finish prerequisite: {0}",q_c_HideoutArea:"{0} level {1} {2}",
   q_c_Level:"Player level {0} {1}",q_c_TraderStanding:"{0} standing {1} {2}",q_c_TraderLoyalty:"{0} loyalty ≥ {1}",
   q_c_unknown:"(unknown condition {0})",q_unknown_trader:"Unknown trader {0}",q_unknown_map:"Unknown map {0}",
   q_r_Experience:"Experience",q_r_rub:"Roubles",q_r_usd:"Dollars",q_r_eur:"Euros",q_r_Item:"Item",
@@ -3603,8 +3617,8 @@ function curBg(){const n=N();
 function drawStage(){
   const b=curBg(),layer=$("bglayer");
   const asset=ASSETS.bg.find(a=>bgSame(b,a.name));
-  /* 素材没换就复用同一个 video 元素：游戏里视频是跨拍连着播的（后面几拍在 BgByDialog 里查不到
-     key 就早退），每次重建 DOM 会让片子从头再播一遍，作者永远看不到 once 的定格。
+  /* 素材没换就复用同一个 video 元素：游戏里视频是跨拍连着播的（插件 09-10 起每拍都登记 bg、按文件名去重，
+     同一张不重载），每次重建 DOM 会让片子从头再播一遍，作者永远看不到 once 的定格。
      ⚠️ 比的是 dataset.n 不是 .src —— DOM 的 .src 读出来是绝对 URL，跟 mediaUrl() 的相对串永远不相等 */
   const ov=layer.querySelector("video"),keep=!!(b&&asset&&asset.video&&ov&&ov.dataset.n===asset.name);
   if(!keep){layer.innerHTML="";layer.style.backgroundImage="";}
