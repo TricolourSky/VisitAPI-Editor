@@ -104,7 +104,7 @@ function chCard(ch){
       </div>
       <div class="chdesc" contenteditable="plaintext-only" data-cf="description" data-ph="${esc(T("q_desc_ph"))}">${esc(qtext(ch,"description"))}</div>
       ${csec("q_prev_main",main.length)}
-      ${subs.length?subs.map(s=>chObjGroup(s,main)).join(""):`<div class="tempty bad">${T("ch_no_subs")}</div>`}
+      ${subs.length?subs.map(s=>chObjGroup(s,main,ch)).join(""):`<div class="tempty bad">${T("ch_no_subs")}</div>`}
       ${csec("q_prev_opt",opt.length)}
       ${opt.length?opt.map(chObjRow).join(""):`<div class="chhint">${T("ch_opt_hint")}</div>`}
       ${csec("q_prev_notes",null)}${chNotes(ch,subs)}
@@ -118,23 +118,27 @@ const chTile=x=>{const q=QD.quests[x], bad=(QD.issues||[]).some(e=>e.questId===x
   return `<button class="chtile${x===ccur?" cur":""}${bad?" bad":""}" data-cgo="${esc(x)}" ${cimg(dig(q,"visitapi.icon"))} title="${esc(qname(q))}"></button>`;};
 
 /* 一条子任务的目标组：抬头是子任务名（点了跳去任务页）+ 三枚芯片（头一枚「什么时候接」是三选一菜单，后两枚才是开关）+ ＋目标；下面是它的主要目标 */
-function chObjGroup(s,main){
+function chObjGroup(s,main,ch){
   const rows=main.filter(x=>x.s===s);
+  const tm=qtimedIn(s,ch);   /* 芯片只认指向同章兄弟的定时前置（09-15 审查，见 quest.js 的 qtimedIn） */
   const sw=[["visitapi.autoFinish","q_ch_autoFinish"],["visitapi.dialogOnly","q_ch_dlg"]];
   return `<div class="chgrp"><div class="chgh">
       <b class="goto" data-cgoq="${s._id}" title="${esc(T("q_a_goto"))}">${esc(qname(s))}</b>
       <span class="chips"><button class="chsw" data-cwhen="${s._id}" title="${esc(T("q_a_when"))}"
-        aria-pressed="${qafter(s)||dig(s,"visitapi.autoStart")?"true":"false"}">${
-        qafter(s)?esc(TF("q_ch_after",qafterName(s))):dig(s,"visitapi.autoStart")?T("q_ch_auto"):T("q_ch_manual")} ▾</button>${
+        aria-pressed="${qafter(s)||dig(s,"visitapi.autoStart")||tm?"true":"false"}">${
+        qafter(s)?esc(TF("q_ch_after",qafterName(s)))
+        :dig(s,"visitapi.autoStart")?T("q_ch_auto")+(tm?esc(TF("q_ch_wait",hoursOf(tm.availableAfter))):"")   /* 定时 + 自动接 = 到点自动接下（插件认的组合） */
+        :tm?esc(TF("q_ch_timed",hoursOf(tm.availableAfter))):T("q_ch_manual")} ▾</button>${
         sw.map(([p,k])=>`<button class="chsw" data-csw="${s._id}|${p}" aria-pressed="${!!dig(s,p)}">${T(k)}</button>`).join("")}</span>
       <button class="add" data-cobj="${s._id}">${T("q_add_obj")}</button></div>
     ${rows.map(chObjRow).join("")||`<div class="chhint">${T("q_e_obj")}</div>`}</div>`;
 }
 /* 目标行：方勾（模拟状态下打勾）· 文字可改 · 小字是哪条子任务/什么类型 · 主/可选 · ⋮（复用任务页的行菜单） */
-const chObjRow=x=>{const o=objText(x.c), txt=(x.c.id&&qloc(x.c.id))||o.text, a=visOf(x.c)[0];
+const chObjRow=x=>{const o=objText(x.c), hd=isHideout(x.c), txt=hd?hideoutTitle(x.c):((x.c.id&&qloc(x.c.id))||o.text), a=visOf(x.c)[0];
   return `<div class="chobj"><i class="tick"></i>
-    <span class="tt" contenteditable="plaintext-only" ${x.c.id?`data-lockey="${esc(x.c.id)}"`:""}>${esc(txt)}</span>
-    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}${inGrp(x.s,x.c)?` · ${esc(T("q_tag_grp"))}`:""}</small>
+    ${hd?`<span class="tt ro" data-chdesc="${x.s._id}|${x.i}" title="${esc(T("q_hd_title_d"))}">${esc(txt)}</span>`   /* 设备目标：标题引擎拼的，点了填小字（09-14） */
+        :`<span class="tt" contenteditable="plaintext-only" ${x.c.id?`data-lockey="${esc(x.c.id)}"`:""}>${esc(txt)}</span>`}
+    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}${inGrp(x.s,x.c)?` · ${esc(T("q_tag_grp"))}`:""}${x.c.id&&qloc(x.c.id+" talk")?` · ${esc(T("q_tag_talk"))}`:""}</small>
     ${a?`<span class="chvis" title="${esc(T("q_vis_d"))}">${esc(grpOf(x.s)?.includes(a)?T("q_vis_after_grp"):TF("q_vis_after",condLabel(x.s,a)))}</span>`:""}
     <button class="nec" data-cnec="${x.s._id}|${x.i}" title="${esc(T("ch_nec_tip"))}">${T(x.c.isNecessary===false?"ch_optional":"ch_main")}</button>
     <button class="dots" data-cmenu="${x.s._id}|${x.i}">⋮</button></div>`;};
@@ -376,6 +380,7 @@ function wireCard(ch,M){
   M.querySelectorAll("[data-cadd]").forEach(b=>b.onclick=()=>{qcur=ccur;qAdd(b.dataset.cadd,b);});
   M.querySelectorAll("[data-cobj]").forEach(b=>b.onclick=()=>{qcur=b.dataset.cobj;qAdd("obj",b);});
   M.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cmenu.split("|");qcur=id;qRowMenu("obj",+i,b);});
+  M.querySelectorAll("[data-chdesc]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.chdesc.split("|");askDesc((QD.quests[id]?.conditions?.AvailableForFinish||[])[+i]);});
   M.querySelectorAll("[data-menu]").forEach(b=>b.onclick=()=>{qcur=ccur;qRowMenu(b.dataset.menu,+b.dataset.i,b);});
   M.querySelectorAll("[data-cnec]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cnec.split("|");
     const c=QD.quests[id].conditions.AvailableForFinish[+i]; c.isNecessary=c.isNecessary===false; qtouch(); render();});

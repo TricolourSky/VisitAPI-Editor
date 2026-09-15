@@ -157,6 +157,8 @@ public static class QuestApi
                 knownTraders = ws.KnownTraders,     /* 界面要靠它显示"已标记为认识" */
                 maps = spt.Ok ? spt.Maps() : [],
                 areas = spt.Ok ? spt.Areas() : [],   /* 藏身处设备表：HideoutArea 目标/门槛挑设备用 */
+                exits = spt.Ok ? spt.Exits() : [],   /* 各图撤离点：幸存撤离 / 击杀目标限定地图、指定撤离点用 */
+                botGroups = ModBotGroups.Scan(ws.EftRoot),   /* 模组 BOT 击杀组（09-15）：装了 BlackDivision 才有；高级参数「目标角色」和目标行的组名用 */
                 issues = Validate(ws, quests, loc, known),
                 sptData = spt.Ok ? ws.SptData : null,
             });
@@ -168,7 +170,12 @@ public static class QuestApi
             var spt = Spt(ws);
             if (!spt.Ok) return Results.Json(new { ok = false, cats = Array.Empty<object>(), items = Array.Empty<object>() });
             var (cats, items) = spt.Handbook();
-            return Results.Json(new { ok = true, cats, items });
+            // 模组离线注册的物品接在原版表后面（WTT CustomItems 约定，见 ModItems），带 mod 字段；已在原版表里的 id 不重复列。
+            // 中英名缺一边就拿另一边顶：选择器两列都得有字，别露 24 位 hex
+            var known = items.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var mod = ModItems.Scan(ws.EftRoot).Where(m => known.Add(m.Id))
+                .Select(object (m) => new { id = m.Id, cat = m.Cat, zh = m.Zh.Length > 0 ? m.Zh : m.En, en = m.En.Length > 0 ? m.En : m.Zh, price = m.Price, mod = m.Mod });
+            return Results.Json(new { ok = true, cats, items = items.Select(object (i) => i).Concat(mod) });
         });
 
         // Kills 目标的 savageRole 选项。**从原版任务里提取**而不是列 bots\types 目录 ——
@@ -356,7 +363,8 @@ public static class QuestApi
         // 原版任务 id 兜底 missing_prereq：没有 SPT 数据就传 null，那条规则自动降成提示
         var spt = Spt(ws);
         var areas = spt.Ok ? spt.Areas() : [];   // 设备表空着（没 SPT 文案）就传 null：扫不到 ≠ 不存在，别把每条 HideoutArea 都报成坏号
-        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null, areas.Count > 0 ? areas : null);
+        var maps = spt.Ok ? spt.Exits().Select(e => e.Map).ToList() : [];   // 地图短 id 表（bad_transit_map 用），同一口径：空着就不查
+        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null, areas.Count > 0 ? areas : null, maps.Count > 0 ? maps : null);
     }
 
     public sealed record SaveReq(

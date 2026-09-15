@@ -24,9 +24,10 @@ public sealed record ItemDef(string Id, string Name, string Parent,
 /// </summary>
 public sealed class ItemIndex
 {
-    readonly string _db;
+    readonly string _db, _eft;
     Dictionary<string, ItemDef>? _map;
-    public ItemIndex(string databaseDir) => _db = databaseDir;
+    /// <param name="eftRoot">给了就把模组离线注册的物品也认进来（见 <see cref="ModItems"/>）；空串 = 只有原版</param>
+    public ItemIndex(string databaseDir, string eftRoot = "") { _db = databaseDir; _eft = eftRoot; }
 
     public bool Ok => Map().Count > 0;
 
@@ -63,6 +64,11 @@ public sealed class ItemIndex
                 [.. Slots(props, "Slots"), .. Slots(props, "Chambers"), .. Slots(props, "Cartridges")],
                 Math.Max(1, w), Math.Max(1, h));
         }
+        // 模组离线注册的物品（WTT CustomItems 是「克隆某件原版再改属性」）：按它克隆的那件认槽位和占格，
+        // 货架上卖 mod 物品就不会被判成坏 tpl（as_bad_tpl）。改过槽位的极少数会有出入，总比整条报错强
+        foreach (var m in ModItems.Scan(_eft))
+            if (!d.ContainsKey(m.Id) && d.TryGetValue(m.CloneOf, out var b))
+                d[m.Id] = b with { Id = m.Id, Name = m.En.Length > 0 ? m.En : m.Id };
         return d;
     }
 

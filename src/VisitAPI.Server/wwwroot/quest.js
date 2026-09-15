@@ -38,6 +38,7 @@ function questLoad(){
       if(d.ok){
         const ids=Object.keys(d.quests);
         if(!qcur||!d.quests[qcur])qcur=ids[0]||null;
+        migrateHideoutTexts(d);   /* 09-14：设备目标标题上的老文案挪到小字（游戏不读标题文案） */
         qBase=qsnap(); qfitted=false;
       }
     },
@@ -69,6 +70,15 @@ const qtrader=id=>(QD.traders||[]).find(t=>t.id===id)?.[lang==="zh"?"zh":"en"]
   ||TF("q_unknown_trader",String(id||"").slice(0,8));
 const qmap=id=>(QD.maps||[]).find(m=>m.id===(id||"any"))?.[lang==="zh"?"zh":"en"]
   ||TF("q_unknown_map",String(id||"").slice(0,8));
+/* 地图短 id（Location.target 里的 bigmap / Interchange）→ 人话名：QD.exits 每张图带 map（短 id）和 id（_Id），转一手再走 qmap */
+const mapShort=s=>{const e=(QD.exits||[]).find(x=>x.map.toLowerCase()===String(s||"").toLowerCase());return e?qmap(e.id):String(s||"");};
+const exitName=n=>{for(const e of QD.exits||[]){const x=e.exits.find(t=>t.name===n);if(x)return lang==="zh"?x.zh:x.en;}return String(n||"");};
+/* 幸存撤离计数器的三种形态（09-15 发布前审查）：含 Survived = 撤离（可切跑刀 / 只算转移 / 指定撤离点）；只有 Transit = 只算转移离开；
+   其余（原版失败条件的 Killed / Left / MissingInAction）= 以这些方式结束战局，不给撤离类开关 —— 原来一律当「只算转移」，⋮ 一点就改成撤离也算 */
+const exitKind=x=>{
+  const s=x.status||[];
+  return s.includes("Survived")?"survive":s.length&&s.every(v=>v==="Transit")?"transit":"end";};
+const exitStates=x=>(x.status||[]).map(v=>T("q_es_"+v)).join(" / ");
 /* 藏身处设备（HideoutArea 的 areaType 号）：名字和最高等级随 /api/quests 的 areas 来，都出自游戏数据 */
 const areaName=t=>{const a=(QD.areas||[]).find(a=>a.type===+t);return a?(lang==="zh"?a.zh:a.en):TF("q_unknown_area",String(t));};
 const ROMAN=["—","Ⅰ","Ⅱ","Ⅲ","Ⅳ"];
@@ -84,22 +94,47 @@ function objText(c){
   const val=x=>c.value??x.value??1;
   const one=x=>({
     VisitPlace:()=>TF("q_c_VisitPlace",x.target),
-    Kills:()=>TF("q_c_Kills",val(x),x.target==="Savage"?T("q_c_savage"):(x.target||T("q_c_target")))
-             +(at?TF("q_c_at",(at.target||[]).join(" / ")):""),
+    Kills:()=>TF("q_c_Kills",val(x),botGroupName(x.savageRole)||(x.target==="Savage"?T("q_c_savage"):(x.target||T("q_c_target"))))
+             +(at?TF("q_c_at",(at.target||[]).map(mapShort).join(" / ")):""),
+    /* 幸存撤离 = 计数器里 ExitStatus（+ 可选 Location 限图、ExitName 指定撤离点）；原版 109 处这么写 */
+    /* status 里没 Survived = 只算转移离开（09-14）；地图转移 = TransitionLocation，target 是目的地短 id 或 any */
+    ExitStatus:()=>(exitKind(x)==="survive"?TF("q_c_ExitStatus",val(x)):exitKind(x)==="transit"?TF("q_c_Transit",val(x)):TF("q_c_ExitEnd",val(x),exitStates(x)))
+             +(at?TF("q_c_at",(at.target||[]).map(mapShort).join(" / ")):"")
+             +(inner.some(y=>y.conditionType==="ExitName")?TF("q_c_exit",exitName(inner.find(y=>y.conditionType==="ExitName").exitName)):""),
+    ExitName:()=>null,
+    TransitionLocation:()=>TF("q_c_TransitionLocation",val(x),(x.target||[]).map(t=>String(t).toLowerCase()==="any"?T("q_map_any"):mapShort(t)).join(" / ")),
     HandoverItem:()=>TF("q_c_HandoverItem",val(x),(x.target||[]).length),
     FindItem:()=>TF("q_c_FindItem",val(x),(x.target||[]).length),
     Skill:()=>TF("q_c_Skill",x.target,val(x)),
     HideoutArea:()=>TF("q_c_HideoutArea",areaName(x.areaType),x.compareMethod||">=",val(x)),
-    Quest:()=>TF("q_c_Quest",QD.quests[x.target]?qname(QD.quests[x.target]):x.target),
+    /* 状态只有 [4] 是「完成前置任务」；别的组合（[2,4] 接下就算…）写成「达到：进行中 / 已完成」；带定时的补「之后等 N 小时」 */
+    Quest:()=>TF((x.status||[]).join()==="4"||!(x.status||[]).length?"q_c_Quest":"q_c_Quest_st",QD.quests[x.target]?qname(QD.quests[x.target]):x.target,qstName(x.status))
+             +(+x.availableAfter>0?TF("q_c_wait",hoursOf(x.availableAfter)):""),
     Level:()=>TF("q_c_Level",x.compareMethod||"≥",val(x)),
     TraderStanding:()=>TF("q_c_TraderStanding",qtrader(x.target),x.compareMethod||"≥",val(x)),
     TraderLoyalty:()=>TF("q_c_TraderLoyalty",qtrader(x.target),val(x)),
     Location:()=>null,
   }[x.conditionType]||(()=>TF("q_c_unknown",x.conditionType)))();
   const parts=inner.map(one).filter(Boolean);
-  return {kind:inner.map(x=>x.conditionType).filter(k=>k!=="Location")[0]||c.conditionType,
+  return {kind:inner.map(x=>x.conditionType).filter(k=>k!=="Location"&&k!=="ExitName")[0]||c.conditionType,
           text:parts.join(" · ")||c.conditionType, value:c.value??1};
 }
+
+/* 藏身处设备目标的标题是引擎自己拼的（ConditionHideoutArea.FormattedDescription = 模板 QuestCondition/HideoutArea「{0} 等级 {1}」+ 设备名 + 等级），
+   作者写在 `<条件id>` 上的文案游戏根本不读；正式版把作者的话放下面那行小字（`<条件id> desc`，SORA 09-14 截图 Batya 章）。这里照引擎那句拼、标题不让改 */
+const isHideout=c=>c.conditionType==="HideoutArea";
+const hideoutTitle=c=>{const a=(QD.areas||[]).find(x=>x.type===+c.areaType),nm=a?(qlang==="ch"?a.zh:a.en):String(c.areaType??"");
+  return qlang==="ch"?`${nm} 等级 ${c.value??1}`:`${nm} level ${c.value??1}`;};
+/* 老数据：作者曾写在设备目标标题上的文案挪到小字（小字已有就只删标题），两种语言各自处理；载入时做，随下次保存落盘 */
+function migrateHideoutTexts(d){
+  for(const q of Object.values(d.quests||{}))for(const c of (q.conditions?.AvailableForFinish||[]))
+    if(isHideout(c)&&c.id)for(const L of Object.values(d.locales||{}))
+      if(L[c.id]){if(!L[c.id+" desc"])L[c.id+" desc"]=L[c.id];delete L[c.id];}
+}
+
+/* 「完成前置任务」认哪些状态：原版 700 多处里 [4] 665、[2,4] 31、[2] 14、[4,5] 18，其余零星；迷宫章「等待 Jaeger 找来钥匙卡」用 [2,4]（接下就算） */
+const QSTATUS=[["done",[4]],["taken",[2,4]],["started",[2]],["doneorfail",[4,5]]];
+const qstName=st=>(st||[]).map(n=>I18N[lang]["q_st_"+n]?T("q_st_"+n):String(n)).join(" / ");
 
 /* 奖励里最常见的就是钱。文件里只有一个 tpl id，作者不该被迫背这些 —
    编辑器认出来直接写"卢布"，跟把条件翻成人话是同一件事。 */
@@ -122,7 +157,7 @@ function rewText(r){
    **但目标行的文案是拿条件自己的 id 当 key 存的**（见 qsetLoc(c.id, …)），没有任务 id 前缀。
    不显式清的话，删掉的目标会永远留在 locales 里，越攒越多。 */
 /* 一条目标名下的全部文案键：正文、小字（<id> desc）、达成时解锁的日记（questNoteId）、计数器内层 —— 删目标/删任务都按这张表清 */
-const condKeys=conds=>conds.flatMap(c=>[c.id,c.id&&c.id+" desc",c.questNoteId,...(c.counter?.conditions||[]).map(x=>x.id)]).filter(Boolean);
+const condKeys=conds=>conds.flatMap(c=>[c.id,c.id&&c.id+" desc",c.id&&c.id+" talk",c.questNoteId,...(c.counter?.conditions||[]).map(x=>x.id)]).filter(Boolean);
 const allConds=q=>["AvailableForStart","AvailableForFinish","Fail"].flatMap(g=>q.conditions?.[g]||[]);
 const dropLoc=keys=>{for(const L of Object.values(QD.locales))for(const k of keys)delete L[k];};
 
@@ -316,12 +351,15 @@ const grpOf=q=>Array.isArray(q?.visitapi?.anyOf)?q.visitapi.anyOf:null;
 const inGrp=(q,c)=>q?.visitapi?.anyOf===true||!!(c.id&&grpOf(q)?.includes(c.id));
 /* 目标行比门槛行高一档，右边挂进度槽 —— 只有目标有"完成多少"这件事 */
 function goalRow(c,i,q){
-  const o=objText(c), txt=(c.id&&qloc(c.id))||o.text, opt=c.isNecessary===false, after=visOf(c)[0];
-  /* 1.1 / 插件 1.3 的三个目标级字段：小字 = locale 键 `<条件id> desc`；questNoteId = 目标打勾那一刻解锁的日记；showCounter:false = 不画计数 */
-  const d=c.id?qloc(c.id+" desc"):"", nc=c.showCounter===false;
+  const o=objText(c), hd=isHideout(c), txt=hd?hideoutTitle(c):((c.id&&qloc(c.id))||o.text), opt=c.isNecessary===false, after=visOf(c)[0];
+  /* 1.1 / 插件 1.3 的三个目标级字段：小字 = locale 键 `<条件id> desc`；questNoteId = 目标打勾那一刻解锁的日记；showCounter:false = 不画计数；
+     `<条件id> talk` = 这一行右边「去找商人」按钮的字（09-14，插件按它决定哪一行出按钮） */
+  const d=c.id?qloc(c.id+" desc"):"", nc=c.showCounter===false, talk=c.id?qloc(c.id+" talk"):"";
   return `<div class="trow goal${opt?" opt":""}">
     <span class="tag"><s>${esc(o.kind)}</s></span>
-    <span class="tt" contenteditable="plaintext-only" ${c.id?`data-lockey="${esc(c.id)}"`:""}>${esc(txt)}</span>
+    ${hd?`<span class="tt ro" data-hdesc="${i}" title="${esc(T("q_hd_title_d"))}">${esc(txt)}</span>`   /* 设备目标：标题引擎拼的，点了填小字 */
+        :`<span class="tt" contenteditable="plaintext-only" ${c.id?`data-lockey="${esc(c.id)}"`:""}>${esc(txt)}</span>`}
+    ${talk?`<span class="tag vis" title="${esc(talk)}"><s>${T("q_tag_talk")}</s></span>`:""}
     ${after?`<span class="tag vis" title="${esc(T("q_vis_d"))}"><s>${esc(grpOf(q)?.includes(after)?T("q_vis_after_grp"):TF("q_vis_after",condLabel(q,after)))}${visOf(c).length>1?" +"+(visOf(c).length-1):""}</s></span>`:""}
     ${c.questNoteId?`<span class="tag vis" title="${esc(qloc(c.questNoteId))}"><s>${T("q_tag_cnote")}</s></span>`:""}
     ${inGrp(q,c)?`<span class="tag vis" title="${esc(T("q_grp_d"))}"><s>${T("q_tag_grp")}</s></span>`:""}
@@ -343,7 +381,13 @@ const visSet=(c,target)=>{
   c.visibilityConditions=target?[keep?{...keep,target}:{conditionType:"CompleteCondition",id:NEWID(),target},...rest]:rest;};
 const condLabel=(q,id)=>{
   const c=(q?.conditions?.AvailableForFinish||[]).find(x=>x.id===id);
-  return c?((c.id&&qloc(c.id))||objText(c).text):String(id||"").slice(0,8)+"…";};
+  return c?(isHideout(c)?hideoutTitle(c):(c.id&&qloc(c.id))||objText(c).text):String(id||"").slice(0,8)+"…";};
+/* 目标小字（locale `<条件id> desc`）：⋮「目标小字」和设备目标点标题共用一个入口；清空 = 删键 */
+async function askDesc(row){
+  if(!row?.id)return;
+  const v=await ask(T("q_ask_desc"),qloc(row.id+" desc"));
+  if(v!=null){if(v.trim())qsetLocSync(row.id+" desc",v.trim()); else dropLoc([row.id+" desc"]); qtouch();render();}
+}
 /* 给东西的一律做成方块卡：和"条件行"在形状上就分得开。pre=接任务时预付的 */
 function rewCard(r,i,grp,pre){
   const x=rewText(r);
@@ -403,6 +447,7 @@ function propPane(q){
     ${chaptersOf(qcur).map(c=>row("q_chap_in","q_chap_in_d",
       `<button class="pv" data-gochap="${c}">${esc(qname(QD.quests[c]))}</button>`)).join("")}
     ${qafter(q)?row("q_vx_startAfter","q_vx_startAfter_d",`<span class="pv">${esc(qafterName(q))}</span>`):""}
+    ${qtimed(q)?row("q_vx_timed","q_vx_timed_d",`<span class="pv">${esc(TF("q_vx_timed_v",qtimedName(q),hoursOf(qtimed(q).availableAfter)))}</span>`):""}
     ${row("q_vx_icon","q_vx_icon_d",`<span class="pv edit" contenteditable="plaintext-only" data-vf="visitapi.icon"
         data-ph="${esc(T("q_vx_icon_ph"))}">${esc(dig(q,"visitapi.icon")||"")}</span>`)}
     ${unlockRows(q)}${notesRows(q)}${itemsRows(q)}
@@ -465,21 +510,46 @@ const qafters=id=>{const t=qafter(QD.quests[id]||{});return t?[t]:[];};
 const qafterName=q=>{const t=qafter(q),s=QD.quests[t];return s?qname(s):t.slice(0,8)+"…";};
 /* 「谁排在我前面」= 原生前置 ∪ startAfter。两张流程图和上下游高亮共用这一个 */
 const qedgesUp=id=>[...new Set([...qprereq(id),...qafters(id)])];
-function setWhen(s,mode,target){
+/* ── 定时联系（插件 Dev_Note #132，09-14）：**原生**前置 Quest 条件上的 availableAfter（秒）——前置完成时 SPT 自己起定时器，
+   到点这条翻可接；剧情任务 + 不自动接 + 前置带定时 = 到点后插件给商人挂金色电话角标，玩家去对话接。startAfter 没有定时，
+   所以这是唯一能定时的写法，带定时的兄弟前置校验不再判 sub_prereq_is_sub。文件里存秒（迷宫章 57600 = 16 小时），界面一律说小时 */
+const qtimed=q=>(q?.conditions?.AvailableForStart||[]).find(c=>c.conditionType==="Quest"&&+c.availableAfter>0)||null;
+const hoursOf=s=>+(s/3600).toFixed(2);
+const qtimedName=q=>{const t=qtimed(q)?.target,s=QD.quests[t];return s?qname(s):String(t||"").slice(0,8)+"…";};
+function setWhen(s,mode,target,hours){
   del(s,"visitapi.autoStart"); del(s,"visitapi.startAfter");
   if(mode==="auto")put(s,"visitapi.autoStart",true);
   else if(mode==="after"&&target)put(s,"visitapi.startAfter",target);
+  else if(mode==="timed"&&target){   /* 已有指向这条的原生前置就复用，没有就补一条；只动 availableAfter */
+    const L=((s.conditions ??= {}).AvailableForStart ??= []);
+    const c=L.find(x=>x.conditionType==="Quest"&&x.target===target)||L[L.push({conditionType:"Quest",...condBase(),target,status:[4],availableAfter:0})-1];
+    c.availableAfter=Math.round(hours*3600);}
 }
-/* 「什么时候接」三选一。选了「接在…之后」再弹一层挑同章兄弟：
-   自己和会成环的直接不列出来，比事后弹一句「不行」体验好 */
+/* 章节里的「定时联系」只认**指向同章兄弟子任务**的那条定时前置（09-15 发布前审查）：原来认任何带定时的原生前置，
+   子任务身上指向章外任务的定时前置会被芯片说成「定时联系」，换模式时还会被一并删掉 */
+const qsibs=(s,ch)=>new Set(ch?subConds(ch).map(c=>c.target).filter(t=>t!==s._id):[]);
+const qtimedIn=(s,ch)=>{
+  const sb=qsibs(s,ch);
+  return (s?.conditions?.AvailableForStart||[]).find(c=>c.conditionType==="Quest"&&+c.availableAfter>0&&sb.has(c.target))||null;};
+/* 「什么时候接」四选一。「接在…之后」「定时联系」再弹一层挑同章兄弟：自己和会成环的直接不列出来，比事后弹一句「不行」体验好。
+   从定时换到别的模式时把那条定时专用的原生前置一并摘掉（留着就成了普通兄弟前置，校验会红）——只摘指向兄弟的，章外的定时前置原样留着；
+   重选定时时指向所选兄弟的那条不摘（setWhen 复用它、只改秒数，id 和 status 不动）。
+   属性面的自动接开关不走这里 —— 定时 + 自动接（到点自动接下）是插件认的组合，别替作者拆 */
 function whenMenu(s,ch,btn){
-  const cur=qafter(s)?"after":dig(s,"visitapi.autoStart")?"auto":"manual";
-  qMenu(btn,"q_m_when",[{a:"auto",n:T("q_when_auto")},{a:"after",n:T("q_when_after")},{a:"manual",n:T("q_when_manual")}],cur,a=>{
-    if(a!=="after"){hide();setWhen(s,a);qtouch();render();return;}
-    const sibs=ch?subConds(ch).map(c=>c.target).filter(t=>t!==s._id&&QD.quests[t]&&!chainUp(t,qafters).has(s._id)):[];
+  const tm=qtimedIn(s,ch), sb=qsibs(s,ch);
+  const cur=qafter(s)?"after":dig(s,"visitapi.autoStart")?"auto":tm?"timed":"manual";
+  const dropTimed=keep=>{const L=s.conditions?.AvailableForStart||[];
+    for(let i=L.length;i--;)if(L[i].conditionType==="Quest"&&+L[i].availableAfter>0&&sb.has(L[i].target)&&L[i].target!==keep)L.splice(i,1);};
+  qMenu(btn,"q_m_when",[{a:"auto",n:T("q_when_auto")},{a:"after",n:T("q_when_after")},{a:"timed",n:T("q_when_timed"),d:"q_when_timed_d"},{a:"manual",n:T("q_when_manual")}],cur,a=>{
+    if(a==="auto"||a==="manual"){hide();dropTimed();setWhen(s,a);qtouch();render();return;}
+    const up=a==="timed"?qedgesUp:qafters;   /* 定时走原生前置，成环要把原生边一起算进去 */
+    const sibs=ch?subConds(ch).map(c=>c.target).filter(t=>t!==s._id&&QD.quests[t]&&!chainUp(t,up).has(s._id)):[];
     if(!sibs.length){hide();return qtoast(T("q_after_alone"));}
-    qMenu(btn,"q_m_after",sibs.map(t=>({a:t,n:qname(QD.quests[t])})),qafter(s),
-      v=>{hide();setWhen(s,"after",v);qtouch();render();});});
+    qMenu(btn,a==="timed"?"q_m_timed":"q_m_after",sibs.map(t=>({a:t,n:qname(QD.quests[t])})),a==="timed"?tm?.target:qafter(s),v=>{
+      hide();
+      if(a==="after"){dropTimed();setWhen(s,"after",v);qtouch();render();return;}
+      ask(T("q_ask_wait"),tm?String(hoursOf(tm.availableAfter)):"").then(h=>{h=parseFloat(h);if(!(h>0))return;
+        dropTimed(v);setWhen(s,"timed",v,h);qtouch();render();});});});
 }
 function subMenu(i,btn){
   const q=qq(), L=q.conditions.AvailableForFinish, subs=subConds(q), row=subs[i];
@@ -788,6 +858,8 @@ function wireQuest(){
   M.querySelectorAll("[data-nldel]").forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.nldel.split("|"), nid=q.notes?.[k], nl=q.visitapi?.noteLinks;
     if(!nid||!nl?.[nid])return; nl[nid].splice(+i,1); if(!nl[nid].length)delete nl[nid]; if(!Object.keys(nl).length)delete q.visitapi.noteLinks;
     qtouch();render();});
+  /* 设备目标的标题不可改（引擎拼的），点它 = 填小字 */
+  M.querySelectorAll("[data-hdesc]").forEach(el=>el.onclick=()=>askDesc((q.conditions?.AvailableForFinish||[])[+el.dataset.hdesc]));
   const im=$("qimg"); if(im)im.onclick=()=>imgOpen();
   qbars();
 }
@@ -875,6 +947,12 @@ function del(o,p){const k=p.split("."),last=k.pop();for(const x of k){o=o[x];if(
    重复的 const 会把**后加载的整个文件**炸掉（症状是 botPage is not defined，探针抓过）。 */
 const KPARTS=["Head","Chest","Stomach","LeftArm","RightArm","LeftLeg","RightLeg"];
 let QROLES=null,qrWait=false,qiWait=false;   /* savageRole 选项表 / 物品表都用到才拉 */
+/* 模组 BOT 击杀组（09-15，SORA 定）：QD.botGroups 只在装了 BlackDivision 时有（见 ModBotGroups）。
+   目标行：savageRole 正好由若干整组拼成 → 写组名（「击杀 5 个 BlackDivision」）；混了别的角色就照旧写 */
+const botGroups=()=>(QD&&QD.botGroups)||[];
+const botGroupName=r=>{   /* 局部变量另起一行：test-i18n 按「顶层声明那一行」扫全局名，写在同一行会被当成全局 */
+  const s=Array.isArray(r)?r:[], hit=botGroups().filter(g=>g.roles.every(x=>s.includes(x)));
+  return hit.length&&hit.reduce((n,g)=>n+g.roles.length,0)===s.length?hit.map(g=>g.name).join(" / "):"";};
 /* 相关物品条目可带类型前缀 `craft:<id>` / `offer:<id>`（插件 1.3 G5：配方 / 商品角标），裸 id = 物品。
    全站只有这两个帮手懂前缀，别在别处再拆一次 */
 const itemKind=s=>/^(craft|offer):/.test(String(s??""))?String(s).slice(0,5):"item";
@@ -890,7 +968,7 @@ function rolesFetch(btn,rows){
 }
 function itemsFetch(btn,rows){
   if(qiWait||QITEMS)return;qiWait=true;
-  api("/api/quests/items").then(d=>{QITEMS=d;QITEMS.byId=Object.fromEntries((d.items||[]).map(x=>[x.id,x]));})
+  api("/api/quests/items").then(setItems)
     .catch(()=>{}).then(()=>{qiWait=false;const p=$("pop");
       if(p.classList.contains("on")&&p.dataset.popkind==="adv")advMenu(btn,rows);});
 }
@@ -909,10 +987,13 @@ function advMenu(btn,rows){
     /* 数组三兄弟不包 <label>——label 会把整行的点击都转发给第一个按钮 */
     if(kind==="parts"||kind==="roles"){
       if(kind==="roles"&&QROLES==null){rolesFetch(btn,rows);return "";}   /* 拉到再画，别闪一排空的 */
-      const opts=kind==="parts"?KPARTS:QROLES;
-      if(!opts.length)return "";                    /* 读不到游戏数据就整行不画，别摆一个空控件 */
+      const opts=kind==="parts"?KPARTS:QROLES, grps=kind==="roles"?botGroups():[];
+      if(!opts.length&&!grps.length)return "";      /* 读不到游戏数据就整行不画，别摆一个空控件 */
       const cur=Array.isArray(v)?v:[];
+      /* 模组 BOT 组排最前，整组进出（整组都在才亮） */
       return `<div class="advrow tall"><i>${T(key)}</i><div class="advchips">${
+        grps.map((g,gi)=>`<button data-kgrp="${f}" data-gi="${gi}" aria-pressed="${g.roles.every(x=>cur.includes(x))}">${
+          esc(g.boss?TF("q_adv_boss",g.name):TF("q_adv_grp",g.name))}</button>`).join("")}${
         opts.map(x=>`<button data-t="${f}" data-o="${esc(x)}" aria-pressed="${cur.includes(x)}">${esc(x)}</button>`).join("")}</div></div>`;
     }
     if(kind==="items"){
@@ -954,6 +1035,12 @@ function advMenu(btn,rows){
     if(i<0)cur.push(b.dataset.o);else cur.splice(i,1);
     if(cur.length)put(o,f,cur);else del(o,f);
     qtouch(); advMenu(btn,rows);});
+  p.querySelectorAll("[data-kgrp]").forEach(b=>b.onclick=()=>{     /* 模组 BOT 组：整组进出，别的角色原样留着 */
+    const f=b.dataset.kgrp,o=own(f),rs=botGroups()[+b.dataset.gi]?.roles||[];
+    const cur=(Array.isArray(dig(o,f))?dig(o,f):[]).filter(x=>!rs.includes(x));
+    if(b.getAttribute("aria-pressed")!=="true")cur.push(...rs);
+    if(cur.length)put(o,f,cur);else del(o,f);
+    qtouch(); advMenu(btn,rows);});
   p.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{        /* 累积列表：✕ 删一件 */
     const f=b.dataset.x,o=own(f),cur=(dig(o,f)||[]).slice();
     cur.splice(+b.dataset.ix,1);
@@ -968,7 +1055,7 @@ function advMenu(btn,rows){
       put(o,f,cur); qtouch(); advMenu(btn,rows);});});
 }
 
-const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","Skill","HideoutArea","Quest"];
+const OBJ_KINDS=["VisitPlace","HandoverItem","FindItem","Kills","ExitStatus","TransitionLocation","Skill","HideoutArea","Quest"];
 const REW_KINDS=["Experience","Money","Item","TraderStanding","AssortmentUnlock"];
 const GATE_KINDS=["Quest","Level","Skill","TraderStanding","HideoutArea"];
 const kindItems=ks=>ks.map(k=>({a:k,n:T("q_k_"+k),d:I18N[lang]["q_k_"+k+"_d"]?"q_k_"+k+"_d":null}));
@@ -1011,15 +1098,21 @@ function addObjective(k,q){
   (q.conditions ??= {}); const L=(q.conditions.AvailableForFinish ??= []);
   const c={...condBase(),index:L.length};   /* index 跟着排到末尾，别每条都是 0（章节任务另有 normFin 重算） */
   if(k==="HandoverItem"||k==="FindItem"){
-    pickItem(it=>{
+    /* 单挑一件，或选择器脚下「整类加入」一次给一串：target 本来就是列表、游戏认里面任意一种
+       （原版 28 处多种可选，狗牌任务就是 7 种狗牌）。整类时默认文案写分类名（「上交 建筑材料」） */
+    const done=(ids,nm)=>{
       L.push(k==="HandoverItem"
-        ? {conditionType:"HandoverItem",...c,target:[it.id],value:1,onlyFoundInRaid:false}
-        : {...counter({conditionType:"FindItem",id:NEWID(),target:[it.id],value:1}),id:c.id});
-      qsetLocSync(c.id,itemLine(k,it));
-      qtouch();render();});
+        ? {conditionType:"HandoverItem",...c,target:ids,value:1,onlyFoundInRaid:false}
+        : {...counter({conditionType:"FindItem",id:NEWID(),target:ids,value:1}),id:c.id});
+      qsetLocSync(c.id,itemLine(k,nm));
+      qtouch();render();};
+    pickItem(it=>done([it.id],it),null,(list,nm)=>done(list.map(x=>x.id),nm));
     return;
   }
   if(k==="Kills")L.push({...counter({conditionType:"Kills",id:NEWID(),target:"Savage",value:1}),id:c.id,value:5});
+  else if(k==="ExitStatus")L.push({...counter({conditionType:"ExitStatus",id:NEWID(),status:["Survived","Transit"]}),id:c.id});   /* 默认跑刀不算（SORA 09-12） */
+  /* 地图转移（客户端 ConditionTransitionLocation，原版任务没用过）：进图那一刻按整条连跑链逐图各计 1，any = 任何一次转移。默认 any，⋮ 限定目的地 */
+  else if(k==="TransitionLocation")L.push({...counter({conditionType:"TransitionLocation",id:NEWID(),target:["any"]}),id:c.id});
   else if(k==="VisitPlace")L.push({...counter({conditionType:"VisitPlace",id:NEWID(),target:"visitapi_new_trigger",value:1}),id:c.id});
   else if(k==="Skill")L.push({conditionType:"Skill",...c,target:"Endurance",value:3});
   else if(k==="Quest")L.push({conditionType:"Quest",...c,target:otherQuest(),status:[4],value:1});
@@ -1094,26 +1187,45 @@ function qRowMenu(kind,i,btn){
     if(row.type==="Item")items.push({a:"item",n:T("q_a_item")});
     items.push({a:"val",n:T("q_a_val")});
   }else{
-    if(inner&&(inner.conditionType==="HandoverItem"||inner.conditionType==="FindItem"))
-      items.push({a:"item",n:T("q_a_item")});
+    if(inner&&(inner.conditionType==="HandoverItem"||inner.conditionType==="FindItem")){
+      items.push({a:"item",n:T("q_a_item")},{a:"item_add",n:T("q_a_item_add")});
+      if((inner.target||[]).length>1)items.push({a:"item_rm",n:T("q_a_item_rm")});   /* 列表不许空：只剩一种时不给摘 */
+    }
     if(inner&&inner.conditionType==="Quest")items.push({a:"quest",n:T("q_a_quest")});
     const isArea=!!inner&&inner.conditionType==="HideoutArea";   /* 设备等级：value 就是等级，菜单上别写成"数量" */
     if(isArea)items.push({a:"area",n:T("q_a_area")});
+    /* 计数器类（击杀 / 幸存撤离）可限定地图；幸存撤离还能切跑刀、指定撤离点 */
+    if(inner&&(inner.conditionType==="Kills"||inner.conditionType==="ExitStatus"))items.push({a:"map",n:T("q_a_map")});
+    /* 被击杀 / 失踪 / 离开这类结束方式（exitKind==="end"，原版失败条件在用）不给撤离类开关：原来一点「撤离也算」就把失败条件改反 */
+    if(inner&&inner.conditionType==="ExitStatus"&&exitKind(inner)!=="end"){const st=inner.status||[],sv=st.includes("Survived");   /* 没 Survived = 只算转移离开；跑刀只在撤离也算时才有意义 */
+      items.push({a:"transit",n:T(sv?"q_a_transit_on":"q_a_transit_off")});
+      if(sv)items.push({a:"runner",n:T(st.includes("Runner")?"q_a_runner_off":"q_a_runner_on")});
+      items.push({a:"exit",n:T("q_a_exit")});}
+    /* 地图转移只给目的地：出发图合不进同一条计数器（引擎一次事件要匹配计数器里全部内层条件，转移事件只带目的地），所以不给「限定地图」 */
+    if(inner&&inner.conditionType==="TransitionLocation")items.push({a:"dest",n:T("q_a_dest")});
+    /* 定时联系：前置条件上「等多久才可接」（原生 availableAfter，界面填小时、文件存秒）；「完成前置任务」目标能改认哪些状态（「等待 X」= 对方接下就算） */
+    if(kind==="gate"&&inner&&inner.conditionType==="Quest")items.push({a:"wait",n:T("q_a_wait")});
+    if(kind==="obj"&&inner&&inner.conditionType==="Quest")items.push({a:"qstatus",n:T("q_a_qstatus")});
     items.push({a:"num",n:T(isArea?"q_a_lvl":"q_a_num")});
     if(advOf(row,inner).length)items.push({a:"adv",n:T("q_a_adv")});
-    if(kind==="obj")items.push({a:"vis",n:T("q_a_vis")},{a:"desc",n:T("q_a_desc")},{a:"cnote",n:T("q_a_cnote")},
+    if(kind==="obj")items.push({a:"vis",n:T("q_a_vis")},{a:"desc",n:T("q_a_desc")},...(row.id?[{a:"talk",n:T("q_a_talk")}]:[]),{a:"cnote",n:T("q_a_cnote")},
       {a:"counter",n:T(row.showCounter===false?"q_a_counter_on":"q_a_counter_off")},
       ...(row.id?[{a:"grp",n:T(grpOf(q)?.includes(row.id)?"q_a_grp_out":"q_a_grp_in")}]:[]));
     if(kind==="obj"&&i>0)items.push({a:"up",n:T("q_a_up")});
   }
   items.push({a:"del",n:T("q_a_del")});
   qMenu(btn,"q_m_row",items,null,async a=>{
+    /* 上交 / 找到类的 target 是「任一种都算」的列表：换 = 整个换掉（单件或整类，文案跟着换）；
+       再加 = 并进去去重（文案不动，作者自己改）；两种以上才给「移除一种」，列表不许空 */
+    const tgSet=(ids,nm)=>{inner.target=ids;if(nm&&row.id)qsetLocSync(row.id,itemLine(inner.conditionType,nm));qtouch();render();};
     if(a==="item"){hide();pickItem(it=>{
       if(kind==="rew"){const iid=(row.items&&row.items[0]&&row.items[0]._id)||NEWID();
-        row.items=[{_id:iid,_tpl:it.id,upd:{StackObjectsCount:+row.value||1}}];row.target=iid;}
-      else{inner.target=[it.id];
-        if(row.id)qsetLocSync(row.id,itemLine(inner.conditionType,it));}
-      qtouch();render();});return;}
+        row.items=[{_id:iid,_tpl:it.id,upd:{StackObjectsCount:+row.value||1}}];row.target=iid;qtouch();render();}
+      else tgSet([it.id],it);},null,kind==="rew"?null:(list,nm)=>tgSet(list.map(x=>x.id),nm));return;}
+    if(a==="item_add"){hide();const add=ids=>tgSet([...new Set([...(Array.isArray(inner.target)?inner.target:[]),...ids])]);
+      pickItem(it=>add([it.id]),null,list=>add(list.map(x=>x.id)));return;}
+    if(a==="item_rm"){hide();const show=()=>qMenu(btn,"q_m_rm",inner.target.map(id=>({a:id,n:itemLabel(id)})),null,id=>{hide();tgSet(inner.target.filter(x=>x!==id));});
+      QITEMS?show():api("/api/quests/items").then(d=>{setItems(d);show();});return;}
     if(a==="quest"){hide();qMenu(btn,"q_m_prereq",
       /* 会成环的不列（x 的祖先里已经有我）：原生前置成环没人拦过，章节页画流程图时直接转死 */
       Object.keys(QD.quests).filter(x=>x!==qcur&&!chainUp(x,qedgesUp).has(qcur)).map(x=>({a:x,n:qname(QD.quests[x])})),
@@ -1128,13 +1240,35 @@ function qRowMenu(kind,i,btn){
       if(g.includes(row.id)){const r=g.filter(x=>x!==row.id);if(r.length)q.visitapi.anyOf=r;else del(q,"visitapi.anyOf");}
       else (q.visitapi ??= {}).anyOf=[...g,row.id];
       hide();qtouch();render();return;}
+    /* 计数器里的附属条件（Location / ExitName）：有就改、没有就加、传 null 就摘 */
+    const setInner=(type,fields)=>{const L=row.counter.conditions,i=L.findIndex(x=>x.conditionType===type);
+      if(!fields){if(i>=0)L.splice(i,1);}else if(i>=0)Object.assign(L[i],fields);else L.push({conditionType:type,id:NEWID(),dynamicLocale:false,...fields});};
+    const curMap=(row.counter?.conditions||[]).find(x=>x.conditionType==="Location")?.target?.[0]||"";
+    if(a==="map"){hide();qMenu(btn,"q_m_objmap",[{a:"",n:T("q_map_any")},...(QD.exits||[]).map(e=>({a:e.map,n:qmap(e.id)}))],curMap,v=>{
+      setInner("Location",v?{target:[v]}:null);
+      const ex=(row.counter.conditions||[]).find(x=>x.conditionType==="ExitName");   /* 换图后撤离点对不上就一起摘 */
+      if(ex&&v&&!(QD.exits||[]).find(e=>e.map===v)?.exits.some(t=>t.name===ex.exitName))setInner("ExitName",null);
+      hide();qtouch();render();});return;}
+    if(a==="runner"){const st=inner.status||[];inner.status=st.includes("Runner")?st.filter(s=>s!=="Runner"):[...st,"Runner"];hide();qtouch();render();return;}
+    if(a==="transit"){inner.status=(inner.status||[]).includes("Survived")?["Transit"]:["Survived","Transit"];hide();qtouch();render();return;}   /* 切回撤离也算 = 回默认（跑刀不算） */
+    if(a==="dest"){hide();qMenu(btn,"q_m_dest",[{a:"any",n:T("q_map_any")},...(QD.exits||[]).map(e=>({a:e.map,n:qmap(e.id)}))],
+      String((inner.target||[])[0]||"any"),v=>{inner.target=[v];hide();qtouch();render();});return;}
+    if(a==="wait"){hide();const v=await ask(T("q_ask_wait"),+inner.availableAfter>0?String(hoursOf(inner.availableAfter)):"");
+      if(v!=null){const h=parseFloat(v);inner.availableAfter=h>0?Math.round(h*3600):0;qtouch();render();}return;}   /* 清空 / 0 = 不等 */
+    if(a==="qstatus"){hide();const cur=QSTATUS.find(([,st])=>st.join()===(inner.status||[]).join())?.[0]||"";
+      qMenu(btn,"q_m_qstatus",QSTATUS.map(([k])=>({a:k,n:T("q_qs_"+k)})),cur,k=>{inner.status=[...QSTATUS.find(([x])=>x===k)[1]];hide();qtouch();render();});return;}
+    if(a==="exit"){hide();const pool=(QD.exits||[]).filter(e=>!curMap||e.map===curMap);
+      qMenu(btn,"q_m_exit",[{a:"",n:T("q_exit_any")},...pool.flatMap(e=>e.exits.map(t=>({a:t.name,n:(curMap?"":qmap(e.id)+" · ")+(lang==="zh"?t.zh:t.en)})))],
+        (row.counter.conditions||[]).find(x=>x.conditionType==="ExitName")?.exitName||"",v=>{setInner("ExitName",v?{exitName:v}:null);hide();qtouch();render();});return;}
     if(a==="area"){hide();qMenu(btn,"q_m_area",(QD.areas||[]).map(x=>({a:String(x.type),n:(lang==="zh"?x.zh:x.en)+(x.max?" ≤"+x.max:"")})),
       String(inner.areaType),v=>{inner.areaType=+v;hide();qtouch();render();});return;}
     if(a==="adv"){advMenu(btn,advOf(row,inner));return;}
     /* 目标级三样（1.1 / 插件 1.3）：小字存 locale `<条件id> desc`；达成时解锁的日记 = questNoteId（正文存 locale，第一次输入才生成 id）；
        showCounter:false = 目标行不画计数。清空一律删键 + 清文案，别留空壳 */
-    if(a==="desc"){hide();const v=await ask(T("q_ask_desc"),qloc(row.id+" desc"));
-      if(v!=null){if(v.trim())qsetLocSync(row.id+" desc",v.trim()); else dropLoc([row.id+" desc"]); qtouch();render();}return;}
+    if(a==="desc"){hide();askDesc(row);return;}
+    /* 去找商人提示（09-14）：这一行右边按钮的字，存 `<条件id> talk`（中英各一份）；默认先填「去找 X」，留空 = 这一行不出按钮 */
+    if(a==="talk"){hide();const v=await ask(T("q_ask_talk"),qloc(row.id+" talk")||TF("q_talk_default",qtrader(q.traderId)));
+      if(v!=null){if(v.trim())qsetLocSync(row.id+" talk",v.trim()); else dropLoc([row.id+" talk"]); qtouch();render();}return;}
     if(a==="cnote"){hide();const v=await ask(T("q_ask_cnote"),row.questNoteId?qloc(row.questNoteId):"");
       if(v!=null){if(v.trim()){row.questNoteId ??= NEWID();qsetLocSync(row.questNoteId,v.trim());}
         else if(row.questNoteId){dropLoc([row.questNoteId]);delete row.questNoteId;}
@@ -1167,11 +1301,19 @@ function qRowMenu(kind,i,btn){
 /* ══════════════ 物品选择器 ══════════════
    数据来自 SPT_Data：handbook 给分类树和价格，全局文案给中英名字。
    4000 多件，所以单独一条接口、用到才拉。 */
-let ipCb=null, ipCat="", ipQ="";
+let ipCb=null, ipAll=null, ipCat="", ipQ="";
+/* 「整类加入」用的假分类：狗牌在 handbook 里没有自己的类（归在「其他」85 件里），这两组是**原版任务真在用的** target 列表
+   （The Punisher 那 3 条任务：本阵营基础 + EOD/TUE + 声望 1~4，各 7 种；SORA 09-13 定「只放原版任务用的」）。
+   tests\test-dogtags.ps1 拿真 quests.json 重算一遍核对 —— SPT 更新后原版换了列表，那条测试会先红 */
+const IPGROUPS=[
+  {id:"__bear",zh:"BEAR 狗牌（原版任务用的 7 种）",en:"BEAR dogtags (the 7 stock quests use)",ids:["59f32bb586f774757e1e8442","6662e9aca7e0b43baa3d5f74","6662e9cda7e0b43baa3d5f76","675dc9d37ae1a8792107ca96","675dcb0545b1a2d108011b2b","684180bc51bf8645f7067bc8","684181208d035f60230f63f9"]},
+  {id:"__usec",zh:"USEC 狗牌（原版任务用的 7 种）",en:"USEC dogtags (the 7 stock quests use)",ids:["59f32c3b86f77472a31742f0","6662e9f37fa79a6d83730fa0","6662ea05f6259762c56f3189","6764202ae307804338014c1a","6764207f2fa5e32733055c4a","68418091b5b0c9e4c60f0e7a","684180ee9b6d80d840042e8a"]}];
+const setItems=d=>{QITEMS=d;QITEMS.byId=Object.fromEntries((d.items||[]).map(x=>[x.id,x]));};
 /* 商人货架页（assort.js）也用这个窗口 —— 那边的"添加商品/换物品"就是它。
-   所以别把这儿写死成任务页的假设：标题可传，显示语言见 ipZh()。 */
-function pickItem(cb,title){
-  ipCb=cb; ipCat=""; ipQ="";
+   所以别把这儿写死成任务页的假设：标题可传，显示语言见 ipZh()。
+   cbAll 给了才有「整类加入」：脚下那颗按钮把当前分类（或上面的假分类）下的全部物品一次交回去 cbAll(列表,{zh,en}) */
+function pickItem(cb,title,cbAll){
+  ipCb=cb; ipAll=cbAll||null; ipCat=""; ipQ="";
   $("ipTitle").textContent=title||T("q_ip_title");
   const p=$("ipick"); p.classList.add("on");
   if(!p.dataset.placed){        /* 头一次打开先把百分比 inset 固化成像素，不然 left/top 写了也不动 */
@@ -1182,12 +1324,10 @@ function pickItem(cb,title){
   $("ipq").value="";$("ipq").focus();
   if(QITEMS){drawItems();return;}
   $("iplist").innerHTML=`<div style="padding:1rem;color:var(--ink-3);font-size:12px">${T("q_ip_loading")}</div>`;
-  api("/api/quests/items").then(d=>{
-    QITEMS=d; QITEMS.byId=Object.fromEntries((d.items||[]).map(x=>[x.id,x]));
-    drawItems();
-  }).catch(e=>{$("iplist").innerHTML=`<div style="padding:1rem;color:var(--err);font-size:12px">${esc(e.message)}</div>`;});
+  api("/api/quests/items").then(d=>{setItems(d);drawItems();})
+    .catch(e=>{$("iplist").innerHTML=`<div style="padding:1rem;color:var(--err);font-size:12px">${esc(e.message)}</div>`;});
 }
-const closeItems=()=>{$("ipick").classList.remove("on");ipCb=null;};
+const closeItems=()=>{$("ipick").classList.remove("on");ipCb=null;ipAll=null;};
 /* 列表里先显示哪种语言的名字：
    任务页跟**内容语言** qlang（你正在写中文文案，就该先看中文名）；
    别的页（商人货架）跟**界面语言** lang —— 那边压根没有"内容语言"这回事，
@@ -1198,23 +1338,31 @@ function drawItems(){
   if(!QITEMS)return;
   const tops=QITEMS.cats.filter(c=>!c.parent&&catName(c).trim());
   const kids=p=>QITEMS.cats.filter(c=>c.parent===p&&catName(c).trim());
+  /* 模组离线注册的物品（/api/quests/items 里带 mod 字段的）再给一个假分类，一眼看全 */
+  const groups=[...IPGROUPS,...(QITEMS.items.some(i=>i.mod)?[{id:"__mod",zh:"模组加的物品",en:"Items added by mods",test:i=>!!i.mod}]:[])];
   $("ipcats").innerHTML=`<button data-c="" aria-pressed="${ipCat===""}">${T("q_ip_all")}</button>`+
+    groups.map(g=>`<button data-c="${g.id}" aria-pressed="${ipCat===g.id}">${esc(ipZh()?g.zh:g.en)}</button>`).join("")+
     tops.map(t=>`<button data-c="${t.id}" aria-pressed="${ipCat===t.id}">${esc(catName(t))}</button>`+
       kids(t.id).map(k=>`<button class="sub" data-c="${k.id}" aria-pressed="${ipCat===k.id}">${esc(catName(k))}</button>`).join("")
     ).join("");
   const under=new Set([ipCat]);
   for(let n=0;n<3;n++)QITEMS.cats.forEach(c=>{if(under.has(c.parent))under.add(c.id);});
+  const grp=groups.find(g=>g.id===ipCat), inCat=it=>grp?(grp.ids?grp.ids.includes(it.id):grp.test(it)):(!ipCat||under.has(it.cat));
   const s=ipQ.trim().toLowerCase();
-  const list=QITEMS.items.filter(it=>
-    (!ipCat||under.has(it.cat)) &&
+  const list=QITEMS.items.filter(it=>inCat(it)&&
     (!s||String(it.zh).toLowerCase().includes(s)||String(it.en).toLowerCase().includes(s)||it.id.includes(s)))
     .slice(0,400);
   $("iplist").innerHTML=list.map(it=>`<div class="iprow" data-i="${it.id}">
       <span class="pn">${esc(ipZh()?it.zh:it.en)}</span>
-      <span class="pe">${esc(ipZh()?it.en:it.zh)}</span>
+      <span class="pe">${esc(ipZh()?it.en:it.zh)}${it.mod?" · "+esc(it.mod):""}</span>
       <span class="pp">₽ ${num(it.price)}</span></div>`).join("")
     ||`<div style="padding:1rem;color:var(--ink-3);font-size:12px">${T("q_ip_none")}</div>`;
-  $("ipfoot").textContent=TF("q_ip_foot",list.length,QITEMS.items.length);
+  /* 整类加入：按分类算、不看搜索框（搜索只是帮你找到那一类），件数写在按钮上；没传 cbAll 的调用方（货架页）没这颗按钮 */
+  const wn=grp||QITEMS.cats.find(c=>c.id===ipCat), whole=ipAll&&wn?QITEMS.items.filter(inCat):[];
+  const nmod=QITEMS.items.filter(i=>i.mod).length;
+  $("ipfoot").innerHTML=esc(TF("q_ip_foot",list.length,QITEMS.items.length)+(nmod?TF("q_ip_mods",nmod):""))+(whole.length
+    ?`<button data-all>${esc(TF("q_ip_allcat",(ipZh()?wn.zh:wn.en)||wn.id,whole.length))}</button>`:"");
+  const ab=$("ipfoot").querySelector("[data-all]"); if(ab)ab.onclick=()=>{const cb=ipAll;closeItems();cb(whole,wn);};
   $("ipcats").querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{ipCat=b.dataset.c;drawItems();});
   $("iplist").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{
     const it=QITEMS.byId[b.dataset.i], cb=ipCb;

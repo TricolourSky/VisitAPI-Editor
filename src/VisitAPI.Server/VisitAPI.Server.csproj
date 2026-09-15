@@ -399,10 +399,37 @@
                  同日「二选一组」：`visitapi.anyOf` 可写目标 id 数组（插件 09-10 同步：AnyOfQuest 组规则 + AnyOfVisibility 显示条件补丁，服务端原样下发）。
                  目标 ⋮ 加入/移出二选一组、行标「二选一」、显示条件指向组内时小标写「二选一组」（任务页和章节卡两处同口径）、
                  总开关显示「二选一组 N 条」、删目标连带摘组；校验 anyof_bad_id、anyof_one 扩到组。测试 1462 → 1489。
+         1.3.2：（09-12）目标新增「幸存撤离」（原生 CounterCreator 里 ExitStatus，默认 Survived+Transit＝跑刀不算）；⋮「限定地图」（击杀目标同享，原来只能看不能改）、
+                 「跑刀也算·不算」、「指定撤离点」（ExitName，撤离点列表来自各图 base.json，换图后对不上的一起摘）。`SptData.Exits()` 随 /api/quests 的 `exits` 下发；
+                 击杀 / 撤离目标行里的地图从短 id 翻成人话（`mapShort`）。
+                 （09-13，社区反馈）上交 / 找到类目标可挑多种、任一种都算（target 本来就是列表，原版 28 处这么写）：物品选择器脚下「整类加入」
+                 （handbook 分类，或两组假分类 = 原版任务用的 BEAR / USEC 各 7 种狗牌，SORA 定只放原版任务用的），⋮「再加一种可选物品」「移除一种可选物品」
+                 （两种以上才给，列表不许空）。tests\test-dogtags.ps1 拿真 quests.json 核对狗牌组。
+                 （09-14）目标新增「地图转移」（客户端 ConditionTransitionLocation：计数器内层，target 地图短 id 或 any，⋮ 限定目的地；原版任务没用过，
+                 引擎进图时按连跑链逐图各计 1、含起点图，待 SORA 实机验证）；「幸存撤离」⋮ 新增「只算转移离开」（status 只写 Transit，跑刀开关收起）。
+                 校验 bad_transit_map（目的地不是这台机器上的图，warn）。
+                 （09-14）物品表离线接入模组注册的物品（SORA 定不连服务端）：`ModItems` 扫 user\mods\*\db\CustomItems（WTT 约定，CustomQuestItems 同形），
+                 中英名先取该模组 CustomLocales 再退回配置里的 locales；/api/quests/items 的条目带 mod 字段，选择器多一个「模组加的物品」假分类、行上标模组名、
+                 脚注写含几件；货架校验索引（ItemIndex）按克隆源认下模组物品，不再把 mod 商品报成 as_bad_tpl。用代码注册的模组扫不到。
+                 （09-14）定时联系（插件 Dev_Note #132「等待 Jaeger 找来钥匙卡」）：原生前置 Quest 条件的 availableAfter 是秒（原版 15/36000/75600…，迷宫章 57600 = 16 小时），
+                 高级参数原来标成「小时」是个 bug，已改成按秒注明。前置条件行 ⋮「等多久才可接」按小时填、按秒存，行上写「之后等 N 小时」；属性面多一行「定时联系」；
+                 章节页「什么时候接」多第四项「某条子任务完成后等一段时间，商人联系你」= 原生前置 + 定时、清掉 autoStart / startAfter，换回别的模式连带摘掉定时前置；
+                 「完成前置任务」目标 ⋮「算达成的状态」（已完成 / 已接取或已完成 / 进行中 / 已完成或失败，按原版 700 多处的用法定）。
+                 校验：兄弟子任务当原生前置且带 availableAfter 不再判 sub_prereq_is_sub（定时只能这么写）。
+                 （09-14，SORA 实机四条）藏身处设备目标的标题是引擎拼的「{设备} 等级 {n}」（ConditionHideoutArea.FormattedDescription），作者的 `<条件id>` 文案游戏不读，
+                 正式版把说明放小字：任务卡 / 章节页里这类目标标题按引擎那句显示、不可改，点标题 = 填小字；载入时把老数据的标题文案挪到 `<条件id> desc`。
+                 目标 ⋮ 新增「去找商人提示」= 文案键 `<条件id> talk`（中英各一份），插件按它决定哪一行出「去找 X」按钮、写什么字（一行都没填保持老行为）。
+                 同日插件侧（E:\项目\VisitAPI Client）：剧情横幅在对话屏开着时先记账、关屏后补放（对话里接交的横幅原来被盖住）；「已开始」判定改 ChapterStates.Begun
+                 （AvailableAfter=9 排在 Success 后面，>= 比较把等定时的任务当已开始，章节页展开时提前列出「与 SORA 交谈」）。
+                 （09-15，SORA 定）击杀目标的「目标角色」加两个模组 BOT 组：「BlackDivision（整组）」= blackDivLead / Assault / Breacher / Support / Ib，「Wedge（BOSS）」= bossWedge，
+                 按钮整组进出、别的角色原样留着。角色是 BlackDivision 借 MoreBotsAPI 在代码里注册的（数据文件里只看得到一半），名字照本机启动日志写死；
+                 `ModBotGroups` 只在 user\mods 下有 db\bots\sharedTypes\blackDiv.json 时随 /api/quests 的 botGroups 下发。目标行 savageRole 正好由整组拼成时写组名（「击杀 5 个 BlackDivision」），不再写「野人」。
+                 （09-15，发布前通读修三处）剧情页「什么时候接」只认、只摘指向同章兄弟的定时前置（qtimedIn）：章外的定时前置换模式不再被删，重选定时复用原条件；
+                 模组物品价格不是数字时按 0，不再让物品表 / 货架页 500；幸存撤离计数器里「被击杀 / 失踪 / 离开」单独写「战局以…结束」，菜单不给撤离类开关（原来显示成转移、一点就改反）。
 -->
 
 
-    <Version>1.3.1</Version>
+    <Version>1.3.2</Version>
     <!-- 构建时间写进程序集版本号（会拼成 0.1.0+b260808-0030）。
          不能靠读 exe 的文件修改时间——用户从 Release 下载后那个时间会变成下载时间，
          显示的版本就是假的，等于白做。 -->

@@ -90,6 +90,8 @@
   border:solid var(--ground);border-width:0 2px 2px 0;transform:rotate(45deg)}
 .chcard[data-st="unavail"] .chobj{opacity:.55}
 .chobj .tt{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink);outline:0}
+.chobj .tt.ro{cursor:var(--cur-p);color:var(--ink-2)}
+.chobj .tt.ro:hover{color:var(--y)}
 .chobj .tt:focus{background:var(--panel);box-shadow:inset 2px 0 0 var(--y)}
 .chobj small{flex:0 0 auto;font:10px/1.4 var(--mono);color:var(--ink-3);max-width:34%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chobj .nec{border:0;cursor:var(--cur-p);font:9px/1 var(--mono);letter-spacing:.08em;padding:.3rem .45rem;flex:0 0 auto;

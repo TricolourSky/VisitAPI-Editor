@@ -24,7 +24,7 @@ public static class QuestValidator
     public static List<Issue> Run(QuestStore quests, LocaleStore loc, IReadOnlySet<string> knownTraders,
                                   IReadOnlySet<string>? dlgAccept = null, IReadOnlySet<string>? dlgComplete = null,
                                   IEnumerable<(string File, string Id)>? dlgBadIds = null, IReadOnlySet<string>? vanillaQuests = null,
-                                  IReadOnlyList<AreaRow>? areas = null)
+                                  IReadOnlyList<AreaRow>? areas = null, IReadOnlyCollection<string>? transitMaps = null)
     {
         var all = quests.All().ToList();
         var ids = all.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -85,11 +85,16 @@ public static class QuestValidator
             var startAfter = Str(vx, "startAfter");
             var owners = chapterOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var sibs = siblingsOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // 定时联系（插件 Dev_Note #132，迷宫章「等待 Jaeger 找来钥匙卡」）：兄弟子任务当原生前置**且带 availableAfter** 是唯一能定时的写法
+            // （SPT 起定时器靠的就是原生前置），不算「一局之内解不开」的那种错；没带定时的兄弟原生前置照旧红
+            var timed = Conds(q, "AvailableForStart")
+                .Where(c => Str(c, "conditionType") == "Quest" && c["availableAfter"] is JsonValue av && av.TryGetValue<double>(out var sec) && sec > 0)
+                .Select(c => Str(c, "target")).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var deadlockSaid = false;   // 原生前置和 startAfter 都指着所在章节时只报一次，别一条脏数据两行同码
             foreach (var t in QuestRefs(Conds(q, "AvailableForStart")).Distinct(StringComparer.OrdinalIgnoreCase))
                 if (owners.Contains(t)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
                 else if (startAfter.Length > 0) Err("startafter_with_prereq", Cut(t));
-                else if (sibs.Contains(t)) Err("sub_prereq_is_sub", Cut(t));
+                else if (sibs.Contains(t) && !timed.Contains(t)) Err("sub_prereq_is_sub", Cut(t));
             if (startAfter.Length > 0)
             {
                 // startAfter 是"每条任务最多一个后继"的函数图，顺着单链走就能判环；
@@ -140,6 +145,13 @@ public static class QuestValidator
                     if (a == null) Err("bad_area", Cut(Str(c, "id")), c["areaType"]?.ToJsonString() ?? "");
                     else if (a.Max > 0 && c["value"] is JsonValue vv && vv.TryGetValue<double>(out var lv) && lv > a.Max) Err("area_level_high", a.Zh, a.En, ((int)lv).ToString(), a.Max.ToString());
                 }
+            // 地图转移（计数器里 TransitionLocation，客户端 0.16 起有、原版任务没用过）：目的地要是这台机器上有的地图短 id 或 any；
+            // 没有地图表（transitMaps == null）就不查——扫不到 ≠ 不存在，地图模组加的图这里也扫不到，所以只 warn
+            if (transitMaps != null)
+                foreach (var c in Conds(q, "AvailableForFinish").SelectMany(Inner).Where(x => Str(x, "conditionType") == "TransitionLocation"))
+                    foreach (var t in (c["target"] as JsonArray)?.Select(v => v is JsonValue jv && jv.TryGetValue<string>(out var s) ? s : "") ?? [Str(c, "target")])
+                        if (!t.Equals("any", StringComparison.OrdinalIgnoreCase) && !transitMaps.Contains(t, StringComparer.OrdinalIgnoreCase))
+                            Warn("bad_transit_map", Cut(Str(c, "id")), t);
             // 日记挂的物品 visitapi.noteLinks{日记id:[{type:item|offer|craft, tpl}]}：键必须是本任务的某条日记，物品必须是 24 位 hex
             foreach (var (nid, arr) in (vx?["noteLinks"] as JsonObject) ?? new JsonObject())
             {

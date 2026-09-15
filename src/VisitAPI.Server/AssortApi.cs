@@ -16,8 +16,9 @@ public static class AssortApi
     static ItemIndex Idx(Workspace ws)
     {
         var cur = _idx;
-        if (cur is { } c && c.Path == ws.SptData) return c.Index;
-        var made = (ws.SptData, new ItemIndex(ws.SptData));
+        var key = ws.SptData + "|" + ws.EftRoot;   // 模组物品跟着游戏根走，换了游戏目录也要重建
+        if (cur is { } c && c.Path == key) return c.Index;
+        var made = (key, new ItemIndex(ws.SptData, ws.EftRoot));
         _idx = made;
         return made.Item2;
     }

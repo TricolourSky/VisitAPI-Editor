@@ -6,6 +6,10 @@ namespace VisitAPI.Quests;
 public sealed record NamedId(string Id, string Zh, string En);
 /// <summary>藏身处设备：<c>Type</c> 就是任务条件 HideoutArea 的 areaType 号，<c>Max</c> 是它的最高等级（0 = 不知道，不查）。</summary>
 public sealed record AreaRow(int Type, string Zh, string En, int Max);
+/// <summary>一张图的撤离点：<c>Map</c> 是短 Id（任务条件 Location.target 填的，如 bigmap / Interchange），<c>Id</c> 是 _Id（和 Maps() 对得上），
+/// <c>Exits</c> 的 Name 就是 ExitName.exitName 填的值，中英名走全局文案（键就是撤离点名，没有就照抄）。</summary>
+public sealed record ExitRow(string Name, string Zh, string En);
+public sealed record MapExits(string Map, string Id, List<ExitRow> Exits);
 public sealed record ItemRow(string Id, string Cat, string Zh, string En, int Price);
 /// <param name="Icon">
 /// 分类图标，形如 <c>/files/handbook/icon_ammo_boxes.png</c>，对应
@@ -28,6 +32,7 @@ public sealed class SptData
 
     List<NamedId>? _traders, _maps;
     List<AreaRow>? _areas;
+    List<MapExits>? _exits;
     List<ItemRow>? _items;
     List<CatRow>? _cats;
     List<string>? _botTypes;
@@ -197,6 +202,33 @@ public sealed class SptData
             if (k.StartsWith("hideout_area_", StringComparison.Ordinal) && k.EndsWith("_name", StringComparison.Ordinal) && int.TryParse(k[13..^5], out var type))
                 list.Add(new AreaRow(type, Loc("ch").GetValueOrDefault(k, en), en, max.GetValueOrDefault(type)));
         return list.OrderBy(x => x.Type).ToList();
+    }
+
+    /// <summary>各图撤离点（「幸存撤离」目标限定地图 / 指定撤离点用）。只列 Maps() 摆出来的那些图；base.json 整份解析一次缓存住。</summary>
+    public List<MapExits> Exits() => _exits ??= LoadExits();
+    List<MapExits> LoadExits()
+    {
+        var list = new List<MapExits>();
+        var dir = Path.Combine(_db, "locations");
+        if (!Directory.Exists(dir)) return list;
+        var shown = Maps().Select(m => m.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in Directory.GetDirectories(dir).OrderBy(x => x))
+        {
+            var p = Path.Combine(d, "base.json");
+            if (!File.Exists(p) || new FileInfo(p).Length > MaxPeek) continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+                var r = doc.RootElement;
+                var id = r.TryGetProperty("_Id", out var mi) ? mi.GetString() ?? "" : "";
+                if (!shown.Contains(id) || !r.TryGetProperty("Id", out var si) || !r.TryGetProperty("exits", out var ex) || ex.ValueKind != JsonValueKind.Array) continue;
+                var rows = ex.EnumerateArray().Select(e => e.TryGetProperty("Name", out var n) ? n.GetString() ?? "" : "").Where(n => n.Length > 0).Distinct()
+                    .Select(n => new ExitRow(n, Loc("ch").GetValueOrDefault(n, n), Loc("en").GetValueOrDefault(n, n))).ToList();
+                list.Add(new MapExits(si.GetString() ?? "", id, rows));
+            }
+            catch { }   // 一张图的 base.json 坏了就少这一张，别拖垮整表
+        }
+        return list;
     }
 
     /// <summary>整读的上限，纯粹防将来 SPT 把 base.json 撑大。实测目前最大 322KB。</summary>
