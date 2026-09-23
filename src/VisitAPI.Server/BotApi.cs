@@ -21,8 +21,9 @@ public static class BotApi
     static Customization Cat(Workspace ws)
     {
         var key = ws.SptData + "|" + ws.ModDb;
-        if (_cat is { } c && c.Key == key) return c.Cat;
+        if (_cat is { } c && c.Key == key) { c.Cat.Refresh(); return c.Cat; }
         var made = (key, new Customization(ws.SptData, ws.ModDb));
+        made.Item2.Refresh();
         _cat = made;
         return made.Item2;
     }
@@ -34,8 +35,9 @@ public static class BotApi
     static (string Key, SptData Spt)? _spt;
     static SptData Spt(Workspace ws)
     {
-        if (_spt is { } s && s.Key == ws.SptData) return s.Spt;
+        if (_spt is { } s && s.Key == ws.SptData) { s.Spt.Refresh(); return s.Spt; }
         var made = (ws.SptData, new SptData(ws.SptData));
+        made.Item2.Refresh();
         _spt = made;
         return made.Item2;
     }
@@ -45,14 +47,17 @@ public static class BotApi
         app.MapGet("/api/bots", () =>
         {
             if (!ws.HasModDb) return Results.Json(ModsApi.NeedPick(ws));
+            var stamp = Stamp(ws);
             var looks = Load(ws);
+            if (stamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
             var spt = Spt(ws);
-            var types = spt.Ok ? spt.BotTypes() : [];
+            var types = Types(ws, spt);
             return Results.Json(new
             {
                 ok = true,
                 dir = looks.Dir,
-                stamp = Stamp(ws),
+                stamp,
+                brokenFiles = looks.Broken.Keys,
                 files = looks.Files.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
                                    .ToDictionary(x => x.Key, x => (JsonNode?)x.Value),
                 botTypes = types,                       // 新建时从这里挑，防止拼错名字
@@ -104,31 +109,39 @@ public static class BotApi
     static string Stamp(Workspace ws)
     {
         var dir = Path.Combine(ws.ModDb, "CustomBotLoadouts");
-        if (!Directory.Exists(dir)) return "";
-        return string.Join("|", Directory.GetFiles(dir, "*.json")
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-            .Select(f => $"{Path.GetFileName(f)}:{new FileInfo(f).LastWriteTimeUtc.Ticks}"));
+        return FileStamp.Files(ws.ModDb, Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json") : []);
     }
 
     static IResult Save(Workspace ws, SaveReq r)
     {
         if (!ws.HasModDb) return Results.BadRequest(new { error = "no_mod_db", dir = ws.ModDb });
-        if (!r.Force && r.Stamp != null && r.Stamp != Stamp(ws))
+        if (r.Stamp != null && !FileStamp.SameRoot(r.Stamp, ws.ModDb))
+            return Results.Json(new { error = "workspace_changed" }, statusCode: 409);
+        var acceptedStamp = Stamp(ws);
+        if (r.Stamp == null || (!r.Force && r.Stamp != acceptedStamp))
             return Results.Json(new { error = "stale" }, statusCode: 409);
 
         var looks = Load(ws);
         foreach (var (name, content) in r.Files ?? [])
         {
             if (Bad(ws, name)) return Results.BadRequest(new { error = "bad_name", name });
+            if (looks.Broken.ContainsKey(name)) return Results.BadRequest(new { error = "broken_file", name });
             // 只差大小写的名字（bosskilla.json vs 盘上的 BossKilla.json）：表和 NTFS 都当同一份，
             // 收下就是拿新内容覆盖人家那份（空 appearance 还会把它删掉）。前端已拦，这里是第二道。
-            var clash = looks.Files.Keys.FirstOrDefault(k => k != name && k.Equals(name, StringComparison.OrdinalIgnoreCase));
+            var clash = looks.Files.Keys.Concat((r.Files ?? []).Keys).FirstOrDefault(k => k != name && k.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (clash != null) return Results.BadRequest(new { error = "bad_name", name, existing = clash });
-            looks.Files[name] = content;
+            var value = r.BaseFiles?.TryGetValue(name, out var baseline) == true && looks.Files.TryGetValue(name, out var original)
+                ? (JsonObject)JsonPreserve.Merge(original, baseline, content)! : content;
+            JsonPreserve.Parse(value.ToJsonString());
+            looks.Files[name] = value;
         }
         // 只写这次送来的文件；盘上有、请求里没有的不动。
         // 删一个 bot 配置靠**明确送一份空的 appearance**（见 BotLookStore.SaveFile），不靠"没发过来"推断。
-        foreach (var name in (r.Files ?? []).Keys) looks.SaveFile(name);
+        if (acceptedStamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
+        var batch = new FileBatch();
+        foreach (var name in (r.Files ?? []).Keys) looks.SaveFile(name, batch);
+        if (acceptedStamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
+        batch.Commit();
 
         var fresh = Load(ws);
         var spt = Spt(ws);
@@ -137,9 +150,12 @@ public static class BotApi
             ok = true,
             stamp = Stamp(ws),
             files = fresh.Files.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
-            issues = BotLookValidator.Run(fresh, Cat(ws), spt.Ok ? spt.BotTypes() : []),
+            issues = BotLookValidator.Run(fresh, Cat(ws), Types(ws, spt)),
         });
     }
+
+    static List<string> Types(Workspace ws, SptData spt) => (spt.Ok ? spt.BotTypes() : [])
+        .Concat(ModBotGroups.Scan(ws.EftRoot).SelectMany(g => g.Roles).Select(r => r.ToLowerInvariant())).Distinct().Order().ToList();
 
     /// <summary>文件名不许带目录、不许 <c>..</c> 出去、必须是 .json。</summary>
     static bool Bad(Workspace ws, string name) =>
@@ -147,5 +163,5 @@ public static class BotApi
         !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
         ws.ResolveMod(Path.Combine("CustomBotLoadouts", name)) == null;
 
-    public sealed record SaveReq(string? Stamp, bool Force, Dictionary<string, JsonObject>? Files);
+    public sealed record SaveReq(string? Stamp, bool Force, Dictionary<string, JsonObject>? Files, Dictionary<string, JsonObject>? BaseFiles = null);
 }

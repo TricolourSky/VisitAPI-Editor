@@ -6,10 +6,21 @@ namespace VisitAPI.Server;
 public static class FileApi
 {
     /// <summary>.dlg 的乐观锁指纹：修改时间的 Ticks，**按字符串**来回（见 GET /api/dlg 的注释）</summary>
-    static string Stamp(string full) => File.GetLastWriteTimeUtc(full).Ticks.ToString();
+    static string Stamp(string full) => FileStamp.Of(full, File.ReadAllBytes(full));
 
     public static void Map(WebApplication app, Workspace ws)
     {
+        var requests = new SemaphoreSlim(1, 1);
+        app.Use(async (ctx, next) =>
+        {
+            ctx.Response.Headers["X-Frame-Options"] = "DENY";
+            ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+            ctx.Response.Headers["Cache-Control"] = "no-store";
+            if (ctx.Request.Path == "/live") { await next(); return; }
+            await requests.WaitAsync(ctx.RequestAborted);
+            try { await next(); }
+            finally { requests.Release(); }
+        });
         // 令牌闸门：/api/* 一律先验令牌（/api/ping 除外——它不碰文件，只用来判断页面还开着）
         app.Use(async (ctx, next) =>
         {
@@ -83,8 +94,8 @@ public static class FileApi
         {
             var dir = ws.Resolve(sub);
             if (dir == null || !Directory.Exists(dir)) return Array.Empty<object>();
-            return Directory.GetFiles(dir).Where(keep).Select(f => new FileInfo(f)).OrderBy(f => f.Name)
-                .Select(object (f) => new { name = f.Name, size = f.Length, video = Media.IsVideo(f.Name) })
+            return Directory.GetFiles(dir, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }).Where(keep).Select(f => new FileInfo(f)).OrderBy(f => f.Name)
+                .Select(object (f) => new { name = Path.GetRelativePath(dir, f.FullName).Replace('\\', '/'), size = f.Length, video = Media.IsVideo(f.Name) })
                 .ToArray();
         }
 
@@ -107,12 +118,13 @@ public static class FileApi
             if (full == null || !File.Exists(full)) return Results.NotFound(new { error = "文件不存在" });
             // stamp = 文件修改时间：存盘时带回来做乐观锁（quest/assort/bot 早就有，.dlg 一直裸奔，两个窗口互相盖）。
             // ⚠️ 必须是字符串：Ticks 是 64 位整数，JS 的 number 只有 53 位精度，当数字送出去再收回来永远对不上 → 每次存都 409
-            return Results.Json(new { path, text = File.ReadAllText(full), stamp = Stamp(full) });
+            var bytes = File.ReadAllBytes(full);
+            return Results.Json(new { path, root = ws.Root, text = System.Text.Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'), stamp = FileStamp.Of(full, bytes) });
         });
 
         // 存盘：**收模型，不收文本**。文本一律由 DialogWriter 生成 ——
         // .dlg 只有一个写手，前端那份 toDlg() 已经退役（它会丢注释和好几个字段）。
-        app.MapPost("/api/dlg", (string path, string? stamp, bool? force, DlgJson.Doc doc) =>
+        app.MapPost("/api/dlg", (string path, string? stamp, string? root, bool? force, DlgJson.Doc doc) =>
         {
             var full = ws.Resolve(path);
             if (full == null) return Results.BadRequest(new { error = "bad_path" });
@@ -122,7 +134,10 @@ public static class FileApi
             if (!path.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name = path });
             // 乐观锁：打开之后文件被别处改过（另一个窗口、/api/quests/link、记事本）就先问一句，别默默盖掉
-            if (!string.IsNullOrEmpty(stamp) && force != true && File.Exists(full) && Stamp(full) != stamp)
+            if ((root != null && FileStamp.Root(root) != FileStamp.Root(ws.Root)) ||
+                (stamp != null && !FileStamp.SameRoot(stamp, full)))
+                return Results.Json(new { error = "workspace_changed" }, statusCode: 409);
+            if (File.Exists(full) ? stamp == null || (force != true && Stamp(full) != stamp) : stamp != null)
                 return Results.Json(new { error = "stale" }, statusCode: 409);
             // 正文守卫（见 DlgJson.BadTexts）：这种文件写得出、读回来就变形，拒写并点名
             var badText = DlgJson.BadTexts(DlgJson.ToTree(doc));
@@ -132,13 +147,14 @@ public static class FileApi
             // （日志提供者在 Program 里被清掉了，控制台连一行都不会有）。
             try
             {
+                if (File.Exists(full) && DialogParser.Parse(File.ReadAllText(full), null).UnsafeToRewrite)
+                    return Results.BadRequest(new { error = "unsafe_source" });
                 var text = DialogWriter.Write(DlgJson.ToTree(doc));
                 // 目录被删/改名过就补一个：打开时还在，存的时候没了，不该让作者丢掉这一次修改
                 var dir = Path.GetDirectoryName(full);
                 if (dir != null) Directory.CreateDirectory(dir);
                 // 覆盖前先留一份 .bak：这是别人几十小时写的剧本，存错一次就毁了
-                if (File.Exists(full)) File.Copy(full, full + ".bak", true);
-                File.WriteAllText(full, text);
+                VisitAPI.Quests.TextFile.Write(full, text);
                 return Results.Json(new { ok = true, bytes = text.Length, text, stamp = Stamp(full) });
             }
             catch (Exception e)

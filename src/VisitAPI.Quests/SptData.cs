@@ -38,21 +38,32 @@ public sealed class SptData
     List<string>? _botTypes;
     Dictionary<string, string>? _zh, _en;
     HashSet<string>? _questIds;
+    string? _revision;
+
+    public void Refresh()
+    {
+        var files = Ok ? Directory.GetFiles(_db, "*.json", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }) : [];
+        var revision = _db + ReadOnlyJson.Revision(files);
+        if (_revision == revision) return;
+        _revision = revision;
+        _traders = _maps = null; _areas = null; _exits = null; _items = null; _cats = null;
+        _botTypes = null; _zh = _en = null; _questIds = null; _appear = null; _byTpl = null; _iconOf = null;
+    }
 
     /// <summary>原版任务的 id（<c>templates\quests.json</c> 的顶层键，只读键不物化整棵树）。
     /// 校验「前置指向的任务不存在」要拿它兜底：作者的任务接在原版任务后面是最常见的写法，原来一律报 err（2026-09-08 审查）。</summary>
-    public IReadOnlySet<string> QuestIds() => _questIds ??= LoadQuestIds();
-    HashSet<string> LoadQuestIds()
+    public IReadOnlySet<string>? QuestIds() => _questIds ??= LoadQuestIds();
+    HashSet<string>? LoadQuestIds()
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var p = Path.Combine(_db, "templates", "quests.json");
-        if (!File.Exists(p)) return set;
+        if (!File.Exists(p)) return null;
         try
         {
             using var doc = JsonDocument.Parse(JsonBytes.Read(p));
             foreach (var e in doc.RootElement.EnumerateObject()) set.Add(e.Name);
         }
-        catch { }
+        catch { return null; }
         return set;
     }
 
@@ -100,6 +111,15 @@ public sealed class SptData
         // 先转字符串再 Parse：JsonBytes.Read 已经去过 BOM，和 BotLookStore 走同一条路子
         try { return JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(p)))?["appearance"]; }
         catch { return null; }
+    }
+
+    /// <summary>这台 SPT 认识哪些语言（<c>locales\global\*.json</c> 的文件名，如 ch / en / ru）。模组 db\locales 里不在这张表上的文件 SPT 一律报错。</summary>
+    public HashSet<string> GlobalLangs()
+    {
+        var dir = Path.Combine(_db, "locales", "global");
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (Directory.Exists(dir)) foreach (var f in Directory.GetFiles(dir, "*.json")) set.Add(Path.GetFileNameWithoutExtension(f));
+        return set;
     }
 
     /// <summary>全局文案：物品名、地图名都在里面。键形如 <c>"&lt;id&gt; Name"</c>。</summary>
@@ -166,7 +186,6 @@ public sealed class SptData
             if (zh.Length == 0) continue;                    // 没有本地化名字的多是开发用图，别摆给作者看
             // 白天/夜晚工厂、两张中心区共用同一个名字，把目录名括进去才分得开
             var (zhTag, enTag) = Suffix(Path.GetFileName(d));
-            if (!enabled && zhTag.Length == 0) continue;      // 关掉的图也别列，除非是夜工厂这种确实有人用的
             list.Add(new NamedId(id, zh + zhTag, NameEn(id) + enTag));
         }
         return list;
@@ -201,6 +220,8 @@ public sealed class SptData
         foreach (var (k, en) in Loc("en"))
             if (k.StartsWith("hideout_area_", StringComparison.Ordinal) && k.EndsWith("_name", StringComparison.Ordinal) && int.TryParse(k[13..^5], out var type))
                 list.Add(new AreaRow(type, Loc("ch").GetValueOrDefault(k, en), en, max.GetValueOrDefault(type)));
+        foreach (var type in max.Keys.Where(t => list.All(a => a.Type != t)))
+            list.Add(new AreaRow(type, "设备 " + type, "Area " + type, max[type]));
         return list.OrderBy(x => x.Type).ToList();
     }
 

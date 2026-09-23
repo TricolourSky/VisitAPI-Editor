@@ -37,7 +37,7 @@ public sealed class BotLookStore
             var name = Path.GetFileName(f);
             try
             {
-                if (JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(f))) is not JsonObject o)
+                if (JsonPreserve.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(f))) is not JsonObject o)
                 { Broken[name] = "not_object"; continue; }
                 Files[name] = o;
                 Styles[name] = JsonFile.Sniff(f);
@@ -53,7 +53,7 @@ public sealed class BotLookStore
     public static Dictionary<string, double> Slot(JsonObject file, string slot)
     {
         var d = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        if (file["appearance"]?[slot] is not JsonObject o) return d;
+        if (file["appearance"] is not JsonObject appearance || appearance[slot] is not JsonObject o) return d;
         foreach (var kv in o)
             if (kv.Value is JsonValue v && v.TryGetValue<double>(out var w)) d[kv.Key] = w;
         return d;
@@ -63,18 +63,21 @@ public sealed class BotLookStore
     /// 写回一个文件，覆盖前留 .bak（和任务库、.dlg 同一条规矩）；没变不写、照原样式、先 .tmp 再顶上（见 JsonFile）。
     /// <b>空的 appearance ＝ 把这份文件删掉</b>：留着一个什么都不改的文件只会让 WTT 白读一遍。
     /// </summary>
-    public void SaveFile(string name)
+    public void SaveFile(string name, FileBatch? batch = null)
     {
         if (!Files.TryGetValue(name, out var obj)) return;
-        Directory.CreateDirectory(Dir);
+        var ownBatch = batch == null;
+        batch ??= new FileBatch();
         var path = Path.Combine(Dir, name);
         if (IsEmpty(obj))
         {
-            if (File.Exists(path)) { File.Copy(path, path + ".bak", true); File.Delete(path); }
+            batch.Delete(path);
+            if (ownBatch) batch.Commit();
             Files.Remove(name);
             return;
         }
-        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        batch.Json(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        if (ownBatch) batch.Commit();
     }
 
     /// <summary>整份文件除了空的 appearance 之外什么都没有。</summary>
@@ -83,7 +86,7 @@ public sealed class BotLookStore
         foreach (var kv in o)
         {
             if (kv.Key != "appearance") return false;           // 还有 chances / inventory，不能删
-            if (kv.Value is JsonObject ap && ap.Any(s => s.Value is JsonObject j && j.Count > 0)) return false;
+            if (kv.Value is not JsonObject ap || ap.Any(s => s.Value is not JsonObject j || j.Count > 0)) return false;
         }
         return true;
     }

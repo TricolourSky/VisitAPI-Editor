@@ -55,23 +55,20 @@ public static class JsonFile
         return node.ToJsonString(opt);
     }
 
+    internal static byte[] Bytes(JsonNode node, Style? style, byte[]? original)
+    {
+        var s = style ?? Style.Default;
+        var text = original == null ? null : Encoding.UTF8.GetString(original).TrimStart('\uFEFF');
+        var rendered = text == null ? Render(node, s) : JsonPreserve.Rewrite(text, node, s);
+        var body = Utf8NoBom.GetBytes(rendered);
+        return s.Bom ? Utf8Bom.GetPreamble().Concat(body).ToArray() : body;
+    }
+
     /// <summary>写回。返回 false = 内容和盘上一致，什么都没动（也没换 .bak）。</summary>
     public static bool Write(string path, JsonNode node, Style? style)
     {
-        var s = style ?? Style.Default;
-        // ⚠️ Encoding.GetBytes 从不带 BOM（前导只有 StreamWriter 那条路会写），要自己拼上，否则 BOM 文件永远「不一致」→ 每次都重写、还把 BOM 丢了
-        var body = Utf8NoBom.GetBytes(Render(node, s));
-        var bytes = s.Bom ? Utf8Bom.GetPreamble().Concat(body).ToArray() : body;
-        if (File.Exists(path))
-        {
-            var old = File.ReadAllBytes(path);
-            if (old.AsSpan().SequenceEqual(bytes)) return false;
-            File.Copy(path, path + ".bak", true);
-        }
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var tmp = path + ".tmp";
-        File.WriteAllBytes(tmp, bytes);
-        File.Move(tmp, path, true);
-        return true;
+        var batch = new FileBatch();
+        batch.Json(path, node, style);
+        return batch.Commit();
     }
 }

@@ -17,8 +17,9 @@ public static class AssortApi
     {
         var cur = _idx;
         var key = ws.SptData + "|" + ws.EftRoot;   // 模组物品跟着游戏根走，换了游戏目录也要重建
-        if (cur is { } c && c.Path == key) return c.Index;
+        if (cur is { } c && c.Path == key) { c.Index.Refresh(); return c.Index; }
         var made = (key, new ItemIndex(ws.SptData, ws.EftRoot));
+        made.Item2.Refresh();
         _idx = made;
         return made.Item2;
     }
@@ -30,8 +31,9 @@ public static class AssortApi
     static (string Key, SptData Spt)? _spt;
     static SptData Spt(Workspace ws)
     {
-        if (_spt is { } s && s.Key == ws.SptData) return s.Spt;
+        if (_spt is { } s && s.Key == ws.SptData) { s.Spt.Refresh(); return s.Spt; }
         var made = (ws.SptData, new SptData(ws.SptData));
+        made.Item2.Refresh();
         _spt = made;
         return made.Item2;
     }
@@ -41,12 +43,15 @@ public static class AssortApi
         app.MapGet("/api/assort", () =>
         {
             if (!ws.HasModDb) return Results.Json(ModsApi.NeedPick(ws));
+            var stamp = Stamp(ws);
             var store = Load(ws);
+            if (stamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
             return Results.Json(new
             {
                 ok = true,
                 dir = ws.ModDb,
-                stamp = Stamp(ws),
+                stamp,
+                brokenFiles = store.Broken.Keys,
                 files = store.Files.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
                                    .ToDictionary(x => x.Key, x => (JsonNode?)x.Value),
                 // 货架上用到的那些 tpl 的展示信息：名字 / 占格 / 分类图标。
@@ -199,28 +204,41 @@ public static class AssortApi
         if (File.Exists(single)) files.Add(single);
         var dir = Path.Combine(ws.ModDb, AssortStore.WttDir);
         if (Directory.Exists(dir)) files.AddRange(Directory.GetFiles(dir, "*.json"));
-        return string.Join("|", files.OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-            .Select(f => $"{Path.GetFileName(f)}:{new FileInfo(f).LastWriteTimeUtc.Ticks}"));
+        return FileStamp.Files(ws.ModDb, files);
     }
 
     static IResult Save(Workspace ws, SaveReq r)
     {
         if (!ws.HasModDb) return Results.BadRequest(new { error = "no_mod_db", dir = ws.ModDb });
-        if (!r.Force && r.Stamp != null && r.Stamp != Stamp(ws))
+        if (r.Stamp != null && !FileStamp.SameRoot(r.Stamp, ws.ModDb))
+            return Results.Json(new { error = "workspace_changed" }, statusCode: 409);
+        var acceptedStamp = Stamp(ws);
+        if (r.Stamp == null || (!r.Force && r.Stamp != acceptedStamp))
             return Results.Json(new { error = "stale" }, statusCode: 409);
 
         var store = Load(ws);
         foreach (var (name, content) in r.Files ?? [])
         {
             if (Bad(ws, name)) return Results.BadRequest(new { error = "bad_name", name });
-            store.Files[name] = content;
+            if (store.Broken.ContainsKey(name)) return Results.BadRequest(new { error = "broken_file", name });
+            var clash = store.Files.Keys.Concat((r.Files ?? []).Keys)
+                .FirstOrDefault(k => k != name && k.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (clash != null) return Results.BadRequest(new { error = "bad_name", name, existing = clash });
+            var value = r.BaseFiles?.TryGetValue(name, out var baseline) == true && store.Files.TryGetValue(name, out var original)
+                ? (JsonObject)JsonPreserve.Merge(original, baseline, content)! : content;
+            JsonPreserve.Parse(value.ToJsonString());
+            store.Files[name] = value;
         }
         // **非法 id 一律不许落盘。** 别的校验都是"存下去、界面上提示"，这一条不行：
         // 键不是 24 位十六进制，SPT 读这份文件的那一刻就抛，服务端连启动都启动不了
         // （2026-08-22 真出过，见 AssortValidator.FatalId）。只查这次真要写的那几份。
         if (AssortValidator.FatalId(store, (r.Files ?? []).Keys) is { } bad)
             return Results.BadRequest(new { error = "bad_id", file = bad.File, id = bad.Id });
-        foreach (var name in (r.Files ?? []).Keys) store.SaveFile(name);
+        if (acceptedStamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
+        var batch = new FileBatch();
+        foreach (var name in (r.Files ?? []).Keys) store.SaveFile(name, batch);
+        if (acceptedStamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
+        batch.Commit();
 
         var fresh = Load(ws);
         return Results.Json(new { ok = true, stamp = Stamp(ws), issues = AssortValidator.Run(fresh, Idx(ws)) });
@@ -236,5 +254,5 @@ public static class AssortApi
         return !SafeName.Ok(leaf) || ws.ResolveMod(Path.Combine(AssortStore.WttDir, leaf)) == null;
     }
 
-    public sealed record SaveReq(string? Stamp, bool Force, Dictionary<string, JsonObject>? Files);
+    public sealed record SaveReq(string? Stamp, bool Force, Dictionary<string, JsonObject>? Files, Dictionary<string, JsonObject>? BaseFiles = null);
 }

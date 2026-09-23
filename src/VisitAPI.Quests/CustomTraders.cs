@@ -52,8 +52,9 @@ public static class CustomTraders
         foreach (var mod in Directory.GetDirectories(mods))
         {
             var dir = Path.Combine(mod, "db", "traders");
-            if (!Directory.Exists(dir)) continue;
-            foreach (var t in Directory.GetDirectories(dir))
+            var folders = Directory.Exists(dir) ? Directory.GetDirectories(dir).ToList() : [];
+            if (File.Exists(Path.Combine(mod, "db", "base.json"))) folders.Add(Path.Combine(mod, "db"));
+            foreach (var t in folders)
             {
                 var p = Path.Combine(t, "base.json");
                 if (!File.Exists(p)) continue;
@@ -64,7 +65,8 @@ public static class CustomTraders
                     if (doc.RootElement.TryGetProperty("_id", out var i)) id = i.GetString() ?? id;
                     if (doc.RootElement.TryGetProperty("nickname", out var n)) nick = n.GetString() ?? "";
                 }
-                catch { /* 坏文件跳过，不能因为一个 mod 把整张列表拖垮 */ }
+                catch { continue; }
+                if (!QuestValidator.IsMongoId(id)) continue;
                 var name = nick.Length > 0 ? nick : Path.GetFileName(t);
                 yield return new TraderOpt(id, name, name, "mod", Path.GetFileName(mod));
             }

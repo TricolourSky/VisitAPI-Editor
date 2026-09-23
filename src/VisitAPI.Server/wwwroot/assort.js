@@ -80,7 +80,9 @@ function asLoad() {
 function aScheme() {
   if (!acur || !AD?.files) return null;
   /* 键 = 文件名 [+ "#" + 商人 id]（见 akey）。文件名里也可能有 #，所以只认末尾那段 24 位 id 前面的 #，别 split */
-  const m = /^(.*)#([0-9a-f]{24})$/i.exec(acur), file = m ? m[1] : acur, trader = m ? m[2] : "";
+  const selected=AD.schemes?.find(s=>akey(s)===acur);
+  if(!selected)return null;
+  const file=selected.file,trader=selected.kind==="wtt"?selected.trader:"";
   const root = AD.files[file];
   if (!root) return null;
   return trader ? root[trader] : root;
@@ -684,14 +686,20 @@ function aAddItem(tpl, price) {
 }
 
 /* ── 保存 ── */
+let aSaving=false;
 function aPost(force) {
-  if (!AD?.ok) return;
-  api("/api/assort", {
+  document.activeElement?.blur();
+  if (!AD?.ok || aSaving || !adirty()) return;
+  const loaded=AD, snapshot=asnap();
+  aSaving=true;
+  return api("/api/assort", {
     method: "POST", headers: { "Content-Type": "application/json" },
     /* **只送改过的那几份。** 服务端只写它收到的文件，没动过的连时间戳都不会变 */
-    body: JSON.stringify({ stamp: AD.stamp, force, files: aChanged() }),
-  }).then(d => { AD.stamp = d.stamp; AD.issues = d.issues; aMark(); render(); })
+    body: JSON.stringify({ stamp: AD.stamp, force:force===true, files: aChanged(), baseFiles:JSON.parse(aBase||"{}") }),
+  }).then(d => { if(AD!==loaded)return; AD.stamp = d.stamp; AD.issues = d.issues;
+    aBase=snapshot;aWas=Object.fromEntries(Object.entries(JSON.parse(snapshot)).map(([k,v])=>[k,JSON.stringify(v)]));render(); })
     .catch(async e => {
+      if(AD!==loaded)return;
       /* ⚠️ 按**字段**判，别拿整个 JSON 正文做子串匹配：正文里带着文件名，
          一份叫 `stale.json` 的货架撞上 bad_id 会被认成"文件被改过"，
          弹一个覆盖确认 → 确认 → 又 400 → 再弹，作者永远看不到真正的原因。 */
@@ -700,12 +708,12 @@ function aPost(force) {
       const err = j?.error || "";
       if (err === "stale" || (!j && m.includes("stale"))) {
         const go = await confirm2(T("a_stale"), T("nav_assort"));
-        if (go) aPost(true); else asLoad();
+        if (go) {aSaving=false;return await aPost(true);}
         return;
       }
       /* 服务端把非法 id 拦在了落盘之前（AssortValidator.FatalId）。
          这种文件会让 SPT 读都读不进去，所以说清楚是哪一个，别只丢一串 JSON 给作者看 */
       if (err === "bad_id") { say(TF("a_badid", j.id || "")); return; }
       say(TF("a_savefail", m.slice(0, 80)));
-    });
+    }).finally(()=>{aSaving=false;});
 }

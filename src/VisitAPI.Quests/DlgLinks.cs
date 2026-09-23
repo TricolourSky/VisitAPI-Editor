@@ -3,7 +3,7 @@ using VisitAPI.Dialog;
 namespace VisitAPI.Quests;
 
 /// <summary>一条挂接：某个 .dlg 的某个节点的某个选项，按下去会对某个任务做某件事。</summary>
-public sealed record DlgLink(string File, string Node, int Opt, string Text, string Action, string QuestId);
+public sealed record DlgLink(string File, string Node, int Opt, string Text, string Action, string QuestId, int? Status = null);
 
 /// <summary>.dlg 头部的触发点：玩家走到哪、按什么键会打开这段对话。
 /// <para><c>QuestId</c>/<c>Status</c> = 出现条件里点名的任务；<c>Accept</c>/<c>Finish</c>/<c>Fail</c> = 走到就发/判完成/判作废的任务。
@@ -20,7 +20,7 @@ public sealed record DlgTrigger(string File, string Kind, string Place, string N
 ///
 /// **回写必须走 DialogWriter，不能让前端拼字符串。** 前端那份 JS 的 toDlg() 已经因为
 /// 漏吐字段丢过一次数据（见 Memory 阶段 5）；.dlg 里还有作者写的注释和手填坐标，
-/// 只有 DialogWriter 会原样吐回。所以这里的做法是：解析 → 改模型 → 整份重写。
+/// 挂接只替换目标选项行，其余原文字节由 TextFile 保留；选项语法仍交给 DialogWriter。
 /// </summary>
 public static class DlgLinks
 {
@@ -29,7 +29,8 @@ public static class DlgLinks
     /// <summary>扫工作区里所有 .dlg（`.dlg.demo` 是插件带的示例，不算数）。</summary>
     public static IEnumerable<string> Files(string dlgDir) =>
         Directory.Exists(dlgDir)
-            ? Directory.GetFiles(dlgDir, "*.dlg").OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            ? Directory.GetFiles(dlgDir, "*.dlg").Where(x => Path.GetFileNameWithoutExtension(x).Length == 24)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             : [];
 
     /// <summary>一处引用不到任何任务的 id：哪个文件、写的是什么。</summary>
@@ -62,7 +63,8 @@ public static class DlgLinks
             foreach (var n in t.Nodes.Values)
                 for (var i = 0; i < n.Options.Count; i++)
                     foreach (var (act, id) in Acts(n.Options[i]))
-                        links.Add(new DlgLink(name, n.Name, i, n.Options[i].Text ?? "", act, id));
+                        links.Add(new DlgLink(name, n.Name, i, n.Options[i].Text ?? "", act, id,
+                            act == "setstatus" ? n.Options[i].SetStatusValue : null));
 
             // 有出现条件、或者会对任务做点什么的，都要列出来（原来只列前者）
             foreach (var g in t.Triggers)
@@ -91,13 +93,18 @@ public static class DlgLinks
                                 string action, string questId, bool add)
     {
         if (!Actions.Contains(action)) return "bad_action";
+        if (!SafeName.Ok(file) || !file.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase)) return "bad_name";
+        if (questId.Length != 24 || !questId.All(Uri.IsHexDigit)) return "bad_quest_id";
         var path = Path.Combine(dlgDir, file);
         if (!File.Exists(path)) return "no_file";
 
-        var t = DialogParser.Parse(File.ReadAllText(path), null);
+        var source = File.ReadAllText(path);
+        var t = DialogParser.Parse(source, null);
+        if (t.UnsafeToRewrite) return "unsafe_source";
         if (!t.Nodes.TryGetValue(node, out var n)) return "no_node";
         if (opt < 0 || opt >= n.Options.Count) return "no_option";
         var o = n.Options[opt];
+        var before = DialogWriter.OptionText(t, o);
 
         // accept/complete 一个选项能挂多个任务（加进列表 / 只摘自己那条）；handover/setstatus 仍是单字段
         switch (action)
@@ -109,9 +116,24 @@ public static class DlgLinks
             case "setstatus": o.SetStatusId = add ? questId : Clear(o.SetStatusId, questId); break;
         }
 
-        File.Copy(path, path + ".bak", true);        // 别人几十小时写的剧本，存错一次就毁了
-        File.WriteAllText(path, DialogWriter.Write(t));
-        return null;
+        var after = DialogWriter.OptionText(t, o);
+        if (before == after) return null;
+        var lines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var current = ""; var index = -1;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].Trim();
+            var head = System.Text.RegularExpressions.Regex.Match(trimmed, @"^<([A-Za-z0-9_.\-]+)>");
+            if (head.Success) { current = head.Groups[1].Value; index = -1; }
+            if (current != node || !(trimmed.StartsWith("- ") || trimmed == "-")) continue;
+            if (++index != opt) continue;
+            lines[i] = lines[i][..(lines[i].Length - lines[i].TrimStart().Length)] + after;
+            // External writers can change files independently of the editor's request queue.
+            if (File.ReadAllText(path) != source) return "stale";
+            TextFile.Write(path, string.Join("\n", lines));
+            return null;
+        }
+        return "no_option";
     }
 
     /// <summary>只摘自己那条：字段上挂的是别的任务就别乱动。</summary>

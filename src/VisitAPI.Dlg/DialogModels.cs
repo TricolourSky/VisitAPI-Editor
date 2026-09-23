@@ -17,6 +17,8 @@ public class HeadLine
 public class DialogTree
 {
     public string TraderId, DisplayName, Start = "root", First, Actor, Scene, TabQuestId;
+    /// <summary>`trader:` 名字的译文（语言代码 → 名字），写在 trader: 行的下一行（见 DialogLangs）。</summary>
+    public Dictionary<string, string> NameTr = new();
     public List<int> TabStatuses = new();
     public List<WhenRule> WhenRules = new();
     public List<DialogTrigger> Triggers = new();
@@ -25,11 +27,16 @@ public class DialogTree
     public Dictionary<string, DialogNode> Nodes = new();
     public List<HeadLine> HeadRaw = new();
     public List<string> Warnings = new();
+    public bool UnsafeToRewrite;
 }
 
 public class DialogNode
 {
     public string Name, Bg, Anim, Bgm, NpcText, NpcAudio, JumpTo;
+    /// <summary>台词的译文（语言代码 → 文字），见 DialogLangs。</summary>
+    public Dictionary<string, string> NpcTr = new();
+    /// <summary>只给解析器用：最近一条能翻的行（旁白 / 台词 / 选项）的译文表，译文行往这儿挂；节点头和 -> 之后清空。不进模型、不序列化。</summary>
+    internal Dictionary<string, string> LastTr;
     public List<NarrationLine> Narration = new();
     public List<DialogOption> Options = new();
     // 注释挂在"它后面那个元素"上，回写时先吐注释再吐元素 —— 一个字都不会丢
@@ -50,6 +57,8 @@ public class DialogNode
 public class NarrationLine
 {
     public string Text, Bg, Anim, Audio;
+    /// <summary>这条旁白的译文（语言代码 → 文字），见 DialogLangs。</summary>
+    public Dictionary<string, string> Tr = new();
     public List<string> Lead = new();
 }
 
@@ -72,6 +81,8 @@ public class DialogOption
     public bool IfItems;
     public string IfItemsId;
     public List<int> IfStatuses = new(), IfNotStatuses = new();
+    /// <summary>选项文字的译文（语言代码 → 文字），见 DialogLangs。</summary>
+    public Dictionary<string, string> Tr = new();
     public List<string> Lead = new();
 }
 
@@ -87,6 +98,8 @@ public class DialogTrigger
     public float Enter = -1f;   // 进图 N 秒后自动起爆；-1 = 普通坐标触发点
     public bool Free, Auto;
     public bool Once;   // 触发过就永久不再弹（客户端记进 <traderId>.seen.json，按档案区分）；1.3 新增可选参数
+    /// <summary>提示语的译文（语言代码 → 文字）。不在 Raw 里：译文行是 trigger: 行的下一行，回写时跟在它后面（DialogLangs）。</summary>
+    public Dictionary<string, string> Tr = new();
 
     /// <summary>
     /// 解析时这一行的原文。回写优先用它，坐标就不会被浮点格式化改样子

@@ -1,4 +1,7 @@
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using VisitAPI.Packs;
 
 namespace VisitAPI.Server;
 
@@ -53,6 +56,21 @@ public sealed class Workspace
     public bool HasModDb => ModDb.Length > 0 && Directory.Exists(ModDb);
 
     public List<Quests.ModRoot> ScanModRoots() => Quests.ModLooks.ScanRoots(EftRoot);
+
+    public bool OpenProject(string root, string quests, string mods)
+    {
+        try
+        {
+            var paths = new[] { root, quests, mods }.Select(Path.GetFullPath).ToArray();
+            if (paths.Any(p => !Directory.Exists(p))) return false;
+            foreach (var path in paths) _ = Directory.EnumerateFileSystemEntries(path).FirstOrDefault();
+            Root = paths[0]; QuestDb = paths[1]; ModDb = paths[2];
+            FindEft();
+            Save();
+            return true;
+        }
+        catch { return false; }
+    }
 
     /// <summary>
     /// 手填路径允许新建几层：<c>&lt;模组&gt;\db</c> 两层是「从零开一个新模组」的正常起点；再深多半是打错了盘符/目录名，
@@ -109,8 +127,8 @@ public sealed class Workspace
     }
 
     /// <summary>
-    /// 扫出所有"看起来能放任务"的目录：`SPT_Runtime\user\mods\*\db`。
-    /// 已经有 quests 子目录的排前面 —— 那些是确实在用这套约定的 mod。
+    /// 扫出所有"看起来能放任务"的目录：`SPT_Runtime\user\mods\*\db`，以及内容包 `mods\*\packs\*`（09-23，每个包单独一行，标成「模组/包」）。
+    /// 已经有 quests 子目录的排前面 —— 那些是确实在用这套约定的 mod；同一模组里老 db 排在包前面。
     /// </summary>
     public List<(string Path, bool HasQuests, string Mod)> ScanQuestRoots()
     {
@@ -120,14 +138,19 @@ public sealed class Workspace
         if (!Directory.Exists(mods)) return found;
         foreach (var m in Directory.GetDirectories(mods).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
         {
+            var name = Path.GetFileName(m);
             var db = Path.Combine(m, "db");
-            if (!Directory.Exists(db)) continue;
-            found.Add((db, Directory.Exists(Path.Combine(db, "quests")), Path.GetFileName(m)));
+            if (Directory.Exists(db)) found.Add((db, Directory.Exists(Path.Combine(db, "quests")), name));
+            var packs = Path.Combine(m, PackLayout.PacksDir);
+            if (!Directory.Exists(packs)) continue;
+            foreach (var p in Directory.GetDirectories(packs).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                found.Add((p, Directory.Exists(Path.Combine(p, "quests")), name + "/" + Path.GetFileName(p)));
         }
         return found.OrderByDescending(x => x.Item2).ToList();
     }
 
-    /// <summary>指定任务库。目录不存在就建出来（连 quests / locales 一起），作者能从零开一个新 mod 的任务。</summary>
+    /// <summary>指定任务库。目录不存在就建出来（连 quests / locales 一起），作者能从零开一个新 mod 的任务。
+    /// 指到 <c>packs\&lt;包&gt;</c> 的就是一个内容包：再补 <c>images\banners</c>、<c>images\icons</c> 和一份最小的 pack.json（名字 = 文件夹、版本 1.0.0、要求当前这一小版本的 VisitAPI）。</summary>
     public bool SetQuestDb(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;
@@ -137,6 +160,18 @@ public sealed class Workspace
             if (!CanCreate(full)) return false;       // 同 SetModDb：最多新建 <模组>\db 两层，打错的路径别在别处建树
             Directory.CreateDirectory(Path.Combine(full, "quests"));
             Directory.CreateDirectory(Path.Combine(full, "locales"));
+            if (Quests.QuestImages.IsPack(full))
+            {
+                Directory.CreateDirectory(Path.Combine(full, "images", PackLayout.FolderOf("icon")));
+                Directory.CreateDirectory(Path.Combine(full, "images", PackLayout.FolderOf("chapters_icon")));
+                var pj = Path.Combine(full, PackLayout.PackJson);
+                if (!File.Exists(pj))
+                {
+                    var ver = typeof(Workspace).Assembly.GetName().Version?.ToString(3) ?? "1.3.3";
+                    var name = JsonSerializer.Serialize(Path.GetFileName(Path.TrimEndingDirectorySeparator(full)));
+                    File.WriteAllText(pj, "{\n  \"name\": " + name + ",\n  \"version\": \"1.0.0\",\n  \"requires\": \"~" + ver + "\",\n  \"author\": \"\",\n  \"description\": { \"ch\": \"\", \"en\": \"\" }\n}\n", new UTF8Encoding(false));
+                }
+            }
             QuestDb = full;
             Save();
             return true;
@@ -204,7 +239,7 @@ public sealed class Workspace
     /// <summary>存一个偏好；值给空串＝删掉。键收得很紧、值不许换行——这文件是按行解析的。</summary>
     public bool SetPref(string key, string value)
     {
-        if (!System.Text.RegularExpressions.Regex.IsMatch(key ?? "", @"^[a-z][a-z0-9._-]{0,40}$")) return false;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(key ?? "", @"\A[a-z][a-z0-9._-]{0,40}\z")) return false;
         value ??= "";
         if (value.Length > 500 || value.Contains('\r') || value.Contains('\n')) return false;
         if (value.Length == 0) Prefs.Remove(key!); else Prefs[key!] = value;
@@ -222,7 +257,7 @@ public sealed class Workspace
             if (ModDb.Length > 0) lines.Add("mods=" + ModDb);
             foreach (var t in KnownTraders) lines.Add("trader=" + t);
             foreach (var (k, v) in Prefs) lines.Add("pref." + k + "=" + v);
-            File.WriteAllLines(ConfigPath, lines);
+            Quests.TextFile.Write(ConfigPath, string.Join(Environment.NewLine, lines) + Environment.NewLine);
         }
         catch { /* 记不住不算致命，下次再填一遍 */ }
     }

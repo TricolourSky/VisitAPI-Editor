@@ -45,7 +45,7 @@ public sealed class AssortStore
         if (!File.Exists(path)) return;
         try
         {
-            if (JsonNode.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(path))) is not JsonObject o)
+            if (JsonPreserve.Parse(System.Text.Encoding.UTF8.GetString(JsonBytes.Read(path))) is not JsonObject o)
             { Broken[name] = "not_object"; return; }
             Files[name] = o;
             Styles[name] = JsonFile.Sniff(path);
@@ -97,10 +97,13 @@ public sealed class AssortStore
         o[k] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
 
     /// <summary>写回一份文件，覆盖前留 .bak（全项目同一条规矩）；没变不写、照原样式、先 .tmp 再顶上（见 JsonFile）。</summary>
-    public void SaveFile(string name)
+    public void SaveFile(string name, FileBatch? batch = null)
     {
         if (!Files.TryGetValue(name, out var obj)) return;
         var path = Path.Combine(Db, name.Replace('/', Path.DirectorySeparatorChar));
-        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        var ownBatch = batch == null;
+        batch ??= new FileBatch();
+        batch.Json(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        if (ownBatch) batch.Commit();
     }
 }

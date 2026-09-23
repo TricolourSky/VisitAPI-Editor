@@ -51,8 +51,7 @@ public static class Program
 
     public static void Main(string[] args)
     {
-        var port = FreePort();
-        var url = $"http://127.0.0.1:{port}";
+        var url = "http://127.0.0.1:0";
 
         var ws = new Workspace();
         // **先读记忆再应用命令行**：反过来的话，SetRoot 会先落一次盘，
@@ -164,6 +163,8 @@ public static class Program
         app.MapPost("/api/bye", () => { Volatile.Write(ref _byeAt, DateTime.UtcNow.Ticks); return Results.Ok(); });
         app.MapPost("/api/quit", (IHostApplicationLifetime life) => { life.StopApplication(); return Results.Ok(); });
 
+        app.Start();
+        url = app.Urls.Single();
         WatchBrowser(app.Lifetime);
         // --no-browser: 不自动开浏览器。自动化测试要用（否则弹出的标签页会一直替它报到，
         // 心跳超时永远测不出来），远程/无头跑也用得上。
@@ -185,7 +186,7 @@ public static class Program
             ? $"内容库 / Content   : {ws.ModDb}"
             : "没定内容库（BOT 外观 / 商人货架），界面里会让你挑 / Content folder not set — the page will let you pick.");
         Console.WriteLine("关掉浏览器标签页会自动退出。/ Closing the browser tab shuts this down.");
-        app.Run();
+        app.WaitForShutdown();
     }
 
     /// <summary>

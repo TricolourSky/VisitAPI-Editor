@@ -26,12 +26,19 @@ public sealed class ItemIndex
 {
     readonly string _db, _eft;
     Dictionary<string, ItemDef>? _map;
+    string? _revision;
     /// <param name="eftRoot">给了就把模组离线注册的物品也认进来（见 <see cref="ModItems"/>）；空串 = 只有原版</param>
     public ItemIndex(string databaseDir, string eftRoot = "") { _db = databaseDir; _eft = eftRoot; }
 
     public bool Ok => Map().Count > 0;
 
     public Dictionary<string, ItemDef> Map() => _map ??= Load();
+
+    public void Refresh()
+    {
+        var revision = ReadOnlyJson.Revision([Path.Combine(_db, "templates", "items.json")]) + ModItems.Revision(_eft);
+        if (_revision != revision) { _map = null; _revision = revision; }
+    }
 
     public ItemDef? Get(string tpl) => Map().GetValueOrDefault(tpl);
 
@@ -41,13 +48,14 @@ public sealed class ItemIndex
     Dictionary<string, ItemDef> Load()
     {
         var d = new Dictionary<string, ItemDef>(StringComparer.OrdinalIgnoreCase);
+        var properties = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
         var p = Path.Combine(_db, "templates", "items.json");
-        if (!File.Exists(p)) return d;
-        using var doc = JsonDocument.Parse(JsonBytes.Read(p));
-        foreach (var e in doc.RootElement.EnumerateObject())
+        using var doc = ReadOnlyJson.Read(p);
+        foreach (var e in doc?.RootElement.ValueKind == JsonValueKind.Object ? doc.RootElement.EnumerateObject().ToArray() : [])
         {
             if (e.Value.ValueKind != JsonValueKind.Object) continue;
             var props = e.Value.TryGetProperty("_props", out var pr) ? pr : default;
+            properties[e.Name] = props;
             // ⚠️ 槽位一共**四个数组**，别只读前两个：
             //   Slots      改装件（枪口/握把…）
             //   StackSlots 堆叠容器（弹药盒）—— 只有它属于"买了必须带货"
@@ -57,20 +65,38 @@ public sealed class ItemIndex
             // 占格：Width/Height 是**裸物品**的尺寸，武器还要加上 ExtraSize* ——
             // 那几个是"装了配件之后往外撑出去几格"。只取 Width/Height 的话，
             // 一把带枪管和枪托的步枪会画成 1 格，和游戏里差得远。
-            var w = Int(props, "Width") + Int(props, "ExtraSizeLeft") + Int(props, "ExtraSizeRight");
-            var h = Int(props, "Height") + Int(props, "ExtraSizeUp") + Int(props, "ExtraSizeDown");
-            d[e.Name] = new ItemDef(e.Name, Str(e.Value, "_name"), Str(e.Value, "_parent"),
-                Slots(props, "StackSlots"),
-                [.. Slots(props, "Slots"), .. Slots(props, "Chambers"), .. Slots(props, "Cartridges")],
-                Math.Max(1, w), Math.Max(1, h));
+            d[e.Name] = Definition(e.Name, Str(e.Value, "_name"), Str(e.Value, "_parent"), props);
         }
-        // 模组离线注册的物品（WTT CustomItems 是「克隆某件原版再改属性」）：按它克隆的那件认槽位和占格，
-        // 货架上卖 mod 物品就不会被判成坏 tpl（as_bad_tpl）。改过槽位的极少数会有出入，总比整条报错强
-        foreach (var m in ModItems.Scan(_eft))
-            if (!d.ContainsKey(m.Id) && d.TryGetValue(m.CloneOf, out var b))
-                d[m.Id] = b with { Id = m.Id, Name = m.En.Length > 0 ? m.En : m.Id };
+        var pending = ModItems.Scan(_eft).Where(m => !d.ContainsKey(m.Id)).ToList();
+        while (pending.Count > 0)
+        {
+            var resolved = pending.Where(m => m.Template != null || d.ContainsKey(m.CloneOf)).ToList();
+            if (resolved.Count == 0) break;
+            foreach (var m in resolved)
+            {
+                pending.Remove(m);
+                if (d.ContainsKey(m.Id)) continue;
+                var props = MergeProps(properties.GetValueOrDefault(m.CloneOf), m.Properties);
+                properties[m.Id] = props;
+                var parent = m.Parent.Length > 0 ? m.Parent : d.GetValueOrDefault(m.CloneOf)?.Parent ?? "";
+                d[m.Id] = Definition(m.Id, m.En.Length > 0 ? m.En : m.Id, parent, props);
+            }
+        }
         return d;
     }
+
+    static JsonElement MergeProps(JsonElement original, JsonElement? edited)
+    {
+        var values = original.ValueKind == JsonValueKind.Object ? original.EnumerateObject().ToDictionary(p => p.Name, p => p.Value) : new Dictionary<string, JsonElement>();
+        if (edited is { ValueKind: JsonValueKind.Object } props)
+            foreach (var prop in props.EnumerateObject()) values[prop.Name] = prop.Value;
+        return JsonSerializer.SerializeToElement(values);
+    }
+
+    static ItemDef Definition(string id, string name, string parent, JsonElement props) => new(id, name, parent,
+        Slots(props, "StackSlots"), [.. Slots(props, "Slots"), .. Slots(props, "Chambers"), .. Slots(props, "Cartridges")],
+        Math.Max(1, Int(props, "Width") + Int(props, "ExtraSizeLeft") + Int(props, "ExtraSizeRight")),
+        Math.Max(1, Int(props, "Height") + Int(props, "ExtraSizeUp") + Int(props, "ExtraSizeDown")));
 
     static List<SlotDef> Slots(JsonElement props, string key)
     {
@@ -100,9 +126,9 @@ public sealed class ItemIndex
     }
 
     static string Str(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
     static bool Bool(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
     static int Int(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.TryGetInt32(out var i) ? i : 0;
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : 0;
 }

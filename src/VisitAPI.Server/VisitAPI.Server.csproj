@@ -426,10 +426,42 @@
                  `ModBotGroups` 只在 user\mods 下有 db\bots\sharedTypes\blackDiv.json 时随 /api/quests 的 botGroups 下发。目标行 savageRole 正好由整组拼成时写组名（「击杀 5 个 BlackDivision」），不再写「野人」。
                  （09-15，发布前通读修三处）剧情页「什么时候接」只认、只摘指向同章兄弟的定时前置（qtimedIn）：章外的定时前置换模式不再被删，重选定时复用原条件；
                  模组物品价格不是数字时按 0，不再让物品表 / 货架页 500；幸存撤离计数器里「被击杀 / 失踪 / 离开」单独写「战局以…结束」，菜单不给撤离类开关（原来显示成转移、一点就改反）。
+                 （09-15，SORA 实机：顶层目标标了可选，游戏里照样在主要目标、照样必须做完）0.16 的 Condition.IsNecessary = isNecessary || 没有 parentId，
+                 插件剧情页也按 parentId 分栏——只有挂在另一条目标下面才真算可选（1.1 塔科夫之旅的可选目标全是这个形状）。
+                 「主要 / 可选」按钮（任务卡、章节卡同一个 necToggle）：切可选先选一条主要目标挂上去（写 parentId + isNecessary=false），切回主要两个一起清；
+                 没有可挂的主要目标 / 自己下面挂着可选的，弹提示不改。目标行标「挂在「X」下」；老数据里顶层 isNecessary=false 的挂警告「游戏按主要算」。
+                 章节卡的主要 / 可选分栏改成和插件一样按 parentId 分；删目标时挂在它下面的可选目标放回顶层。
+         1.3.3：（09-21～09-23）跟上插件 1.3.3（`E:\项目\VisitAPI`，Dev_Note #132～#149）+ 09-21 两路全量审查（对账 97 条、源码 27 条）的销账。
+                 09-22～23 由 Codex 接力实现、09-23 Claude 复核收尾（交接记录 `.work\takeover-1.3.3\HANDOFF-2026092*.md`）。
+                 保真——`JsonPreserve` 三方合并（磁盘原值 / 载入基线 / 当前值，未改字段不被 JS 大整数舍入或 100.0→100 改写）、`JsonFile` 只替换改过的值区间、
+                 `TextFile` 保 BOM/换行、`FileBatch` 多文件保存整批准备 + 失败反向恢复（含旧 .bak）、`FileStamp` 内容哈希绑根路径（跨工作区 / 缺 stamp 拒写；
+                 .dlg 已有文件不带 stamp 一律 409）、没改动不写盘不换 .bak、中英文只改当前语言、清空文案只删同步来的那一份（`clearLoc`）。
+                 .dlg——`DlgLinks.Apply` 只改目标选项行；挂接接口要带 /api/quests/links 的快照；只认文件名 24 字符的 .dlg（插件 DialogLoader 口径）；
+                 解析器标 `UnsafeToRewrite`（多条台词 / 重复单值指令 / 未知片段 / 坏数值）时拒写并点名；一个选项多个动作 `extraActs` 保留可编辑；
+                 触发点只接受完整有限数字、认不出的回退原文；页头新增「游戏当没写」点名（文件名不是商人 id / 节点末尾自动跳转到 @xxx /
+                 tab· 门控选未解锁 / 裸 ifitems），节点自动跳转菜单不再列 @xxx。
+                 任务——多结局：终章标记不再自动挪到末条、子任务 ⋮ 可逐条标；新建 FindItem 写顶层（插件刷任务物品只看顶层）；小字优先 1.1 的 `<条件id>_hint`；
+                 区域引用（`QuestZones` 只读 db\zones，VisitPlace / zoneId 可选可填，zone_unknown / zone_wrong_type / zone_missing）；原生对话入口
+                 （`NativeDialogues` 按插件白名单读 db\dialogues，只读展示 + 算进「接得到 / 交得掉」）；setstatus 入口；图标子目录（images\quest\<子目录>）；
+                 VisitAPI db\items 物品 + WTT 克隆属性；具名货架；1.3.3 剧情设置面（解锁哪位商人 / 联系商人 mailSettings / 完成后解锁地图 unlockLocations，
+                 `compat.js`）；隐藏任务开关 notDisplayedQuest。
+                 校验——退役 chapter_not_secret / story_native_notify / startafter_outside（插件自己藏章节、自己拦原生横幅、章外 startAfter 当场接）；
+                 VisitAPI 自己的库里不再报 no_success_msg / fail_no_msg（插件补通用文案、无物品的信不寄），改报 mail_dropped
+                 （09-23 SORA 定：插件只对标了 isStoryQuest 的任务压无物品的信，作者章节里只给经验的任务照寄；mail_dropped 也只报剧情任务）；日记 null 不报；
+                 兄弟前置看状态（要求「进行中」的不算死锁）；startAfter 指原版任务不报；新增 bad_reward_type / reward_edition / field_type /
+                 quest_key_mismatch / duplicate_quest_identity / vanilla_quest_identity / quest_cycle / dangling_parent / finditem_nested / condition_legacy /
+                 bad_location_unlock / bad_call / timed_no_badge / hidden_notify / assort_unlock_incomplete / story_outside_chapter / sub_two_chapters /
+                 unlock_dlg_trader / placeholder_text / chapter_no_entry / bad_locale_file。帮助文字按插件 1.3.3 逐条改（「访问」按钮、first: 只走触发点、
+                 状态只认英文、scene: 盖掉 bg:、相关物品不自动推、终章可多个、CoordKey 取坐标、once 按原文记、finish 整条完成…）。
+                 测试改成实体副本不再联接真库、删除操作加边界检查、每个脚本独立进程。测试 1571 → 1677。
+                 （09-23 下午，SORA 定「写法 A」）译文行：`  en: 译文` 紧跟原行（旁白 / 台词 / 选项 / trigger: 提示语 / trader: 名字），
+                 共享库 DialogLangs（17 种 SPT 语言代码）+ 解析 / 回写（挂不上的拒绝无损回写或原样留住），DlgJson 带 tr / npcTr / trigTr / nameTr，
+                 视口头上语言页签（tl，视图状态）切语言原位写译文、页签标已翻 / 总句数，触发点表单每种语言一格；老版写法检测跳过译文行；
+                 帮助页「一份 .dlg」卡加多语言一段。插件同日：LocTable 按 Loc.Code 合成字幕表、提示语与「去找 X」同源取字；横幅改排队。测试 1677 → 1693。
 -->
 
 
-    <Version>1.3.2</Version>
+    <Version>1.3.3</Version>
     <!-- 构建时间写进程序集版本号（会拼成 0.1.0+b260808-0030）。
          不能靠读 exe 的文件修改时间——用户从 Release 下载后那个时间会变成下载时间，
          显示的版本就是假的，等于白做。 -->

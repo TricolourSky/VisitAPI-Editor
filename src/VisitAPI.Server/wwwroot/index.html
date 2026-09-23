@@ -280,6 +280,13 @@ svg{display:block}
   background:var(--panel-2);border-bottom:1px solid var(--line)}
 .vtab b{font:9.5px/1 var(--mono);letter-spacing:.24em;color:var(--y);text-transform:uppercase}
 .vtab .bgtag{font:10px/1 var(--mono);color:var(--ink-3);margin-left:auto}
+/* 语言页签（视口头上）：默认 / EN 12/88 / ＋语言。译文态的输入框描一圈青色（青 = 作者自制内容，铁律③） */
+.vtab .langtabs{display:flex;gap:2px;align-items:center}
+.ltab{border:0;background:transparent;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-3);font:10px/1 var(--mono);letter-spacing:.08em;padding:4px 6px;cursor:var(--cur-p)}
+.ltab i{font-style:normal;opacity:.7;margin-left:4px}
+.ltab[aria-pressed="true"]{color:var(--y);box-shadow:inset 0 0 0 1px var(--y)}
+.ltab.add{color:var(--ink-2)}
+.narr.tr,.npc.tr,.otext.tr{box-shadow:inset 0 0 0 1px var(--tech)}
 .vfold{width:24px;height:20px;border:0;background:transparent;color:var(--ink-3);cursor:var(--cur-p);
   font-size:12px;line-height:1;padding:0}
 .vfold:hover{color:var(--y);background:var(--panel-3)}
@@ -827,9 +834,10 @@ g_roots_b:`<p>这是新手<b>最容易卡住</b>的一件事——"我的任务�
 <tr><td><b>工作区</b><br>（对话）</td><td><code>EFT\\BepInEx\\config\\VisitAPI</code><br>
   你的 <code>.dlg</code> 剧本都放这儿，背景图在它下面的 <code>backgrounds\\</code>，音频在 <code>audio\\</code>。
   这是<b>插件</b>读的目录。</td></tr>
-<tr><td><b>任务库</b><br>（任务）</td><td><code>EFT\\SPT_Runtime\\user\\mods\\某个模组\\db</code><br>
-  任务 json 在它下面的 <code>quests\\</code>，文案在 <code>locales\\</code>。
-  <b>指哪个模组都行</b>——做的本来就是标准 SPT 任务，谁的 <code>db</code> 都能编。</td></tr>
+<tr><td><b>任务库</b><br>（任务）</td><td><code>EFT\\SPT_Runtime\\user\\mods\\VisitAPI-Server\\packs\\某个包</code><br>
+  一个<b>内容包</b>就是一个文件夹：任务 json 在它下面的 <code>quests\\</code>，文案在 <code>locales\\</code>，
+  横幅在 <code>images\\banners\\</code>、章节图标在 <code>images\\icons\\</code>。
+  老布局 <code>某个模组\\db</code> 也还认，<b>指哪个模组都行</b>——做的本来就是标准 SPT 任务。</td></tr>
 <tr><td><b>内容库</b><br>（BOT / 货架）</td><td>同样是某个模组的 <code>db</code>，但<b>可以和任务库不是同一个</b>——
   你完全可能给 A 模组写任务、同时编 B 模组的商人。</td></tr>
 </tbody></table>
@@ -901,13 +909,14 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
     <p>再往下还有两栏，都是给<b>章节</b>用的：</p>
     <table class="hptab"><tbody>
       <tr><td><b>剧情日记</b></td><td>任务到了「开始 / 完成 / 失败」就解锁一条日记，显示在章节卡右下角。留空＝没有这条</td></tr>
-      <tr><td><b>相关物品</b></td><td>章节卡底部那一栏。<b>上交类和找到类目标里的物品会自动出现</b>，不用重复填；这里只用来加额外的</td></tr>
+      <tr><td><b>相关物品</b></td><td>章节卡底部那一栏。游戏里显示的是章节自己填的 + <b>正在进行的子任务</b>自己填的 + 日记挂的物品；目标里的物品<b>不会</b>自动出现（1.3 起插件不再从目标推），要显示就得填在这里</td></tr>
     </tbody></table>
     <p>这两栏在<b>章节编辑</b>页上就地能改，比在这儿一条条点方便。</p>`,
 
   g_ch:"章节：把一条剧情做成 1.1 那样一章一章的",
-  g_ch_b:`<p><b>一章 = 一条隐秘任务。</b>它自己不给目标，它的目标全是「完成任务 XXX」——
-    每一条就是一个<b>子任务</b>，从上到下就是<b>剧情顺序</b>，最后一条勾上「终章」表示这一章到此为止。
+  g_ch_b:`<p><b>一章 = 一条打了「章节」开关的任务。</b>它自己不给目标，它的目标全是「完成任务 XXX」——
+    每一条就是一个<b>子任务</b>，从上到下就是<b>剧情顺序</b>。子任务行 ⋮ 里的「终章」标记：<b>任一条</b>标了终章的子任务成功，整章就结束（1.1 这样做多结局；标几条都行，排序不会挪它）；
+    一条都不标 = 全部子任务做完才结束。插件自己会把章节和子任务藏出商人列表，不用再勾「隐秘任务」。
     玩家在游戏里看到的就是任务界面「剧情」页签里的一章。</p>
     <table class="hptab"><tbody>
       <tr><td><b>1 · 建一章</b></td><td><b>章节编辑</b>页 → <b>＋ 新章</b>。会问你存进哪个文件、挂在哪个商人名下。
@@ -969,12 +978,12 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
   g_first:"五分钟：做出第一段能在游戏里看见的对话",
   g_first_b:`<p>照着走一遍，中间不需要理解任何术语。</p>
     <table class="hptab"><tbody>
-      <tr><td><b>1</b></td><td>左边侧栏进<b>对话编辑</b>，点右上角<b>打开</b>。如果你还没有任何 <code>.dlg</code>，先随便建一个空文本文件，改名叫 <code>mytrader.dlg</code> 放进上面那个目录</td></tr>
+      <tr><td><b>1</b></td><td>左边侧栏进<b>对话编辑</b>，点右上角<b>打开</b>。如果你还没有任何 <code>.dlg</code>，先随便建一个空文本文件，改名叫 <code>&lt;商人id&gt;.dlg</code>（比如 <code>54cb50c76803fa8b248b4571.dlg</code>）放进上面那个目录。<b>文件名必须正好是那串 24 位商人 id</b>——游戏只读这种名字的文件，叫别的名字整份不会被读</td></tr>
       <tr><td><b>2</b></td><td>右边流程图上点 <b>＋</b> 加一个节点，双击它的标题改个名字（用英文，比如 <code>hello</code>）</td></tr>
       <tr><td><b>3</b></td><td>点这个节点，左边预览里就能直接写<b>商人说的话</b>和<b>玩家的选项</b>——你看到的就是游戏里的样子</td></tr>
-      <tr><td><b>4</b></td><td>节点标题上的 <b>⋮</b> → <b>设为入口</b>。意思是"玩家点「对话」时从这一屏开始"</td></tr>
+      <tr><td><b>4</b></td><td>节点标题上的 <b>⋮</b> → <b>设为入口</b>。意思是"玩家点「访问」时从这一屏开始"</td></tr>
       <tr><td><b>5</b></td><td>顶栏那格 <b>trader</b> 要是空的或者不对，说明文件头缺了商人 id——见下一张卡</td></tr>
-      <tr><td><b>6</b></td><td>点<b>保存 .DLG</b>。进游戏找那个商人，界面上会多一个「<b>对话</b>」按钮</td></tr>
+      <tr><td><b>6</b></td><td>点<b>保存 .DLG</b>。进游戏找那个商人，界面顶上会多一个「<b>访问</b>」（VISIT）按钮</td></tr>
     </tbody></table>
     <p>写出来的文件大概长这样，一共六行：</p>
     <pre class="hpcode">trader: 54cb50c76803fa8b248b4571 "Prapor"
@@ -987,7 +996,7 @@ start: hello
     <p>第一行是<b>这段对话属于哪个商人</b>（那串 24 位的东西是商人 id，
       在任务编辑器的商人列表里能看到，也可以直接抄游戏自带的）。
       第二行说<b>从哪一屏开始</b>。下面就是那一屏本身。</p>
-    <p>看不到「对话」按钮？多半是这三件事之一：插件没装、商人 id 写错了、
+    <p>看不到「访问」按钮？多半是这四件事之一：插件没装、文件名不是那串 24 位商人 id、商人 id 写错了、
       或者文件头写了 <code>tab:</code> 把按钮限制住了（顶栏那格 <b>tab</b> 点开就能改）。</p>`,
 
   g_file:"一份 .dlg 就是一个商人的一段对话",
@@ -995,7 +1004,11 @@ start: hello
     双击「打开」就能选。</p>
     <p>编辑器左边是<b>预览</b>——你写的字在游戏对话框里长什么样，当场就能看见；右边是<b>流程图</b>，
     整段故事有几条岔路一眼看完。</p>
-    <p>保存时<b>只有你改过的那几行会变</b>，注释、空行、你排的版都原样留着。每次覆盖前还会留一份 .bak。</p>`,
+    <p>保存时<b>只有你改过的那几行会变</b>，注释、空行、你排的版都原样留着。每次覆盖前还会留一份 .bak。</p>
+    <p><b>多语言</b>：一份文件里可以带几种语言。任何一句显示文字（旁白、台词、选项、触发点的提示语、trader 的名字）
+      的<b>下一行</b>写 <code>en: 译文</code>（缩进随意，只放文字），游戏语言是英文就显示这一行，没写的句子显示原文；
+      别的语言换代码就行（<code>ru:</code> 俄文、<code>ge:</code> 德文……，只认游戏自己那 17 种）。
+      编辑器里点视口头上的语言页签，切到那一种语言直接在原位写，不用手改文件。</p>`,
 
   g_node:"节点：玩家看到的一屏",
   g_node_b:`<p>一个<b>节点</b>就是玩家看到的一屏对话。里面放三样东西，都可以省：</p>
@@ -1010,8 +1023,9 @@ start: hello
 - 看看你有什么货。 -&gt; @trade
 - 我先走了。</pre>
     <p>读法：背景是 shopfront.png → 先出一条旁白 → 商人说「你来了。」 → 给两个选项。</p>
-    <p><b>旁白不是非得写在前面。</b>游戏里就按你在文件里写的行序播：写在商人那句话<b>下面</b>的旁白，
-      玩家就是先听商人说完、再看到那段旁白。想让镜头"说完再补一刀"，就这么写：</p>
+    <p><b>旁白不是非得写在前面。</b>写在商人那句话<b>上面</b>的旁白，进这一屏就一条条先播，播完才出台词和选项。
+      写在台词<b>下面</b>的旁白是「收尾」：台词和选项一起出现，玩家<b>点了某个选项之后</b>才播它（每个选项都会播一遍），
+      播完才走那个选项的去向。想让镜头"选完再补一刀"，就这么写：</p>
     <pre class="hpcode">&lt;root&gt;
 &gt; 门开了一条缝，屋里没开灯。
 你来了。
@@ -1032,17 +1046,20 @@ start: hello
     <p>另外有四行会点名某个节点，写在文件最上面：</p>
     <table class="hptab"><tbody>
       <tr><td><code>start:</code></td><td>进对话默认从哪个节点开始。一般就叫 root</td></tr>
-      <tr><td><code>first:</code></td><td><b>只有第一次见这个商人</b>才走这个节点，见过一次以后再也不走</td></tr>
+      <tr><td><code>first:</code></td><td>只在「<b>没指定节点</b>的触发点」<b>第一次</b>把玩家带进对话时走这个节点，走过一次以后再也不走。点「访问」按钮<b>不走它</b></td></tr>
       <tr><td><code>when:</code></td><td>按等级 / 好感换一个入口。<b>写在前面的先匹配</b>，一条都不满足就用 start:</td></tr>
-      <tr><td><code>tab:</code></td><td>不是节点——它决定商人界面上那个「对话」按钮<b>出不出现</b></td></tr>
+      <tr><td><code>tab:</code></td><td>不是节点——它决定商人界面上那个「访问」按钮<b>出不出现</b></td></tr>
     </tbody></table>
     <pre class="hpcode">start: root
 first: first_meeting
 when: level&gt;=4 -&gt; root_high
 when: level&gt;=2 -&gt; root_low
-tab: if 65f0e1c2a4b39d7e8c120001=已完成</pre>
-    <p>读法：那条任务完成之后，商人界面上才会出现「对话」按钮；第一次见面走 first_meeting；
-      以后等级 ≥4 走 root_high，≥2 走 root_low，都不够就走 root。</p>`,
+tab: if 65f0e1c2a4b39d7e8c120001=Success</pre>
+    <p>读法：那条任务完成之后，商人界面上才会出现「访问」按钮；触发点第一次把人带进来走 first_meeting；
+      等级 ≥4 走 root_high，≥2 走 root_low，都不够就走 root。</p>
+    <p><b>状态名只认英文</b>：<code>Locked</code> 未解锁 / <code>AvailableForStart</code> 可接取 / <code>Started</code> 进行中 /
+      <code>AvailableForFinish</code> 可提交 / <code>Success</code> 已完成 / <code>Fail</code> 失败，或者直接写数字 0～5。
+      写成中文的条件游戏一律不认。</p>`,
 
   g_special:"哪些节点是特殊的（root 其实不是）",
   g_special_b:`<p><code>&lt;root&gt;</code> <b>不是关键字</b>，它只是大家习惯用的名字。真正说了算的是文件头
@@ -1050,8 +1067,8 @@ tab: if 65f0e1c2a4b39d7e8c120001=已完成</pre>
     这时候叫 root 的那个节点反而没人进得去。</p>
     <p>真正"位置特殊"的是下面这几种。<b>特殊的不是名字，是有东西指着它</b>：</p>
     <table class="hptab"><tbody>
-      <tr><td><b>入口节点</b></td><td><code>start:</code> 指的那个。玩家点「对话」默认从这儿开始</td></tr>
-      <tr><td><b>初见节点</b></td><td><code>first:</code> 指的那个。<b>只有第一次见这个商人</b>才走，而且只有点「对话」这条路会走——从触发点进来不算</td></tr>
+      <tr><td><b>入口节点</b></td><td><code>start:</code> 指的那个。玩家点「访问」默认从这儿开始</td></tr>
+      <tr><td><b>初见节点</b></td><td><code>first:</code> 指的那个。<b>只走一次</b>，而且只有「没指定节点的触发点」第一次把人带进来那次会走——点「访问」按钮、章节页「去找」按钮进来的都不走它</td></tr>
       <tr><td><b>分层入口</b></td><td><code>when:</code> 按等级/好感换的那几个。<code>root_high</code> / <code>root_low</code> 这种名字只是好认，不是规则</td></tr>
       <tr><td><b>触发点节点</b></td><td><code>trigger: … node X</code> 指的那个。玩家在藏身处/战局里走过去打开的就是它</td></tr>
       <tr><td><b>孤儿节点</b></td><td>没有任何选项跳到它，上面几样也没指过它——玩家永远看不到。流程图会把它标出来</td></tr>
@@ -1063,14 +1080,14 @@ tab: if 65f0e1c2a4b39d7e8c120001=已完成</pre>
 first: first_meeting
 when: level&gt;=4 -&gt; root_high
 
-&lt;first_meeting&gt;   ← 初见走这里
-&lt;root&gt;            ← 平时走这里
+&lt;first_meeting&gt;   ← 触发点第一次把人带进来走这里
+&lt;root&gt;            ← 平时（点「访问」）走这里
 &lt;root_high&gt;       ← 等级够了走这里
 &lt;C&gt;               ← 只有触发点 node C 能进来
 &lt;废弃的节点&gt;       ← 没人指它，玩家看不到（流程图会标出来）</pre>`,
 
   g_trig:"触发点：不点商人也能开始说话",
-  g_trig_b:`<p>除了在商人界面点「对话」，还可以让玩家<b>走到某个位置</b>就能开口——藏身处的某个房间、
+  g_trig_b:`<p>除了在商人界面点「访问」，还可以让玩家<b>走到某个位置</b>就能开口——藏身处的某个房间、
     战局里的某个角落。这就是文件头的 <code>trigger:</code> 行。</p>
     <p><b>两个地方都能进</b>，是同一个表单：</p>
     <ul>
@@ -1081,26 +1098,28 @@ when: level&gt;=4 -&gt; root_high
     <p>一条触发点包含：</p>
     <table class="hptab"><tbody>
       <tr><td><b>类型</b></td><td><code>hideout</code> 藏身处 / <code>raid</code> 战局</td></tr>
-      <tr><td><b>地点</b></td><td>藏身处填区域名（<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…）；战局填地图名，<code>*</code> 表示任何地图</td></tr>
-      <tr><td><b>坐标</b></td><td>游戏里的世界坐标 <code>(x, y, z)</code></td></tr>
+      <tr><td><b>地点</b></td><td>藏身处填区域名（<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…）——这一格插件只当备注，真正判定靠坐标；战局填<b>游戏内部的地图 id</b>（<code>bigmap</code> 海关 / <code>RezervBase</code> 储备站 / <code>laboratory</code> 实验室…，按「互相包含」不分大小写匹配），<code>*</code> 表示任何地图。写成 Customs / Reserve 这类显示名，触发点根本不会生成</td></tr>
+      <tr><td><b>坐标</b></td><td>游戏里的世界坐标 <code>(x, y, z)</code>（藏身处也是世界坐标，不是相对区域的偏移）</td></tr>
       <tr><td><b>打开哪个节点</b></td><td>不填就用 <code>start:</code> 那个入口</td></tr>
       <tr><td><b>多近才出现</b></td><td>距离，米。默认 3</td></tr>
       <tr><td><b>朝向容差</b></td><td>战局里还要"看着它"才出提示，这个值越大越好瞄</td></tr>
       <tr><td><b>任务门控</b></td><td>只在某个任务处于某状态时才出现，写成 <code>任务id=状态</code></td></tr>
-      <tr><td><b>走到就直接触发</b></td><td><code>auto</code>。<b>不弹对话</b>，人走到就当场生效——配下面那条用</td></tr>
-      <tr><td><b>只触发一次</b></td><td><code>once</code>。触发成功一次就永远不再弹（按存档记住）。<code>auto</code> 加 <code>node</code> 型的触发点不写它，每局重进都会再弹一次对话</td></tr>
+      <tr><td><b>走到就直接触发</b></td><td><code>auto</code>。人走到就当场生效，不用按键：写了接 / 完成 / 作废就只做那件事、不弹对话；<b>没写</b>那三样的话会直接打开对话。<code>enter N</code>（进图 N 秒）型的也算 auto</td></tr>
+      <tr><td><b>只触发一次</b></td><td><code>once</code>。触发成功一次就永远不再来（按存档记住，记的是<b>这一行的原文</b>——改动这一行的任何一个字，已触发过的玩家会再触发一次）。不写它的话每局重进都会再触发</td></tr>
       <tr><td><b>顺带接下哪个任务</b></td><td><code>accept</code>。走过去就把这个任务接了。任务 id 从任务库里挑，不用手打</td></tr>
-      <tr><td><b>顺带完成哪个任务</b></td><td><code>finish</code>。走过去就把这个任务判成完成——做「走到某处即完成踩点目标」用这个</td></tr>
+      <tr><td><b>顺带完成哪个任务</b></td><td><code>finish</code>。走过去就把<b>整条任务</b>判成完成——目标没做完也直接完成，不是给某条目标打勾。想要「走到某处打勾一条目标」，用任务的到达目标 + 区域（见任务编辑）</td></tr>
       <tr><td><b>顺带判失败哪个任务</b></td><td><code>fail</code>。走过去就把这个任务判失败。剧情里"你没赶上"那种转折靠它</td></tr>
       <tr><td><b>提示语</b></td><td>玩家看到的那行字，不填就是「对话」</td></tr>
     </tbody></table>
     <pre class="hpcode">trigger: hideout IntelligenceCenter (0.09, 1.48, 2.71) node C dist 3.5 if 65f0e1c2…=Started "找他聊聊"
-trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2…=可接取</pre>
+trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2…=AvailableForStart</pre>
     <p>读法（第一条）：任务在「进行中」的时候，走到藏身处情报中心那个点 3.5 米内，会出现「找他聊聊」，
       点了从 <code>&lt;C&gt;</code> 开始说。</p>
     <p>读法（第二条）：任务还没接的时候，人走到 Sandbox 那个坐标，<b>不弹任何对话</b>，任务当场到手。
-      门控写 <code>=可接取</code> 很关键——不写的话任务接完了那个点还在，会反复触发。</p>
-    <p><b>坐标怎么来</b>：目前得在游戏里量。改完保存时，<b>只有你动过的那一条会被重写</b>，
+      门控写 <code>=AvailableForStart</code> 很关键——不写的话任务接完了那个点还在，会反复触发。</p>
+    <p><b>坐标怎么来</b>：在 BepInEx 配置里给 VisitAPI → Debug → CoordKey 绑一个键（默认没绑），进藏身处或战局站到位置上按一下，
+      <code>BepInEx\\LogOutput.log</code> 里会多一行 <code>[coord] (x, y, z)  location=…</code>——括号里的数直接抄进触发点（插件判距离用的就是这个相机位置），
+      <code>location=</code> 后面就是战局触发点该填的地图 id。改完保存时，<b>只有你动过的那一条会被重写</b>，
       其余的连小数点后几位都原样不动。</p>`,
 
   g_jump:"选项跳到哪：几个固定去处",
@@ -1111,10 +1130,11 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>@trade</code></td><td>关掉对话，切到商人的<b>交易</b>页</td></tr>
       <tr><td><code>@services</code></td><td>关掉对话，切到<b>服务</b>页</td></tr>
       <tr><td><code>@tasks</code></td><td>关掉对话，切到<b>任务</b>页</td></tr>
-      <tr><td><code>@visit</code></td><td>跳到这个商人<b>原版自带</b>的那段对话</td></tr>
+      <tr><td><code>@visit</code></td><td>跳到这个商人<b>原版自带</b>的那段对话。要玩家装了带 1.1 商人对话的房间包才有；没装、或者是模组商人，点了就是直接关掉对话</td></tr>
       <tr><td><code>@start</code></td><td>回到本次对话的入口，重新来一遍</td></tr>
     </tbody></table>
-    <p>⚠️ 跳到一个不存在的名字，游戏里的表现是<b>直接关掉对话</b>。编辑器会在流程图上把这种断头路标出来。</p>`,
+    <p>⚠️ 跳到一个不存在的名字，游戏里的表现是<b>直接关掉对话</b>。编辑器会在流程图上把这种断头路标出来。</p>
+    <p>这些固定去处<b>只能写在选项上</b>。节点末尾那条「自动跳转」（<code>-&gt; 节点</code>）只认真节点，写成 <code>-&gt; @trade</code> 游戏当没写、照常显示选项；编辑器的菜单里不给选，手写进去会在页头点名。</p>`,
 
   g_act:"选项还能顺手做事",
   g_act_b:`<p>在选项后面加一个 <code>|</code>，就能挂上动作，多个用逗号隔开：</p>
@@ -1123,23 +1143,25 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>complete:</code></td><td>点了就<b>交掉</b>这个任务，同样可以空格隔开写多个</td></tr>
       <tr><td><code>handover:</code></td><td>上交物品（后面可以跟一句提示，比如「建筑材料」）</td></tr>
       <tr><td><code>setstatus:</code></td><td>直接把某个任务改成某个状态，不走接取/交付流程</td></tr>
-      <tr><td><code>ifitems</code></td><td>背包里有这条任务要交的东西时，这个选项才出现（有一件就算）</td></tr>
-      <tr><td><code>standing:</code></td><td>加减好感，<code>+0.05</code> 这样写</td></tr>
-      <tr><td><code>if:</code> / <code>ifnot:</code></td><td>什么时候<b>才</b>显示 / 什么时候<b>不</b>显示这条选项。状态可以点<b>好几个</b>（任一满足就算，写出来是 <code>if: 任务=进行中/可提交</code>），还可以再挂<b>第二条</b>——两条<b>都</b>满足才显示</td></tr>
+      <tr><td><code>ifitems</code></td><td>背包里有这条任务要交的东西时，这个选项才出现（有一件就算）。<b>要和 <code>handover:</code> 搭配</b>（或者写成 <code>ifitems: 任务id</code> 点名任务）——单写一个 ifitems 什么都不做</td></tr>
+      <tr><td><code>standing:</code></td><td>加减好感，<code>+0.05</code> 这样写；<code>standing: 商人id=+0.05</code> 可以改别人的好感，那个 id 必须是 24 位商人 id，写错了游戏里悄悄不动</td></tr>
+      <tr><td><code>if:</code> / <code>ifnot:</code></td><td>什么时候<b>才</b>显示 / 什么时候<b>不</b>显示这条选项。状态可以点<b>好几个</b>（任一满足就算，写出来是 <code>if: 任务=Started/AvailableForFinish</code>），还可以再挂<b>第二条</b>——两条<b>都</b>满足才显示</td></tr>
       <tr><td><code>set:</code> / <code>ifvar:</code></td><td>分支记号：<code>set: route=1</code> 记住玩家选了哪条线（存进档案，跨战局有效）；<code>ifvar: route=1</code> 只给选过那条线的玩家看这条选项。名字随便起，值必须是整数，没记过＝0</td></tr>
       <tr><td><code>once</code></td><td>这条选项一辈子只能点一次</td></tr>
       <tr><td><code>always</code></td><td>永远显示，见下面那条</td></tr>
     </tbody></table>
     <pre class="hpcode">- 这活我接了。 -&gt; A4 | accept: 65f0e1c2a4b39d7e8c120001
 - 东西给你。 | handover: job1 建筑材料, standing: +0.05
-- 我们聊过这个了。 | ifnot: job1=未解锁, once</pre>
+- 我们聊过这个了。 | ifnot: job1=Locked, once</pre>
     <p>这些 id <b>不用手打</b>：点选项行的 <code>⋮</code> 选好动作，编辑器就把任务库里的任务列出来让你挑
       （这个商人的排前面），挑中哪条就写哪条的 id。任务库和 <code>.dlg</code> 本来就不在同一个文件夹，
       在「任务编辑」那一页指一次就行；别人模组里的任务扫不到，那一格可以手填。</p>
     <p><b>最容易被绊一下的一条</b>：只写了 <code>accept:</code> / <code>handover:</code> / <code>complete:</code>
       而没写 <code>if:</code> 时，系统会<b>自动</b>补一条门控——接取的选项只在任务「可接取」时出现、
       上交只在「进行中」、交付只在「可提交」。所以"我明明写了，游戏里怎么不显示"，
-      多半是任务还没到那个状态。想让它一直显示，加 <code>always</code>。</p>`,
+      多半是任务还没到那个状态。想让它一直显示，加 <code>always</code>。
+      细则：写了 <code>ifnot:</code> / <code>ifvar:</code> 也算「自己写了门控」，同样不再自动补；<code>always</code> 挡不住 <code>once</code> 和 <code>ifitems</code>；
+      一次接好几个任务的选项，只要其中<b>一个</b>已经接走，整条选项就不再出现。</p>`,
 
   g_media:"背景、音乐、语音摆在哪一级",
   g_media_b:`<p>三样东西挂的位置不一样，别放错了：</p>
@@ -1162,9 +1184,11 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>scene: 别的名字</code></td><td>指定用哪个房间包</td></tr>
       <tr><td>不写这一行</td><td>不加载 3D 房间，就是对话框 ＋ <code>bg:</code> 那张图</td></tr>
     </tbody></table>
+    <p>⚠️ 写了 <code>scene:</code> 之后，从「访问」按钮和章节按钮进来的对话<b>一律不显示 <code>bg:</code></b>——房间包没装也一样（那时既没房间也没背景）。
+      <code>bg:</code> 只在触发点进来和战局里照常显示。编辑器预览不知道你是从哪儿进来的，照样画背景，别被它骗了。</p>
     <p><b>什么时候真的会加载</b>——这三条都得成立，缺一样就自动跳过（不会报错，只是没有房间）：</p>
     <ul>
-      <li>是从<b>商人界面点「对话」</b>进来的。<b>触发点进来的不加载</b>，任务那边跳过来的也不加载</li>
+      <li>是从<b>商人界面点「访问」</b>或章节页的「去找 XX」按钮进来的。<b>触发点进来的不加载</b>，战局里也不加载</li>
       <li><b>不在战局里</b>。战局里只有对话框</li>
       <li>装了<b>场景包</b>（<code>bundles\\vendors\\</code> 下面有这个商人的房间包）。没装就退回没有房间的样子</li>
     </ul>
@@ -1227,7 +1251,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   root_hint:"没自动找到 EFT。填 .dlg 所在的目录（一般是 <EFT>\\BepInEx\\config\\VisitAPI），填一次就会记住。",
   tip_head:"点这里改文件头的 scene: / actor:",m_head:"这份剧本的场景与演员",
   tip_trig:"点这里编辑触发点：玩家走到哪能打开这段对话",
-  tip_tab:"点这里改：商人界面上那个「对话」按钮什么时候出现",
+  tip_tab:"点这里改：商人界面上那个「访问」按钮什么时候出现",
   tip_role:"这个节点的身份：入口 / 初见 / 分层入口",
   tip_compat:"这份剧本里有旧版（4.0.13）的写法，点开看要改哪几处",
   m_role:"节点 <{0}> 的身份",
@@ -1238,10 +1262,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_role_ask:"什么条件下从这个节点进？写法：level>=4 或 standing>=0.5（可以写两个，空格隔开）",
   m_role_bad:"没看懂这个条件。只认 level 和 standing，比如 level>=4",
   m_role_d:"入口＝玩家点「对话」默认从哪儿开始；初见只走一次；分层入口按等级/好感换一个开场。",
-  m_tab:"「对话」按钮什么时候出现",
+  m_tab:"「访问」按钮什么时候出现",
   m_tab_off:"一直显示",m_tab_on:"看任务",
   m_tab_q:"任务 id",m_tab_st:"这些状态下才显示",
-  m_tab_d:"文件头的 tab: 行。不限制＝商人界面上一直有「对话」按钮；看任务＝那个任务处于选中的状态时才出现。",
+  m_tab_d:"文件头的 tab: 行。不限制＝商人界面上一直有「访问」按钮；看任务＝那个任务处于选中的状态时才出现。别选「未解锁」：没解锁的任务不在玩家的任务簿里，那个条件永远不满足。",
   cp_title:"这份剧本有 {0} 处旧版写法",
   cp_n:"{0} 处",
   cp_note:"4.1 是从零重做的，下面这几处**语法没变、意思变了或者读不出来**——文件照样能打开、不报错，进游戏才发现不对。",
@@ -1250,7 +1274,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   cp_tab_always:"tab: 后面不是 if …",
   cp_tab_always_fix:"4.0.13 支持 tab: always，4.1 不认了（会被静默忽略）。想一直显示就把这一行删掉；想按任务控制就写 tab: if <任务id>=<状态>。",
   cp_hideout_offset:"藏身处触发器的坐标：老版是相对区域的偏移",
-  cp_hideout_offset_fix:"4.1 这三个数是**世界坐标**。数字一样但位置完全不同，得在游戏里重新量一次。",
+  cp_hideout_offset_fix:"4.1 这三个数是**世界坐标**。数字一样但位置完全不同，得在游戏里重新量一次（BepInEx 配置 Debug → CoordKey 绑个键，站到位置上按一下，日志里就有）。",
   cp_trig_offset:"触发器里用了 offset 参数",
   cp_trig_offset_fix:"4.1 没有这个参数了，把它删掉，坐标直接写世界坐标。",
   cp_npc_multiline:"一个节点里写了不止一行商人台词",
@@ -1266,13 +1290,15 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_place:"地点",m_tr_node:"打开哪个节点",m_tr_node_no:"（用 start: 那个入口）",
   m_tr_dist:"多近才出现（米）",m_tr_radius:"朝向容差（越大越好瞄）",
   m_tr_free:"单独一个提示（不并进区域菜单）",
-  m_tr_auto:"走到就直接触发（不弹对话）",m_tr_once:"只触发一次（触发过就永远不再弹，按存档记）",
+  m_tr_auto:"走到就直接触发（不用按键；没写接/完成/作废时会直接打开对话）",m_tr_once:"只触发一次（按存档记这一行的原文；改动这一行已触发过的玩家会再触发一次）",
   m_tr_accept:"顺带接下哪个任务",m_tr_accept_no:"不接任务",
   m_tr_finish:"顺带把哪个任务判完成",m_tr_fail:"顺带把哪个任务判失败（剧情里「计划泡汤」就用它）",m_tr_off:"不设",
   m_tr_gate:"出现条件（某任务处于某状态时才有这个触发点）",m_tr_gate_no:"不设条件（随时出现）",m_tr_gate_off:"去掉条件",
   m_tr_enter:"进图几秒后自动触发（填了就不看坐标）",m_tr_prompt:"提示语",m_tr_prompt_ph:"不填就是「对话」",
+  lang_default:"默认",lang_add:"＋语言",lang_stat:"已翻 {0} / {1} 句",
+  lang_add_d:"给这份剧本加一种语言：切到那一页写译文，空着的句子游戏里显示原文。文件里是紧跟原行的「en: 译文」一行；游戏按自己的语言取（插件配置 Language 强制中 / 英时照它）。",
   m_tr_d2:"接/完成/作废可以同时写，写了就不弹对话；三个都不写才会打开上面选的节点。",
-  m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…）；raid＝战局，地点填地图名，* 表示任何地图。坐标是游戏里的世界坐标，改过的那一行才会被重写，别的原样不动。",
+  m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…，插件只当备注、按坐标判定）；raid＝战局，地点填游戏内部的地图 id（bigmap / RezervBase / laboratory…，写 Customs 这类显示名触发点不会生成），* 表示任何地图。坐标是游戏里的世界坐标（BepInEx 配置 Debug → CoordKey 绑个键按一下，日志里就有），改过的那一行才会被重写，别的原样不动。",
   m_head_d:"写进文件头的 scene: / actor:。留空就不写这一行。能填什么取决于游戏里有哪些原生房间与角色，还在摸底，所以这里不给下拉。",
   md_title:"VISITAPI EDITOR",md_ok:"确定",md_cancel:"取消",
   set_tour_d:"第一次进对话页和任务页时会自动带你走一遍，只带一次。想再看就点这里。",
@@ -1290,7 +1316,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_notes:"剧情日记：玩家在章节卡上读到的那几行",
   tr_q_notes_d:"任务<b>开始 / 完成 / 失败</b>各解锁一条，显示在章节卡右下角。留空就是没有这一条。只在剧情里用得上，普通任务不用管。",
   tr_q_items:"相关物品：章节卡底下那一排",
-  tr_q_items_d:"上交类和找到类<b>目标里的物品会自动出现</b>，不用在这儿重复填。这一栏只用来加额外的——比如「这一章你会用到这把钥匙」。",
+  tr_q_items_d:"章节页「相关物品」栏显示的东西：章节自己填的、正在进行的子任务填的、日记挂的。目标里的物品<b>不会自动出现</b>，要显示就在这儿填——比如「这一章你会用到这把钥匙」。",
 
   tr_c_chain:"一键串成顺序",
   tr_c_chain_d:"给每条子任务加上「前置＝上一条」，玩家就只能<b>按顺序</b>往下推。已经有前置的不会被重复加，点了不怕。想让玩家自由挑着做，就别点。",
@@ -1365,10 +1391,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_h_again:"想重看引导从这儿点",
   tr_h_again_d:"把<b>所有</b>模块的新手引导都重置一遍，下次进哪一页都会重新走一次。设置页里也有同一个开关。",
 
-  tr_open:"先打开一份剧本",tr_open_d:"点这里，从你的文件夹里挑一个 .dlg 文件。还没有的话，随便建个空的文本文件，把名字改成 mytrader.dlg 就行。",
+  tr_open:"先打开一份剧本",tr_open_d:"点这里，从你的文件夹里挑一个 .dlg 文件。还没有的话，随便建个空的文本文件，名字改成「商人id.dlg」（正好 24 位那串 id，游戏只读这种名字）。",
   tr_head:"给这段对话配个房间",tr_head_d:"能指定一个 3D 房间当背景，就是原版去拜访商人时看到的那种。不填也行，那就只有一个对话框。",
   tr_trig:"让玩家走过去就能说上话",tr_trig_d:"不用点商人界面。在藏身处或者战局里走到你指定的位置，地上就会冒出一个「对话」的提示。在这儿加、改、删（格子上那个数字就是当前有几条）。还能设成<b>走到就直接触发、连对话都不弹</b>，顺手把某个任务发给玩家——做「路过某处自动接到任务」这种剧情就靠它。",
-  tr_tab:"什么时候能看到「对话」按钮",tr_tab_d:"默认一直都有。也可以设成「做完某个任务之后才出现」。",
+  tr_tab:"什么时候能看到「访问」按钮",tr_tab_d:"默认一直都有。也可以设成「做完某个任务之后才出现」。",
   tr_stage:"这里就是游戏里的样子",tr_stage_d:"商人说的话、玩家能点的选项，都直接在这儿打字。你在这看到什么样，进游戏就是什么样。点背景能换图。",
   tr_npc:"商人说的那句话",tr_npc_d:"直接点上去打字就行，跟记事本一样。一屏<b>只能有一句</b>商人的话——想让他多说几句，用下面的旁白，或者再加一屏。",
   tr_opt:"选项上的 ⋮：让这句话顺手做点事",
@@ -1421,8 +1447,8 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   m_standing:"好感增减",m_st_none:"不变",m_st_val:"自定义（回车生效）",
   m_cond_add:"＋ 再加一条条件",m_cond_del:"去掉这一条",
   m_cond_two:"一个选项最多一条「满足…时」加一条「不满足…时」——格式就这么大。第二条的种类自动取第一条的反面。",
-  m_hlabel:"上交什么（说明用，可留空）",m_hlabel_ph:"建筑材料",
-  m_hlabel_d:"写在 handover: 后面，只是给玩家看的一句提示，不影响真正要交哪些物品（那个由任务的目标决定）。回车生效。",
+  m_hlabel:"备注（只写在文件里，游戏不显示）",m_hlabel_ph:"建筑材料",
+  m_hlabel_d:"写在 handover: 后面的一句备注，只留在文件里，游戏里不显示（玩家看到的只有选项文字），也不影响真正要交哪些物品——那个由任务的目标决定，每点一次只交第一条还没完成的物品目标。回车生效。",
   m_items:"有东西可交才显示",m_items_chip:"有东西可交",
   m_items_d:"背包里凑得出这条任务要上交的东西时，这个选项才出现（有一件就算）。用的任务是同一选项 handover: 的那条。",
   m_setst:"改状态（不接也不交，直接把任务推到某个状态）",m_setst_on:"＋ 设一个",m_setst_off:"不改状态",
@@ -1442,6 +1468,10 @@ tip_save:"导出为 .dlg 文件（Ctrl+S）",
   m_bg_once_d:"只对视频有效。开＝播到最后一帧就停住不动（存进文件是在文件名后面空一格写 once，不是写成 | once —— 那是选项上的另一个东西）；关＝一直循环播。这一拍自己没设背景时，改的是节点上的那个。",
   broken:"处断链",all_ok:"个节点全部连通",entries:"个入口（含",trig_entries:"个触发器入口）",
   bad_text:"处正文含保留符号",bt_npc:"台词",bt_narr:"旁白",
+  dead:"处游戏当没写",dead_file:"文件名不是 24 位商人 id（游戏只读 <商人id>.dlg，这份整个不会被读）",
+  dead_jump:"末尾自动跳转 '{0}' 会被忽略（只认真节点；这一屏照常显示选项）",dead_ifitems:"没写 handover: 的 ifitems 不起作用",
+  dead_tab_locked:"tab: 选了「未解锁」——没解锁的任务不在任务簿里，永远不满足",dead_gate_locked:"门控选了「未解锁」，永远不满足",
+  no_jump:"（不自动跳转）",
   name_ascii:"节点名只能用英文字母、数字、下划线、点和横线（中文名游戏和编辑器各认一半，存一次就把两屏并成一屏）",
   m_trig_raw_d:"这一行表单认不出来（省了地图名、或提示写在坐标前面），这里直接改原文；改完回车生效",
   bad_text_save:"没保存：台词/选项里有 「 | 」「 -> 」或行首的「- 」「>」「#」这类保留写法，写进文件再读回来会变形。看顶栏红字里列的那几处",
@@ -1511,7 +1541,7 @@ ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品�
      这样加一门语言＝加一份表，不用回头改 C#。 */
   qa_no_quest_db:"还没指定任务库。任务文件存到哪由你决定 —— 挑一个下面的目录，或者自己填一个。",
   q_root_title:"任务存到哪",
-  q_root_note:"任务编辑器<b>不依赖 VisitAPI</b>，做出来的就是标准的 SPT 任务文件。但要注意：<b>SPT 本身不会自动加载任意目录下的任务</b> —— 得有一个服务端 mod 去读它。VisitAPI-Server 会读自己目录下的 <code>db\\quests</code>；你也可以存到别的 mod 下面，或者先存着，之后自己写加载器。",
+  q_root_note:"任务编辑器<b>不依赖 VisitAPI</b>，做出来的就是标准的 SPT 任务文件。但要注意：<b>SPT 本身不会自动加载任意目录下的任务</b> —— 得有一个服务端 mod 去读它。VisitAPI-Server 读自己目录下的每个内容包 <code>packs\\&lt;包名&gt;\\</code>（老的 <code>db\\</code> 也还认）——一个包就是一个文件夹，任务、文案、图都在它里面，拿走就没了；你也可以存到别的 mod 下面，或者先存着，之后自己写加载器。",
   q_root_found:"这台机器上找到的位置",
   q_root_has:"已经有任务",
   q_root_empty:"还是空的",
@@ -1524,6 +1554,7 @@ ab_d_assort:"改商人卖什么、卖多少钱、几级能买。容器类商品�
   q_root_switch:"换任务库",
   q_root_dirty:"还有没保存的任务改动。换任务库会把它们丢掉，确定要换吗？",
   q_root_cancel:"不换了",q_root_cancel_d:"保持现在这个任务库，回去继续编",
+  q_img_r_icon:"横幅",q_img_r_chicon:"图标",
   /* 空任务库的落脚页——新模组的正常起点，不是错误 */
   q_e_new_title:"这个任务库还是空的",
   q_e_new_note:"里面一条任务都没有。新做的模组本来就是这样，从建第一条开始就行——文件名你自己起，编辑器会替你建出来。",
@@ -1741,9 +1772,14 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   ch_del:"删除这一章（章节任务本身会被删，子任务不动）",ch_toquest:"去「任务编辑」看这条章节任务的属性",
   ch_label:"章节",ch_banner_pick:"选横幅",ch_banner_change:"换横幅",
   ch_no_subs:"还没有子任务——目标是子任务的，先在下面「子任务」里挂一条",
-  ch_opt_hint:"没有可选目标。在目标行右边点「主要」可以把它改成可选（isNecessary=false）",
-  ch_nec_tip:"主要目标必须完成；可选目标不完成也能交（isNecessary）",ch_main:"主要",ch_optional:"可选",
-  ch_item_auto:"子任务的上交/找到类目标里带的物品，插件会自动并进来，不用重复填",
+  ch_opt_hint:"没有可选目标。在目标行右边点「主要」，选一条主要目标挂上去，它就变成可选",
+  ch_nec_tip:"主要目标必须完成；可选目标挂在一条主要目标下面，不完成也能交（parentId + isNecessary）",ch_main:"主要",ch_optional:"可选",
+  q_m_parent:"挂在哪条主要目标下面？",
+  q_opt_noparent:"可选目标在游戏里必须挂在一条主要目标下面。这条任务还没有别的主要目标可以挂，先加一条。",
+  q_opt_haskids:"这条下面挂着可选目标，不能再挂到别的目标下面。先把下面那几条切回主要。",
+  q_opt_under:"挂在「{0}」下",q_opt_under_d:"可选目标：挂在这条主要目标下面，不做也能交（parentId）",
+  q_opt_top:"⚠ 游戏按主要算",q_opt_top_d:"这条标了可选，但没挂在任何主要目标下面：游戏和插件都把它当主要目标，必须完成。点「可选」切回主要，再点一次选一条主要目标挂上去。",
+  ch_item_auto:"子任务自己填的相关物品：游戏里在那条子任务进行中时并进这一栏，要摘去那条子任务的属性面",
   ch_bk_subs:"{0} 条子任务",
   ch_flow_dlg:"对话流程",ch_flow_quest:"任务流程",ch_flow_fit:"适应",ch_flow_godlg:"去对话编辑",
   ch_flow_nochap:"先建一章，这里会画出它的流程",
@@ -1806,20 +1842,20 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_sw_instantComplete:"接了就完成",q_sw_instantComplete_d:"接取的瞬间直接判定完成，用来做纯剧情任务",
   q_sw_secretQuest:"隐藏任务",q_sw_secretQuest_d:"不在商人任务列表里显示，只能靠别的方式触发",
   q_sw_isKey:"钥匙任务",q_sw_isKey_d:"客户端用来标记这是解锁类任务",
-  q_sw_canShowNotificationsInGame:"战局内弹提示",q_sw_canShowNotificationsInGame_d:"目标完成时在战局里弹一条提示",
+  q_sw_canShowNotificationsInGame:"战局内弹提示",q_sw_canShowNotificationsInGame_d:"目标完成时在战局里弹一条原生提示。章节和子任务不用管它：剧情家族的原生横幅插件一律拦下、换成自己的。1.1 剧情子任务（开了「剧情任务」）关掉它反而会连插件的「目标达成」横幅也一起没了",
   q_sec_vx:"VisitAPI 扩展",q_vx_note:"只有装了 VisitAPI 的玩家才生效；没装的话这些项被忽略，任务照原版规则跑",
   q_vx_anyOf:"目标二选一",q_vx_anyOf_d:"多个目标里任一达成就可以交任务（原版要求全部达成）。只想让其中几条二选一、其余照旧必须完成：去目标行 ⋮ 里「加入二选一组」",
   q_grp_n:"二选一组 {0} 条",q_a_grp_in:"加入二选一组",q_a_grp_out:"移出二选一组",q_tag_grp:"二选一",q_vis_after_grp:"「二选一组」任一完成后显示",
   q_grp_d:"和组里其它目标任一达成即可，组外的目标照旧全部要做；显示条件指向组内任一条的，组达成就算门开。需要插件 09-10 之后的版本",
-  q_vx_unlock:"达成即解锁商人",q_vx_unlock_d:"任务一变成可提交，就把发布它的商人解锁（不用等交任务）",
+  q_vx_unlock:"完成后解锁商人",q_vx_unlock_d:"任务成功（交掉、或自动交）时解锁商人——插件 1.3.3 起改写成原生的「解锁商人」奖励，默认解锁发布它的商人，下面「1.3.3 剧情设置」里可以换成别人。代价：装了 VisitAPI 的玩家新建角色时这位商人一开始是锁着的，直到这条任务成功；老档不受影响。只对放在 VisitAPI-Server 自己任务库里的任务生效",
   q_vx_chapter:"这是一个章节",q_vx_chapter_d:"任务页「剧情」页签里的一章；目标里每条「完成任务」就是一个子任务（最后一条勾 isFinisher），本身建议设成隐秘任务",
   q_vx_auto:"可接时自动接下",q_vx_auto_d:"这条任务一变成可接就自动接下，不用玩家去点。它跟前置没关系：同一章里的子任务要排先后，得用「什么时候接 → 某条子任务完成后自动接」，写原生前置在打图打到一半是不会解锁的。想让整章自动开始，把这个开关打在章节上。和「接在这条之后」互斥，开一个会清掉另一个",
   q_vx_startAfter:"接在这条之后",q_vx_startAfter_d:"那条任务完成之后，这一条自动接下来。这是 VisitAPI 自己的前置，打图打到一半也算数；用它的时候原生前置要留空",
-  q_vx_timed:"定时联系",q_vx_timed_d:"前置完成后要等一段时间才可接（原生 availableAfter，文件里存秒）。剧情任务且不自动接的话，到点后商人头像亮金色电话角标，去对话接取；开着自动接就是到点自动接下（需 09-13 之后的插件）",q_vx_timed_v:"「{0}」完成后等 {1} 小时",
+  q_vx_timed:"定时联系",q_vx_timed_d:"前置完成后要等一段时间才可接（原生 availableAfter，文件里存秒）。章节的子任务且不自动接的话，到点后商人头像亮金色电话角标，去对话接取；开着自动接就是到点自动接下。别开「剧情任务（1.1 字段）」那个开关——开了插件只认 1.1 的 mailSettings 来电设置，没配就永远不亮角标",q_vx_timed_v:"「{0}」完成后等 {1} 小时",
   q_vx_autoFinish:"达成即自动交",q_vx_autoFinish_d:"目标一达成就自动交任务、发奖励（1.1 的剧情任务都是这样，不用回去找商人）。章节里的子任务不进支线列表，要么这样自动交、要么在对话里 complete:",
   q_vx_dialogOnly:"只能通过对话接/交",q_vx_dialogOnly_d:"任务列表里的「接受/完成」按钮换成「去找商人」，接交只走 .dlg 对话；.dlg 里没有对应选项时按钮直接藏起来",
   q_vx_icon:"章节图标",q_vx_icon_d:"章节列的小图标，填服务端图片路径（图放模组的 images/quest/icon/ 下，横幅用上面的任务图）",q_vx_icon_ph:"/files/quest/icon/…",
-  q_sw_isStoryQuest:"剧情任务（1.1 字段）",q_sw_isStoryQuest_d:"1.1 的剧情标记：不进商人的普通任务列表；没名字时游戏里用所属章节的名字；完成文案空着也不寄邮件。移植 1.1 数据用，自己写的章节子任务不用开",
+  q_sw_isStoryQuest:"剧情任务（1.1 字段）",q_sw_isStoryQuest_d:"1.1 的剧情标记：不进商人的普通任务列表；没名字时游戏里用所属章节的名字；奖励里没物品的完成信不寄；定时联系的金色电话只按 1.1 的 mailSettings 来电设置亮。移植 1.1 数据用，自己写的章节子任务不用开——开了又不在任何章节里，接/交/完成会全程没提示",
   q_sec_unlock:"完成后开放访问",q_unlock_note:"这条任务完成之后，下面这些商人的「访问」按钮才会出现（1.1 靠奖励逐步解锁商人对话，插件 1.3 认这个键）。没填 = 按钮一直在",
   q_add_trader:"＋ 商人",q_tag_trader:"商人",q_m_unlock:"完成后开放哪位商人的访问",q_unlock_none:"商人表里的都已经挂上了",
   q_a_desc:"目标小字",q_ask_desc:"目标下面那行小字（留空 = 去掉）",
@@ -1828,7 +1864,7 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_a_cnote:"达成时解锁日记",q_ask_cnote:"这条目标打勾那一刻多出来的一条日记（留空 = 去掉）",q_tag_cnote:"日记",
   q_a_counter_off:"不画计数/进度条",q_a_counter_on:"恢复计数/进度条",q_nocounter:"不计数",
   q_add_note_item:"＋ 给这条日记挂物品",q_m_nltype:"挂什么",
-  ch_order:"显示顺序",ch_order_d:"章节在剧情页里的顺序，小的在前；留空的排在有数字的后面、按文件原序",
+  ch_order:"显示顺序",ch_order_d:"剧情页先按玩家解锁章节的先后排，这个数字只在同时解锁（或都还没开始）时决定谁在前，小的在前；1.1 官方章节用 1～10。留空按玩家配置里的默认值 100 算，不是排最后",
   q_sec_notes:"剧情日记",q_notes_note:"章节页右下角的日记：任务到了对应状态就解锁一条，按当前内容语言写。留空＝没有这条日记",
   q_note_Started:"开始时",q_note_Started_d:"接下这条任务时解锁（章节：任一子任务开始时）",
   q_note_Success:"完成时",q_note_Success_d:"这条任务完成时解锁",
@@ -1838,12 +1874,10 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   qe_anyof_one:"「目标二选一」开着、或二选一组里不到两条，没有意义。",
   qe_anyof_bad_id:"二选一组里的 {0}… 不是这条任务的目标 id。插件一条都对不上时会退回原版「全部达成」。",
   qe_chapter_no_subs:"开了「这是一个章节」但目标里没有一条「完成任务」——章节的子任务就是这些目标。",
-  qe_chapter_not_secret:"章节任务建议打开「隐秘任务」，否则它会和子任务一起挤在商人的任务列表里。",
   qe_chapter_no_finisher:"最后一条子任务没有标 isFinisher——章节面里挪一下顺序就会自动补上。",
   qe_chapter_no_icon:"章节没有图标，剧情页左边那列会是空块。",
   qe_chapter_no_banner:"章节没有横幅（任务图），剧情页顶上会是一片空。",
   qe_chapter_sub_is_chapter:"子任务 {0}… 自己也是章节，章节不能套章节。",
-  qe_story_native_notify:"剧情任务开着「游戏内通知」——接/交时会和 VisitAPI 的章节横幅双响，建议关掉。",
   q_saved_restart:"已保存 · 记得重启 SPT 服务端",
   q_saved_restart_d:"SPT 只在启动时读一次 db/quests。改完任务不重启服务端，游戏里拿到的还是旧数据（开关、前置全是旧的）。另外：已经接下的任务不会因为改 json 就退回去，要清任务或换个存档测。",
   qe_sub_prereq_is_chapter:"死锁：这条子任务把「所在的章节」当成了前置——章节要等所有子任务完成才算完成，子任务又要等章节完成才接得到，两边互相等，永远开不了。删掉这条前置；如果是 startAfter 指着章节，把它改指向同章的兄弟子任务。",
@@ -1853,7 +1887,6 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   qe_startafter_with_prereq:"这条任务写了 startAfter，却还留着指向 {0} 的原生前置。原生前置没满足时服务端根本不会把这条任务发给客户端，startAfter 一点机会都没有。把原生前置清空。",
   qe_startafter_bad:"visitapi.startAfter 指向的 {0} 不是一条能用的任务（找不到，或者就是这条任务自己）。这条任务永远接不下来。",
   qe_startafter_cycle:"startAfter 绕成了一个圈（顺着 {0} 一路走回到了这条任务自己）。圈上的子任务一条都接不下来。",
-  qe_startafter_outside:"startAfter 指向的 {0} 不是同一章的兄弟子任务。它完成的那一刻不会立刻接下这一条，要等下次登录或这条任务自己下一次状态变化。建议只在同一章里挑。",
   qe_startafter_dialogonly:"这条任务同时写了 startAfter 和 dialogOnly。startAfter 会把它自动接下来，任务列表上那个「去找 X」的按钮就永远不会出现，dialogOnly 等于白写。二选一。",
   qe_bad_note_id:"日记「{0}」的 id 不是 24 位十六进制，服务端会把整份文件拒收。",
   qe_note_no_text:"日记「{0}」没有正文（两种语言都空着）。",
@@ -2010,9 +2043,10 @@ these three things genuinely don't live together:</p>
 <tr><td><b>Workspace</b><br>(dialogue)</td><td><code>EFT\\BepInEx\\config\\VisitAPI</code><br>
   Your <code>.dlg</code> scripts live here, backgrounds in <code>backgrounds\\</code>, audio in
   <code>audio\\</code>. This is the folder the <b>plugin</b> reads.</td></tr>
-<tr><td><b>Quest library</b><br>(quests)</td><td><code>EFT\\SPT_Runtime\\user\\mods\\some-mod\\db</code><br>
-  Quest json in <code>quests\\</code>, text in <code>locales\\</code>. <b>Any mod will do</b> — these are
-  plain SPT quests, so you can edit anyone's <code>db</code>.</td></tr>
+<tr><td><b>Quest library</b><br>(quests)</td><td><code>EFT\\SPT_Runtime\\user\\mods\\VisitAPI-Server\\packs\\some-pack</code><br>
+  A <b>content pack</b> is one folder: quest json in <code>quests\\</code>, text in <code>locales\\</code>,
+  banners in <code>images\\banners\\</code>, chapter icons in <code>images\\icons\\</code>.
+  The old <code>some-mod\\db</code> layout still works, and <b>any mod will do</b> — these are plain SPT quests.</td></tr>
 <tr><td><b>Content library</b><br>(bots / assort)</td><td>Also a mod's <code>db</code>, but it
   <b>doesn't have to be the same one</b> — you might write quests for mod A while editing mod B's trader.</td></tr>
 </tbody></table>
@@ -2091,14 +2125,16 @@ but refuse to sell.</p>`,
     <p>Two more sections below it, both for <b>chapters</b>:</p>
     <table class="hptab"><tbody>
       <tr><td><b>Story journal</b></td><td>One journal entry unlocks when the quest is <b>started / completed / failed</b>. Shown at the bottom right of the chapter card. Leave blank for none</td></tr>
-      <tr><td><b>Related items</b></td><td>The strip along the bottom of the chapter card. Items from <b>hand-over and find objectives appear automatically</b> — this list is only for extras</td></tr>
+      <tr><td><b>Related items</b></td><td>The strip along the bottom of the chapter card. In game it shows the chapter's own list, the lists of the <b>sub-quests currently in progress</b>, and items attached to diary notes. Items inside objectives do <b>not</b> appear on their own (since 1.3 the plugin no longer derives them) — list them here if you want them shown</td></tr>
     </tbody></table>
     <p>Both are easier to edit in place on the <b>Chapters</b> page than one field at a time here.</p>`,
 
   g_ch:"Chapters: building a storyline the way 1.1 does",
-  g_ch_b:`<p><b>A chapter is a secret quest.</b> It has no objectives of its own — every one of its objectives
-    is "complete quest X", and each of those is a <b>sub-quest</b>. Top to bottom is <b>story order</b>;
-    the last one is ticked as the <b>finisher</b>. In game this is one entry of the STORY tab.</p>
+  g_ch_b:`<p><b>A chapter is a quest with the "chapter" switch on.</b> It has no objectives of its own — every one of its objectives
+    is "complete quest X", and each of those is a <b>sub-quest</b>. Top to bottom is <b>story order</b>.
+    The <b>finisher</b> mark in a sub-quest row's ⋮: as soon as <b>any</b> sub-quest marked finisher succeeds, the chapter ends
+    (that is how 1.1 does multiple endings; mark as many as you like — reordering never moves the mark). No mark at all = every sub-quest must be done.
+    The plugin hides chapters and sub-quests from trader lists by itself; no "secret quest" switch needed. In game this is one entry of the STORY tab.</p>
     <table class="hptab"><tbody>
       <tr><td><b>1 · Create it</b></td><td><b>Chapters</b> page → <b>+ New chapter</b>. It asks which file to save into and which trader owns it. A new quest appears in your library — <b>that is expected</b>, it is the chapter itself</td></tr>
       <tr><td><b>2 · Attach sub-quests</b></td><td>The <b>Sub-quests</b> strip under the card. Attach existing quests or create one on the spot. A sub-quest's own objectives, rewards and mails are edited on the <b>Quests</b> page</td></tr>
@@ -2161,12 +2197,12 @@ but refuse to sell.</p>`,
   g_first:"Five minutes: a conversation you can see in game",
   g_first_b:`<p>Follow it once. You don't have to understand any of the terms yet.</p>
     <table class="hptab"><tbody>
-      <tr><td><b>1</b></td><td>Sidebar → <b>Dialogue</b>, then <b>Open</b> at the top right. If you have no <code>.dlg</code> at all, make an empty text file called <code>mytrader.dlg</code> in the folder above</td></tr>
+      <tr><td><b>1</b></td><td>Sidebar → <b>Dialogue</b>, then <b>Open</b> at the top right. If you have no <code>.dlg</code> at all, make an empty text file called <code>&lt;traderId&gt;.dlg</code> (e.g. <code>54cb50c76803fa8b248b4571.dlg</code>) in the folder above. <b>The file name must be exactly that 24-character trader id</b> — the game only loads files named that way; anything else is never read</td></tr>
       <tr><td><b>2</b></td><td>On the flow graph, click <b>＋</b> to add a node, then double-click its title to name it (plain letters, e.g. <code>hello</code>)</td></tr>
       <tr><td><b>3</b></td><td>Click the node and type the <b>trader's line</b> and the <b>player's options</b> straight into the preview on the left — what you see is what the game shows</td></tr>
-      <tr><td><b>4</b></td><td>The <b>⋮</b> on the node title → <b>Make it the entry</b>. That means "this is the screen Talk starts on"</td></tr>
+      <tr><td><b>4</b></td><td>The <b>⋮</b> on the node title → <b>Make it the entry</b>. That means "this is the screen Visit starts on"</td></tr>
       <tr><td><b>5</b></td><td>If the <b>trader</b> cell in the top bar is empty or wrong, the header is missing a trader id — see the next card</td></tr>
-      <tr><td><b>6</b></td><td>Hit <b>Save .DLG</b>. In game, that trader's screen now has a <b>Talk</b> button</td></tr>
+      <tr><td><b>6</b></td><td>Hit <b>Save .DLG</b>. In game, that trader's screen now has a <b>VISIT</b> button along the top</td></tr>
     </tbody></table>
     <p>What you just wrote is about six lines:</p>
     <pre class="hpcode">trader: 54cb50c76803fa8b248b4571 "Prapor"
@@ -2179,9 +2215,9 @@ So you're here. What do you want?
     <p>Line one says <b>which trader this conversation belongs to</b> (the 24-character thing is the
       trader id — the quest editor's trader list shows them, or copy one from a stock trader).
       Line two says <b>which screen to start on</b>. The rest is that screen.</p>
-    <p>No Talk button in game? Almost always one of three things: the plugin isn't installed, the trader id
-      is wrong, or the header has a <code>tab:</code> line gating the button (the <b>tab</b> cell in the top
-      bar edits it).</p>`,
+    <p>No Visit button in game? Almost always one of four things: the plugin isn't installed, the file name
+      isn't the 24-character trader id, the trader id is wrong, or the header has a <code>tab:</code> line gating
+      the button (the <b>tab</b> cell in the top bar edits it).</p>`,
 
   g_file:"One .dlg file is one trader's conversation",
   g_file_b:`<p>One file per trader, kept in <code>&lt;EFT&gt;\\BepInEx\\config\\VisitAPI\\</code>.
@@ -2189,7 +2225,12 @@ So you're here. What do you want?
     <p>The left half is a <b>live preview</b> — what you type, in Tarkov's own dialogue box, as you type it.
     The right half is the <b>flow graph</b>: every branch of the story at a glance.</p>
     <p>Saving changes <b>only the lines you actually changed</b>. Your comments, blank lines and layout come
-    back exactly as you left them, and a .bak is written before every overwrite.</p>`,
+    back exactly as you left them, and a .bak is written before every overwrite.</p>
+    <p><b>Several languages in one file</b>: under any displayed line (narration, the trader's line, an option,
+      a trigger prompt, the trader name) add a line <code>en: translation</code> (indent as you like, text only).
+      Players running the game in English see that line; untranslated lines fall back to the original.
+      Other languages just use their code (<code>ru:</code>, <code>ge:</code>… only the game's own 17).
+      In the editor, the language tabs above the viewport let you write each language in place.</p>`,
 
   g_node:"A node is one screen of dialogue",
   g_node_b:`<p>A <b>node</b> is one screenful. It holds up to three things, all optional:</p>
@@ -2205,9 +2246,10 @@ So you came.
 - Show me what you've got. -&gt; @trade
 - I'll be going.</pre>
     <p>Reads as: background shopfront.png → one line of narration → the trader says "So you came." → two options.</p>
-    <p><b>Narration doesn't have to come first.</b> The game plays the lines in the order you wrote them, so
-      narration placed <b>below</b> the trader's line is shown after the trader has spoken. To land a beat
-      after the line, write it like this:</p>
+    <p><b>Narration doesn't have to come first.</b> Narration <b>above</b> the trader's line plays first, one beat
+      per tap, and only then do the line and the options appear. Narration <b>below</b> the line is the epilogue:
+      the line and its options show up together, and the narration plays <b>after the player picks an option</b>
+      (once for every option), before that option's destination runs. To land a beat after the choice, write it like this:</p>
     <pre class="hpcode">&lt;root&gt;
 &gt; The door opens a crack. No lights inside.
 So you came.
@@ -2232,17 +2274,19 @@ So you came.
     <p>Four header lines name a node. They go at the top of the file:</p>
     <table class="hptab"><tbody>
       <tr><td><code>start:</code></td><td>where the conversation begins. Usually a node called root</td></tr>
-      <tr><td><code>first:</code></td><td>used <b>only the first time</b> this player meets this trader, never again</td></tr>
+      <tr><td><code>first:</code></td><td>used <b>only the first time</b> a trigger point <b>without a node</b> brings the player in, never again. The Visit button <b>does not</b> use it</td></tr>
       <tr><td><code>when:</code></td><td>swap the entry by level / standing. <b>First match wins</b>; if none match, start: is used</td></tr>
-      <tr><td><code>tab:</code></td><td>not a node — it decides whether the trader screen shows the <b>Talk button</b> at all</td></tr>
+      <tr><td><code>tab:</code></td><td>not a node — it decides whether the trader screen shows the <b>Visit button</b> at all</td></tr>
     </tbody></table>
     <pre class="hpcode">start: root
 first: first_meeting
 when: level&gt;=4 -&gt; root_high
 when: level&gt;=2 -&gt; root_low
 tab: if 65f0e1c2a4b39d7e8c120001=Success</pre>
-    <p>Reads as: the Talk button only appears once that quest is done; the first meeting goes to
-      first_meeting; after that level ≥4 goes to root_high, ≥2 to root_low, anything else to root.</p>`,
+    <p>Reads as: the Visit button only appears once that quest is done; the first time a trigger brings the
+      player in goes to first_meeting; level ≥4 goes to root_high, ≥2 to root_low, anything else to root.</p>
+    <p><b>Status names are English only</b>: <code>Locked</code> / <code>AvailableForStart</code> / <code>Started</code> /
+      <code>AvailableForFinish</code> / <code>Success</code> / <code>Fail</code>, or the digits 0–5. Anything else is not a condition the game understands.</p>`,
 
   g_special:"Which nodes are special (root isn't one of them)",
   g_special_b:`<p><code>&lt;root&gt;</code> is <b>not a keyword</b> — it's just the name everyone happens to use.
@@ -2251,8 +2295,8 @@ tab: if 65f0e1c2a4b39d7e8c120001=Success</pre>
     <p>These are the ones that really do hold a special position. <b>It isn't the name that's special —
     it's that something points at them</b>:</p>
     <table class="hptab"><tbody>
-      <tr><td><b>Entry node</b></td><td>the one <code>start:</code> names. Clicking Talk begins here</td></tr>
-      <tr><td><b>First-meeting node</b></td><td>the one <code>first:</code> names. Used <b>only the first time</b> — and only on the Talk path; coming in from a trigger point doesn't count</td></tr>
+      <tr><td><b>Entry node</b></td><td>the one <code>start:</code> names. Clicking Visit begins here</td></tr>
+      <tr><td><b>First-meeting node</b></td><td>the one <code>first:</code> names. Used <b>only once</b> — and only the first time a trigger point without a node brings the player in. The Visit button and the chapter page's Visit button never use it</td></tr>
       <tr><td><b>Tiered entries</b></td><td>the ones <code>when:</code> swaps in by level / standing. Names like <code>root_high</code> / <code>root_low</code> are a convention, not a rule</td></tr>
       <tr><td><b>Trigger node</b></td><td>the one <code>trigger: … node X</code> names — what opens when the player walks up to a spot</td></tr>
       <tr><td><b>Orphans</b></td><td>no option jumps to it and none of the above names it — the player can never see it. The flow graph marks these</td></tr>
@@ -2264,14 +2308,14 @@ tab: if 65f0e1c2a4b39d7e8c120001=Success</pre>
 first: first_meeting
 when: level&gt;=4 -&gt; root_high
 
-&lt;first_meeting&gt;   ← first meeting comes here
-&lt;root&gt;            ← normally comes here
+&lt;first_meeting&gt;   ← the first trigger-point visit comes here
+&lt;root&gt;            ← normally (Visit button) comes here
 &lt;root_high&gt;       ← high enough level comes here
 &lt;C&gt;               ← only a trigger with node C reaches this
 &lt;leftover_node&gt;   ← nothing points at it; unreachable (the graph flags it)</pre>`,
 
   g_trig:"Trigger points: starting a conversation without the trader screen",
-  g_trig_b:`<p>Besides clicking Talk on the trader screen, you can let the player <b>walk up to a spot</b> and
+  g_trig_b:`<p>Besides clicking Visit on the trader screen, you can let the player <b>walk up to a spot</b> and
     start talking — a room in the hideout, a corner of a map. That's a <code>trigger:</code> line in the header.</p>
     <p><b>Two ways in</b>, same form either way:</p>
     <ul>
@@ -2283,16 +2327,16 @@ when: level&gt;=4 -&gt; root_high
     <p>One trigger holds:</p>
     <table class="hptab"><tbody>
       <tr><td><b>Type</b></td><td><code>hideout</code> or <code>raid</code></td></tr>
-      <tr><td><b>Place</b></td><td>hideout: an area name (<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…); raid: a map name, <code>*</code> for any map</td></tr>
-      <tr><td><b>Position</b></td><td>world coordinates <code>(x, y, z)</code></td></tr>
+      <tr><td><b>Place</b></td><td>hideout: an area name (<code>IntelligenceCenter</code> / <code>Security</code> / <code>Gym</code>…) — the plugin treats it as a note and judges by the coordinates; raid: the game's <b>internal map id</b> (<code>bigmap</code> Customs / <code>RezervBase</code> Reserve / <code>laboratory</code> Labs…, matched by "contains" either way, case-insensitive), <code>*</code> for any map. Display names like Customs or Reserve never spawn the trigger</td></tr>
+      <tr><td><b>Position</b></td><td>world coordinates <code>(x, y, z)</code> (in the hideout too — not an offset inside the area)</td></tr>
       <tr><td><b>Which node</b></td><td>leave empty to use the <code>start:</code> entry</td></tr>
       <tr><td><b>How close</b></td><td>distance in metres. Default 3</td></tr>
       <tr><td><b>Aim tolerance</b></td><td>in a raid the player also has to look at it; bigger is easier to hit</td></tr>
       <tr><td><b>Quest gate</b></td><td>only show while a quest is in a given status: <code>questId=status</code></td></tr>
-      <tr><td><b>Fires on approach</b></td><td><code>auto</code>. <b>No dialogue opens</b> — it just happens when the player walks up. Pair it with the next one</td></tr>
-      <tr><td><b>Only once</b></td><td><code>once</code>. After it fires once it never shows again (remembered per profile). Without it an <code>auto</code> + <code>node</code> trigger re-opens the dialogue every raid</td></tr>
+      <tr><td><b>Fires on approach</b></td><td><code>auto</code>. It happens the moment the player walks up, no key press: with accept / finish / fail it only does that and opens no dialogue; <b>without</b> them it opens the dialogue straight away. <code>enter N</code> (N seconds into the raid) counts as auto too</td></tr>
+      <tr><td><b>Only once</b></td><td><code>once</code>. After it fires once it never comes back (remembered per profile, keyed by <b>the raw text of this line</b> — change one character and players who already fired it fire it again). Without it the trigger fires again every raid</td></tr>
       <tr><td><b>Also hand out a quest</b></td><td><code>accept</code>. Walking up takes the quest. Pick the id from your quest library, no typing</td></tr>
-      <tr><td><b>Also complete a quest</b></td><td><code>finish</code>. Walking up marks it complete — this is how you do "reach the spot, objective done"</td></tr>
+      <tr><td><b>Also complete a quest</b></td><td><code>finish</code>. Walking up marks the <b>whole quest</b> complete — even with objectives unfinished; it does not tick one objective. For "reach the spot, objective ticked" use a Visit-place objective with a zone (see the quest editor)</td></tr>
       <tr><td><b>Also fail a quest</b></td><td><code>fail</code>. Walking up marks it failed. For the "you were too late" beat</td></tr>
       <tr><td><b>Prompt</b></td><td>the line the player sees; defaults to "Talk"</td></tr>
     </tbody></table>
@@ -2303,7 +2347,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
     <p>Reads as (second): while the quest hasn't been taken yet, walking to that spot in Sandbox hands it
       over on the spot with <b>no dialogue at all</b>. The <code>=AvailableForStart</code> gate matters —
       without it the spot stays live after the quest is taken and keeps firing.</p>
-    <p><b>Where do coordinates come from</b>: you have to read them off in game for now. When you save,
+    <p><b>Where do coordinates come from</b>: in the BepInEx config bind a key to VisitAPI → Debug → CoordKey (unbound by default),
+      stand on the spot in the hideout or a raid and press it — <code>BepInEx\\LogOutput.log</code> gets a line
+      <code>[coord] (x, y, z)  location=…</code>. Paste the numbers straight into the trigger (the plugin measures distance from that
+      same camera position); <code>location=</code> is the map id a raid trigger wants. When you save,
       <b>only the line you edited is rewritten</b> — the others keep every decimal exactly as typed.</p>`,
 
   g_jump:"Where an option can go",
@@ -2314,11 +2361,12 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>@trade</code></td><td>close, and switch to the trader's <b>Trade</b> tab</td></tr>
       <tr><td><code>@services</code></td><td>close, and switch to <b>Services</b></td></tr>
       <tr><td><code>@tasks</code></td><td>close, and switch to <b>Tasks</b></td></tr>
-      <tr><td><code>@visit</code></td><td>jump into this trader's <b>own stock</b> conversation</td></tr>
+      <tr><td><code>@visit</code></td><td>jump into this trader's <b>own stock</b> conversation. Needs the room pack that carries the 1.1 trader dialogues; without it, or for a mod trader, the option simply closes the conversation</td></tr>
       <tr><td><code>@start</code></td><td>back to the entry node and around again</td></tr>
     </tbody></table>
     <p>⚠️ Jumping to a name that doesn't exist <b>closes the conversation</b> in game. The editor marks
-      those dead ends on the flow graph.</p>`,
+      those dead ends on the flow graph.</p>
+    <p>These reserved targets <b>only work on options</b>. A node's own auto-jump (<code>-&gt; node</code> at the end of a screen) accepts real nodes only; <code>-&gt; @trade</code> there is ignored and the options show as usual. The editor's menu does not offer them; a hand-written one is flagged in the status bar.</p>`,
 
   g_act:"Options can do things too",
   g_act_b:`<p>Add a <code>|</code> after an option and hang actions off it, comma-separated:</p>
@@ -2327,8 +2375,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>complete:</code></td><td><b>hands in</b> the quest; several ids with spaces work here too</td></tr>
       <tr><td><code>handover:</code></td><td>hand over items (an optional label follows, e.g. "Building materials")</td></tr>
       <tr><td><code>setstatus:</code></td><td>force a quest into a status, skipping the accept/hand-in flow</td></tr>
-      <tr><td><code>ifitems</code></td><td>only show this option while the player carries something the quest wants</td></tr>
-      <tr><td><code>standing:</code></td><td>change standing, written like <code>+0.05</code></td></tr>
+      <tr><td><code>ifitems</code></td><td>only show this option while the player carries something the quest wants. <b>Pair it with <code>handover:</code></b> (or name the quest: <code>ifitems: questId</code>) — a bare ifitems on its own does nothing</td></tr>
+      <tr><td><code>standing:</code></td><td>change standing, written like <code>+0.05</code>; <code>standing: traderId=+0.05</code> changes another trader's, and that id must be a 24-character trader id or the game silently skips it</td></tr>
       <tr><td><code>if:</code> / <code>ifnot:</code></td><td>when this option <b>does</b> / <b>doesn't</b> show. You can tick <b>several</b> statuses (any one of them counts — it writes out as <code>if: quest=Started/AvailableForFinish</code>), and hang a <b>second</b> condition on it: <b>both</b> must hold</td></tr>
       <tr><td><code>set:</code> / <code>ifvar:</code></td><td>branch flags: <code>set: route=1</code> remembers which path the player took (saved to the profile, survives raids); <code>ifvar: route=1</code> shows this option only to players who took it. Any name, integer values, unset = 0</td></tr>
       <tr><td><code>once</code></td><td>can be picked exactly once, ever</td></tr>
@@ -2345,7 +2393,9 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <code>complete:</code> without an <code>if:</code>, a gate is added <b>automatically</b> — the accept
       option only shows while the quest is available, hand-over only while it's started, hand-in only when
       it's ready. So "I wrote it and it isn't there" is usually the quest not being in that state yet.
-      Add <code>always</code> if you want it shown regardless.</p>`,
+      Add <code>always</code> if you want it shown regardless. Fine print: <code>ifnot:</code> / <code>ifvar:</code> also count as
+      "you wrote a gate", so nothing is added for you; <code>always</code> does not override <code>once</code> or <code>ifitems</code>;
+      an option that accepts several quests disappears as soon as <b>any one</b> of them has been taken.</p>`,
 
   g_media:"Where backgrounds, music and voice attach",
   g_media_b:`<p>The three attach at different levels — this is easy to get wrong:</p>
@@ -2370,10 +2420,12 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>scene: some_name</code></td><td>use that particular room pack</td></tr>
       <tr><td>no line at all</td><td>no 3D room — just the dialogue box and whatever <code>bg:</code> says</td></tr>
     </tbody></table>
+    <p>⚠️ Once <code>scene:</code> is set, conversations entered from the Visit button or the chapter button <b>never show <code>bg:</code></b> — even when the room pack is missing (then there is neither a room nor a background).
+      <code>bg:</code> still shows for trigger-point entries and in raids. The editor's preview cannot know how the player got in, so it keeps painting the background — don't be fooled.</p>
     <p><b>When it actually loads</b> — all three have to hold, and if any doesn't it is skipped silently
       (no error, you simply get no room):</p>
     <ul>
-      <li>the player came in by <b>clicking Talk on the trader screen</b>. <b>Trigger points don't load it</b>, and neither does jumping in from the quest editor</li>
+      <li>the player came in by <b>clicking Visit on the trader screen</b> or the chapter page's Visit button. <b>Trigger points don't load it</b>, and neither does a raid</li>
       <li><b>not in a raid</b>. In a raid you only get the dialogue box</li>
       <li>the <b>scene pack is installed</b> (a room pack for this trader under <code>bundles\\vendors\\</code>). Without it, you fall back to no room</li>
     </ul>
@@ -2439,7 +2491,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   root_hint:"Couldn't find EFT automatically. Enter the folder holding your .dlg files (usually <EFT>\\BepInEx\\config\\VisitAPI). It will be remembered.",
   tip_head:"Edit the scene: / actor: header lines",m_head:"Scene and actor for this script",
   tip_trig:"Edit trigger points — where the player can open this conversation",
-  tip_tab:"When the Talk button shows up on the trader screen",
+  tip_tab:"When the Visit button shows up on the trader screen",
   tip_role:"This node's role: entry / first meeting / tiered entry",
   tip_compat:"This script uses some 4.0.13 syntax — click to see what needs changing",
   m_role:"Role of node <{0}>",
@@ -2451,10 +2503,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_role_ask:"Under what condition should this node be the entry? Like level>=4 or standing>=0.5 (two are fine, space-separated)",
   m_role_bad:"Couldn't read that condition. Only level and standing, e.g. level>=4",
   m_role_d:"Entry = where Talk starts. First meeting runs once. Tiered entries swap the opening by level or standing.",
-  m_tab:"When the Talk button appears",
+  m_tab:"When the Visit button appears",
   m_tab_off:"Always",m_tab_on:"Depends on a quest",
   m_tab_q:"Quest id",m_tab_st:"Show while in these statuses",
-  m_tab_d:"The tab: line in the header. Always = the trader screen always shows Talk. Otherwise it only appears while that quest is in one of the chosen statuses.",
+  m_tab_d:"The tab: line in the header. Always = the trader screen always shows Visit. Otherwise it only appears while that quest is in one of the chosen statuses. Don't pick Locked: a locked quest is not in the player's quest book, so that condition never passes.",
   cp_title:"This script has {0} bits of old-version syntax",
   cp_n:"{0} spots",
   cp_note:"4.1 was rebuilt from scratch. The lines below either **read differently now or don't read at all** — the file still opens without an error, and you only find out in game.",
@@ -2463,7 +2515,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   cp_tab_always:"tab: is not followed by if …",
   cp_tab_always_fix:"4.0.13 supported tab: always; 4.1 ignores it silently. Delete the line to always show Talk, or write tab: if <questId>=<status>.",
   cp_hideout_offset:"Hideout trigger coordinates used to be an offset",
-  cp_hideout_offset_fix:"In 4.1 these three numbers are **world coordinates**. Same numbers, completely different spot — measure them again in game.",
+  cp_hideout_offset_fix:"In 4.1 these three numbers are **world coordinates**. Same numbers, completely different spot — measure them again in game (bind BepInEx config Debug → CoordKey, stand on the spot, press it; the log prints them).",
   cp_trig_offset:"The trigger uses the offset parameter",
   cp_trig_offset_fix:"4.1 dropped it. Remove the word and put world coordinates in the brackets.",
   cp_npc_multiline:"More than one trader line in a single node",
@@ -2479,14 +2531,16 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_place:"Place",m_tr_node:"Which node to open",m_tr_node_no:"(the start: entry)",
   m_tr_dist:"How close (metres)",m_tr_radius:"Aim tolerance (bigger = easier to hit)",
   m_tr_free:"Its own prompt (don't merge into the area menu)",
-  m_tr_auto:"Fires on approach (no dialogue)",m_tr_once:"Fires only once (remembered per profile)",
+  m_tr_auto:"Fires on approach (no key press; opens the dialogue when there is no accept/finish/fail)",m_tr_once:"Fires only once (remembered per profile by this line's raw text; editing the line re-arms it for players who fired it)",
   m_tr_accept:"Also hand out which quest",
   m_tr_accept_no:"Don't hand out a quest",
   m_tr_finish:"Also mark this quest complete",m_tr_fail:"Also mark this quest failed (for story beats where the plan falls through)",m_tr_off:"none",
   m_tr_gate:"Condition (only while a quest is in a status)",m_tr_gate_no:"No condition (always there)",m_tr_gate_off:"Remove condition",
   m_tr_enter:"Fire N seconds after spawning (coordinates ignored)",m_tr_prompt:"Prompt",m_tr_prompt_ph:"defaults to \"Talk\"",
+  lang_default:"Default",lang_add:"+ language",lang_stat:"{0} / {1} lines translated",
+  lang_add_d:"Add a language to this script: switch to its tab and write the translations; untranslated lines show the default text in game. In the file it is one \"en: translation\" line right under the original; the game picks by its own language (or the plugin's Language setting when forced).",
   m_tr_d2:"Accept / complete / fail can be combined; with any of them set the trigger acts silently instead of opening the dialogue node.",
-  m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…); raid = in a raid, place is a map name, * means any map. Coordinates are world coordinates. Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
+  m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…; the plugin treats it as a note and judges by the coordinates); raid = in a raid, place is the game's internal map id (bigmap / RezervBase / laboratory…; display names like Customs never spawn the trigger), * means any map. Coordinates are world coordinates (bind BepInEx config Debug → CoordKey and press it on the spot; the log prints them). Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
   m_head_d:"Written to the file header as scene: / actor:. Leave empty to omit the line. What you can put here depends on which built-in rooms and characters the game has — still being mapped out, so no dropdown yet.",
   md_title:"VISITAPI EDITOR",md_ok:"OK",md_cancel:"Cancel",
   set_tour_d:"It runs once, the first time you open the dialogue and quest pages. Click here to see it again.",
@@ -2501,7 +2555,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_notes:"Story journal: the lines the player reads on the chapter card",
   tr_q_notes_d:"One entry unlocks when the quest is <b>started / completed / failed</b>, shown at the bottom right of the chapter card. Leave blank for none. Only story quests need this.",
   tr_q_items:"Related items: the strip along the bottom of the chapter card",
-  tr_q_items_d:"Items from <b>hand-over and find objectives show up on their own</b> — no need to repeat them here. This list is only for extras, like “you'll want this key for the chapter”.",
+  tr_q_items_d:"What the chapter page's Related items strip shows: the chapter's own list, the lists of sub-quests in progress, and items attached to diary notes. Items inside objectives <b>do not appear on their own</b> — list them here, like “you'll want this key for the chapter”.",
 
   tr_c_chain:"Chain them in order, in one click",
   tr_c_chain_d:"Adds “prerequisite = the previous one” to every sub-quest, so the player can only advance <b>in order</b>. Sub-quests that already have a prerequisite are left alone, so clicking twice is harmless. Skip it if you want the player to pick freely.",
@@ -2571,10 +2625,10 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_h_again:"Replay the tours from here",
   tr_h_again_d:"Resets the tour for <b>every</b> module, so each page walks you through it again next time you open it. The same switch is on the Settings page.",
 
-  tr_open:"Start by opening a script",tr_open_d:"Click here and pick a .dlg from your folder. Don't have one? Make an empty text file and rename it to mytrader.dlg — that's all it takes.",
+  tr_open:"Start by opening a script",tr_open_d:"Click here and pick a .dlg from your folder. Don't have one? Make an empty text file and rename it to “traderId.dlg” (exactly that 24-character id — the game only loads files named that way).",
   tr_head:"Give the conversation a room",tr_head_d:"You can put a 3D room behind it — the one you see when you visit a trader in the stock game. Leave it empty and you just get the dialogue box.",
   tr_trig:"Let the player walk up and talk",tr_trig_d:"No trader screen needed. Walk to a spot you pick in the hideout or a raid and a Talk prompt appears on the ground. Add, change and remove them here (the number on the cell is how many you have). One can also be set to <b>fire the moment they walk up, with no dialogue at all</b>, and hand them a quest on the way — that's how you do \"walk past here and the quest lands\".",
-  tr_tab:"When the Talk button shows up",tr_tab_d:"Always, by default. Or set it to \"only after they finish a certain quest\".",
+  tr_tab:"When the Visit button shows up",tr_tab_d:"Always, by default. Or set it to \"only after they finish a certain quest\".",
   tr_stage:"This is what the game will look like",tr_stage_d:"Type the trader's line and the options the player can pick, right here. What you see is what you get in game. Click the background to change it.",
   tr_npc:"The trader's line",tr_npc_d:"Click it and type, like a notepad. One screen holds <b>exactly one</b> trader line — if you want them to say more, use narration below, or add another screen.",
   tr_opt:"The ⋮ on an option: make it do something",
@@ -2628,8 +2682,8 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   m_standing:"Standing",m_st_none:"no change",m_st_val:"custom (Enter to apply)",
   m_cond_add:"+ Add a second condition",m_cond_del:"Remove this one",
   m_cond_two:"An option holds at most one “only if” plus one “unless” — that's all the format has room for. The second one automatically takes the opposite kind.",
-  m_hlabel:"What is handed over (label only)",m_hlabel_ph:"Building materials",
-  m_hlabel_d:"Written after handover: — a hint for the player, it does not decide which items are actually taken (the quest's objective does). Enter to apply.",
+  m_hlabel:"Note (kept in the file only, not shown in game)",m_hlabel_ph:"Building materials",
+  m_hlabel_d:"A note written after handover: — it stays in the file and is never shown in game (the player only sees the option text), and it does not decide which items are taken: the quest's objectives do, and each click hands in only the first unfinished item objective. Enter to apply.",
   m_items:"Only when items are in the bag",m_items_chip:"has items",
   m_items_d:"The option only shows up while the player carries something this quest wants handed over (one is enough). Uses the quest from this option's handover:.",
   m_setst:"Set status (neither accept nor hand in — force the quest into a status)",m_setst_on:"+ Add one",m_setst_off:"Don't change status",
@@ -2649,6 +2703,10 @@ tip_save:"Export as a .dlg file (Ctrl+S)",
   m_bg_once_d:"Videos only. On = play through once and hold the last frame (saved as once after the file name, separated by a space — not after a | , that is a different thing on options); off = loop forever. When this beat has no background of its own, this edits the one on the node.",
   broken:"broken link(s)",all_ok:"nodes, all connected",entries:"entry points (incl.",trig_entries:"from triggers)",
   bad_text:"text(s) with reserved syntax",bt_npc:"line",bt_narr:"narration",
+  dead:"ignored by the game",dead_file:"file name is not a 24-character trader id (the game only reads <traderId>.dlg, so this file is never loaded)",
+  dead_jump:"auto-jump '{0}' is ignored (only real nodes count; the options show as usual)",dead_ifitems:"ifitems without handover: does nothing",
+  dead_tab_locked:"tab: set to Locked — a locked quest is not in the quest book, so it never passes",dead_gate_locked:"gate set to Locked never passes",
+  no_jump:"(no auto-jump)",
   name_ascii:"Node names can only use letters, digits, underscore, dot and dash (the game and the editor disagree on anything else, and one save merges two screens into one)",
   m_trig_raw_d:"The form can't read this line (map name missing, or the prompt comes before the coordinates) — edit the raw text here; Enter applies",
   bad_text_save:"Not saved: a line or option contains reserved syntax ( | , -> , or a leading - , >, #). It would be misread the next time the file is opened. The status bar lists where",
@@ -2712,7 +2770,7 @@ ab_d_assort:"Change what a trader sells, for how much, and at which level. It al
   set_note_d:"Its layout mirrors Tarkov's native dialogue box (speaker bar, option rows, jump tags), but the palette is neutral black — the original brown clashed with this console.",
   qa_no_quest_db:"No quest folder picked yet. It's your call where quests live — pick one below, or type your own path.",
   q_root_title:"Where quests go",
-  q_root_note:"The quest editor <b>doesn't need VisitAPI</b> — what it writes are plain SPT quest files. One caveat: <b>SPT won't load quests from an arbitrary folder on its own</b> — a server mod has to read them. VisitAPI-Server reads <code>db\\quests</code> next to itself; you can also save into another mod's folder, or just keep them here and write a loader later.",
+  q_root_note:"The quest editor <b>doesn't need VisitAPI</b> — what it writes are plain SPT quest files. One caveat: <b>SPT won't load quests from an arbitrary folder on its own</b> — a server mod has to read them. VisitAPI-Server reads every content pack under <code>packs\\&lt;name&gt;\\</code> next to itself (the old <code>db\\</code> still works) — a pack is one folder holding its quests, text and images, remove it and it's gone; you can also save into another mod's folder, or just keep them here and write a loader later.",
   q_root_found:"Found on this machine",
   q_root_has:"has quests",
   q_root_empty:"empty",
@@ -2725,6 +2783,7 @@ ab_d_assort:"Change what a trader sells, for how much, and at which level. It al
   q_root_switch:"Switch library",
   q_root_dirty:"You have unsaved quest changes. Switching libraries throws them away — switch anyway?",
   q_root_cancel:"Keep this one",q_root_cancel_d:"Stay on the current quest library and go back to editing",
+  q_img_r_icon:"banner",q_img_r_chicon:"icon",
   /* Landing page for an empty quest library — a normal starting point, not an error */
   q_e_new_title:"This quest library is empty",
   q_e_new_note:"There isn't a single quest in it yet. That's just how a new mod starts — make the first one. You pick the file name; the editor creates it for you.",
@@ -2941,9 +3000,14 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   ch_del:"Delete this chapter (the chapter quest itself; sub-quests are kept)",ch_toquest:"Open this chapter quest on the Quests page",
   ch_label:"Chapter",ch_banner_pick:"Pick banner",ch_banner_change:"Change banner",
   ch_no_subs:"No sub-quests yet — objectives belong to sub-quests, attach one under “Sub-quests” below",
-  ch_opt_hint:"No optional objectives. Click “main” on an objective row to make it optional (isNecessary=false)",
-  ch_nec_tip:"Main objectives must be done; optional ones can be skipped (isNecessary)",ch_main:"main",ch_optional:"optional",
-  ch_item_auto:"Items from the sub-quests’ hand-over / find objectives are merged in by the plugin automatically",
+  ch_opt_hint:"No optional objectives. Click “main” on an objective row and pick a main objective to hang it under",
+  ch_nec_tip:"Main objectives must be done; optional ones hang under a main objective and can be skipped (parentId + isNecessary)",ch_main:"main",ch_optional:"optional",
+  q_m_parent:"Hang it under which main objective?",
+  q_opt_noparent:"In game an optional objective must hang under a main objective. This quest has no other main objective yet — add one first.",
+  q_opt_haskids:"Optional objectives hang under this one, so it can't hang under another. Switch those back to main first.",
+  q_opt_under:"under “{0}”",q_opt_under_d:"Optional: hangs under this main objective and can be skipped (parentId)",
+  q_opt_top:"⚠ counts as main in game",q_opt_top_d:"Marked optional but not hung under any main objective: the game and the plugin treat it as main and require it. Click “optional” to switch back to main, then click again and pick a main objective.",
+  ch_item_auto:"A sub-quest's own related items: merged into this strip in game while that sub-quest is in progress; remove them on that sub-quest's properties pane",
   ch_bk_subs:"{0} sub-quest(s)",
   ch_flow_dlg:"Dialogue flow",ch_flow_quest:"Quest flow",ch_flow_fit:"Fit",ch_flow_godlg:"Open in Dialogue",
   ch_flow_nochap:"Create a chapter and its flow shows up here",
@@ -3006,20 +3070,20 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_sw_instantComplete:"Instant complete",q_sw_instantComplete_d:"Completes the moment it's accepted — for pure story quests",
   q_sw_secretQuest:"Hidden quest",q_sw_secretQuest_d:"Not listed at the trader; something else has to trigger it",
   q_sw_isKey:"Key quest",q_sw_isKey_d:"Marks it as an unlock quest for the client",
-  q_sw_canShowNotificationsInGame:"In-raid popups",q_sw_canShowNotificationsInGame_d:"Pops a notice in raid when an objective completes",
+  q_sw_canShowNotificationsInGame:"In-raid popups",q_sw_canShowNotificationsInGame_d:"Pops a stock notice in raid when an objective completes. Chapters and sub-quests can ignore it: the plugin blocks the stock banners of the story family and shows its own. For a 1.1 story sub-quest (story flag on) turning it off also silences the plugin's own objective banner",
   q_sec_vx:"VisitAPI extras",q_vx_note:"Only take effect for players who have VisitAPI installed; without it they're ignored and the quest runs by stock rules",
   q_vx_anyOf:"Any one objective",q_vx_anyOf_d:"Completing any single objective makes the quest ready to hand in (stock requires all of them). To make only some of them interchangeable and keep the rest required, use ⋮ → \"Join either-group\" on the objective row",
   q_grp_n:"either-group of {0}",q_a_grp_in:"Join either-group",q_a_grp_out:"Leave either-group",q_tag_grp:"either",q_vis_after_grp:"shown after any of the either-group",
   q_grp_d:"Any one objective in the group counts for the whole group; objectives outside it stay required. A visibility condition pointing at any group member opens once the group is done. Needs the plugin from 2026-09-10 or later",
-  q_vx_unlock:"Unlock trader when ready",q_vx_unlock_d:"The moment the quest becomes ready to hand in, its trader is unlocked (no need to turn it in first)",
+  q_vx_unlock:"Unlock trader on success",q_vx_unlock_d:"Unlocks a trader when the quest succeeds (handed in, or auto-completed) — since plugin 1.3.3 this is rewritten into a stock trader-unlock reward; by default the quest's own trader, or pick another one under “1.3.3 story settings” below. The cost: with VisitAPI installed, new characters start with that trader locked until this quest succeeds; existing profiles are unaffected. Only applies to quests kept in VisitAPI-Server's own quest library",
   q_vx_chapter:"This is a chapter",q_vx_chapter_d:"A chapter on the STORY tab of the tasks screen; every \"complete quest\" objective is one sub-quest (tick isFinisher on the last one). Best kept a secret quest",
   q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically as soon as it becomes acceptable — no click needed. It has nothing to do with prerequisites: to order sub-quests inside one chapter use When it starts, auto-accept after another sub-quest; a stock prerequisite never unlocks mid-raid. Put this switch on the chapter itself to make a whole chapter start automatically. Mutually exclusive with Starts after — turning one on clears the other",
   q_vx_startAfter:"Starts after",q_vx_startAfter_d:"Once that quest succeeds this one is accepted automatically — a prerequisite owned by VisitAPI, so it also works mid-raid; leave the stock prerequisites empty",
-  q_vx_timed:"Timed contact",q_vx_timed_d:"Becomes available only some time after its prerequisite is done (stock availableAfter, stored in seconds). For a story quest that is not auto-accepted, the trader gets a golden phone badge when the timer runs out and the player accepts it in dialogue; with auto-accept on it is accepted the moment the timer ends (needs the plugin from 2026-09-13 or later)",q_vx_timed_v:"{1} h after “{0}” is done",
+  q_vx_timed:"Timed contact",q_vx_timed_d:"Becomes available only some time after its prerequisite is done (stock availableAfter, stored in seconds). For a chapter sub-quest that is not auto-accepted, the trader gets a golden phone badge when the timer runs out and the player accepts it in dialogue; with auto-accept on it is accepted the moment the timer ends. Leave the “Story quest (1.1 field)” switch off — with it on the plugin only trusts 1.1 mailSettings for the badge, and it never lights without them",q_vx_timed_v:"{1} h after “{0}” is done",
   q_vx_autoFinish:"Auto-complete when done",q_vx_autoFinish_d:"Turned in and rewarded the moment its objectives are met (how 1.1 story tasks work). Chapter sub-quests are hidden from the side-quest list, so they need this or a dialog complete:",
   q_vx_dialogOnly:"Accept/complete via dialog only",q_vx_dialogOnly_d:"The Accept/Complete button in the task list turns into \"Visit trader\"; accepting and handing in go through the .dlg dialog. With no matching option in any .dlg the button is hidden",
   q_vx_icon:"Chapter icon",q_vx_icon_d:"Small icon in the chapter column — a server image path (put the file under the mod's images/quest/icon/; the banner is the quest image above)",q_vx_icon_ph:"/files/quest/icon/…",
-  q_sw_isStoryQuest:"Story quest (1.1 field)",q_sw_isStoryQuest_d:"The 1.1 story flag: kept out of the trader's normal quest list; an empty name falls back to the chapter's name in game; an empty success text sends no mail. For ported 1.1 data — your own chapter sub-quests don't need it",
+  q_sw_isStoryQuest:"Story quest (1.1 field)",q_sw_isStoryQuest_d:"The 1.1 story flag: kept out of the trader's normal quest list; an empty name falls back to the chapter's name in game; completion mail without item rewards is not sent; the timed-contact phone badge then follows 1.1 mailSettings only. For ported 1.1 data — your own chapter sub-quests don't need it, and on a quest outside any chapter it makes accept / hand-in / completion happen in silence",
   q_sec_unlock:"Unlocks visits when done",q_unlock_note:"Once this quest is completed the Visit button of these traders appears (1.1 unlocks trader dialogue step by step through rewards; plugin 1.3 reads this key). Empty = the button is always there",
   q_add_trader:"+ Trader",q_tag_trader:"trader",q_m_unlock:"Whose visit opens up when this quest is done",q_unlock_none:"Every trader in the table is already listed",
   q_a_desc:"Objective subtext",q_ask_desc:"The small line under the objective (empty = remove)",
@@ -3028,7 +3092,7 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_a_cnote:"Note unlocked on completion",q_ask_cnote:"A note that appears the moment this objective is ticked (empty = remove)",q_tag_cnote:"note",
   q_a_counter_off:"Hide counter / progress bar",q_a_counter_on:"Show counter / progress bar again",q_nocounter:"no counter",
   q_add_note_item:"+ Attach an item to this note",q_m_nltype:"Attach as",
-  ch_order:"Order",ch_order_d:"Position of the chapter on the story page, smallest first; chapters without a number come after, in file order",
+  ch_order:"Order",ch_order_d:"The story page sorts chapters by when the player unlocked them; this number only breaks ties (chapters unlocked together, or not started yet), smallest first; the official 1.1 chapters use 1–10. Empty counts as the player's config default 100, not last",
   q_sec_notes:"Story notes",q_notes_note:"The journal at the bottom right of the chapter page: one entry unlocks when the quest reaches that state, written in the current content language. Empty = no entry",
   q_note_Started:"On start",q_note_Started_d:"Unlocks when this quest is accepted (chapter: when any sub-quest starts)",
   q_note_Success:"On completion",q_note_Success_d:"Unlocks when this quest is completed",
@@ -3038,12 +3102,10 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_anyof_one:"\"Any one objective\" is on, or the either-group has fewer than two objectives — it does nothing.",
   qe_anyof_bad_id:"{0}… in the either-group is not an objective id of this quest. If none match, the plugin falls back to stock \"all objectives\".",
   qe_chapter_no_subs:"\"This is a chapter\" is on but there is no \"complete quest\" objective — those objectives are the chapter's sub-quests.",
-  qe_chapter_not_secret:"A chapter quest should be a secret quest, otherwise it shows up in the trader's task list next to its own sub-quests.",
   qe_chapter_no_finisher:"The last sub-quest is not marked isFinisher — reordering once on the Chapter pane fixes it automatically.",
   qe_chapter_no_icon:"The chapter has no icon; the left column of the story page will show an empty tile.",
   qe_chapter_no_banner:"The chapter has no banner (quest image); the top of the story page will be blank.",
   qe_chapter_sub_is_chapter:"Sub-quest {0}… is itself a chapter; chapters cannot nest.",
-  qe_story_native_notify:"A story quest has the in-game notification switch on — it will fire alongside VisitAPI's chapter banner. Turn it off.",
   q_saved_restart:"Saved · restart the SPT server",
   q_saved_restart_d:"SPT reads db/quests once, at startup. Without a server restart the game still sees the old data (old switches, old prerequisites). Note too that quests already accepted are not rolled back by editing the json — clear them or test on another profile.",
   qe_sub_prereq_is_chapter:"Deadlock: this sub-quest lists its own chapter as a prerequisite. The chapter only completes once every sub-quest succeeds, and the sub-quest cannot start until the chapter succeeds — neither ever happens. Remove the prerequisite; if startAfter is the one pointing at the chapter, point it at a sibling sub-quest of the same chapter instead.",
@@ -3053,7 +3115,6 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   qe_startafter_with_prereq:"This quest sets startAfter but still keeps a stock prerequisite pointing at {0}. While a stock prerequisite is unmet the server never sends the quest to the client, so startAfter never gets a chance. Clear the stock prerequisites.",
   qe_startafter_bad:"visitapi.startAfter points at {0}, which is not a usable quest — it is missing, or it is this quest itself. This quest can never start.",
   qe_startafter_cycle:"startAfter forms a loop — following {0} leads back to this quest. None of the quests on the loop can ever start.",
-  qe_startafter_outside:"startAfter points at {0}, which is not a sub-quest of the same chapter. It is not picked up the moment that quest succeeds — it waits for the next login or the next status change on this quest. Prefer a sibling in the same chapter.",
   qe_startafter_dialogonly:"This quest sets both startAfter and dialogOnly. startAfter accepts it automatically, so the Visit X button in the task list never appears and dialogOnly does nothing. Pick one.",
   qe_bad_note_id:"Note \"{0}\" has an id that isn't 24 hex characters; the server rejects the whole file.",
   qe_note_no_text:"Note \"{0}\" has no text (empty in both languages).",
@@ -3186,7 +3247,7 @@ const T=k=>I18N[lang][k]??I18N.zh[k]??k;
    服务端的校验结果就是 {code, args}，这里直接摊进去。 */
 const TF=(k,...a)=>a.reduce((s,v,i)=>s.split("{"+i+"}").join(v),T(k));
 /* 服务端只回码，人话在上面那两张表里 —— 加一门语言不用回头改 C# */
-const issueText=e=>TF("qe_"+e.code,...(e.args||[]));
+const issueText=e=>TF("qe_"+e.code,...(e.args||[]).map(esc));
 
 /* ══ 偏好：主题 / 指针 / 语言 ══
    全部走 pref()/setPref()（正本在服务端，理由见上面那块注释）。主题写在 <html data-theme> 上，
@@ -3231,15 +3292,21 @@ const shortStatus=()=>SHORTK.map(T);
 const RESERVED=["@close","@leave","@trade","@services","@tasks","@visit","@start"];
 
 /* ══ .dlg 解析器（对齐插件里的 DialogParser.cs）══ */
+/* ══ 译文行（09-23 SORA 定「写法 A」）══ `en: 译文` 紧跟在原行下面、只放文字；语言代码只认 SPT 那 17 种
+   （与 C# DialogLangs.Codes 同一张表）。模型里：旁白 / 选项 → `.tr`、台词 → 节点 `.npcTr`、触发点提示语 → `doc.trigTr[i]`、
+   trader 名字 → `doc.nameTr`，每个都是 {语言: 文字}。写回由 C# 按语言代码顺序吐（DialogLangs.Lines）。 */
+const LANGS=["ch","cz","en","es","es-mx","fr","ge","hu","it","jp","kr","pl","po","ro","ru","sk","tu"];
+const TR_RE=/^(ch|cz|en|es|es-mx|fr|ge|hu|it|jp|kr|pl|po|ro|ru|sk|tu):\s?(.*)$/;
+const trLine=line=>{const m=TR_RE.exec(line);return m?[m[1],m[2].trim()]:null;};
 function parseDlg(text){
   /* headRaw 按原顺序记下文件头每一行（含注释），存盘时照原样吐回去，
      否则回写会把用户写的注释和行序全洗掉——SORA 那两条坐标注释就是这么丢的 */
   /* order：节点在文件里的顺序。JS 对象会把 "1"、"10" 这类整数形键排到最前面，只靠 Object.keys 存一次盘节点就换位 */
-  const t={trader:null,name:null,start:"root",first:null,tab:null,tabS:[],when:[],triggers:[],
+  const t={trader:null,name:null,start:"root",first:null,tab:null,tabS:[],when:[],triggers:[],trigTr:[],nameTr:null,
            alias:{},aliasOrder:[],nodes:{},order:[],headRaw:[],warn:[]};
   /* 白名单以外的键（台词行写 bg:、旁白行写 bgm:）原来静默丢，回写就没了 —— 和 C# 的 Unknown() 同口径 */
   const unk=(d,known)=>Object.keys(d).forEach(k=>{if(!known.includes(k))t.warn.push(`第 ${ln} 行: 这一行不认 '${k}:'，回写会丢掉`);});
-  let n=null,ln=0;
+  let n=null,ln=0,last=null;   /* last：最近一条能翻的行（{o:宿主,k:译文表的键}），译文行往它身上挂；节点头 / -> 之后清空 */
   /* 攒着的注释：碰到下一个元素就挂到它头上（和 C# 的 DialogParser 同一套做法）。
      以前这里是"进了节点就直接丢"，于是节点体里的注释存一次就没了 —— SORA 那份
      注释恰好全在文件头，所以一直没暴露。 */
@@ -3248,8 +3315,8 @@ function parseDlg(text){
   const KV=segs=>{const d={};segs.forEach(s=>{const i=s.indexOf(":");
     if(i>0)d[s.slice(0,i).trim().toLowerCase()]=s.slice(i+1).trim();});return d;};
   const A=id=>id&&t.alias[id]?t.alias[id]:id;
-  const ST=s=>{s=s.trim();const i=parseInt(s,10);
-    if(!isNaN(i)&&i>=0&&i<=5)return i;
+  const ST=s=>{s=s.trim();const i=Number(s);
+    if(/^[+-]?\d+$/.test(s)&&Number.isInteger(i)&&i>=0&&i<=5)return i;
     const k=STATUS.findIndex(x=>x.toLowerCase()===s.toLowerCase());
     if(k<0)t.warn.push(`第 ${ln} 行: 未知任务状态 '${s}'`);return k;};
   const gate=(v,into)=>{const e=v.indexOf("=");
@@ -3273,11 +3340,20 @@ function parseDlg(text){
       else t.order.push(head[1]);
       n=t.nodes[head[1]]={name:head[1],bg:d.bg||"",anim:d.anim,bgm:d.bgm,narr:[],npc:"",npcAt:null,
                           jump:null,opts:[],lead:take(),npcLead:[],jumpLead:[],tail:[]};
-      continue;}
+      last=null;continue;}
     if(!n){ /* 文件头 */
       const qa=line.match(/^quest\s+(\S+)\s*=\s*(\S+)$/i);
       if(qa){t.alias[qa[1]]=qa[2];t.aliasOrder.push(qa[1]);
         t.headRaw.push({k:"quest",i:t.aliasOrder.length-1});continue;}
+      /* 译文行（与 C# DialogHeaderParser 同口径）：紧挨着的上一行是 trigger: 就是提示语的译文、是 trader: 就是名字的译文；
+         别的位置挂不上（中间夹了空行 / 注释也算），原样留住并提醒 */
+      const tr=trLine(line);
+      if(tr){const h=t.headRaw[t.headRaw.length-1];
+        const bag=h&&h.k==="trigger"?(t.trigTr[h.i]||(t.trigTr[h.i]={})):h&&h.k==="trader"?(t.nameTr||(t.nameTr={})):null;
+        if(!bag||!tr[1]||bag[tr[0]]!==undefined){t.headRaw.push({k:"raw",v:line});
+          t.warn.push(`第 ${ln} 行: 这条译文挂不上（上一行不是 trigger: / trader:，或同一语言写了两次），按原样留着`);}
+        else bag[tr[0]]=tr[1];
+        continue;}
       const i=line.indexOf(":");const k=(i<0?line:line.slice(0,i)).trim().toLowerCase();
       const v=i<0?"":line.slice(i+1).trim();
       t.headRaw.push({k,i:k==="trigger"?t.triggers.length:k==="when"?t.when.length:0});
@@ -3285,8 +3361,7 @@ function parseDlg(text){
       const keepRaw=()=>{t.headRaw.pop();t.headRaw.push({k:"raw",v:line});};
       if(k==="trader"){const m=v.match(/^(\S+)?\s*"(.*)"/);
         if(m){t.trader=m[1]||null;t.name=m[2];}
-        else if(/^[0-9a-fA-F]{24}$/.test(v)){t.trader=v;t.name="";}   /* 只写了 id 没写名字：别把 id 塞进引号当名字 */
-        else t.name=v;}
+        else {t.trader=v.split(/\s+/)[0]||null;t.name=null;}}
       else if(k==="start")t.start=v; else if(k==="first")t.first=v;
       /* 这两行进模型（界面上能改），头行的位置按 k 记着，回写由 DialogWriter 重新生成。
          以前是"存下值、同时把整行当原文留住"——那时没有入口，改不了才没露馅。 */
@@ -3298,22 +3373,30 @@ function parseDlg(text){
         else{keepRaw();t.warn.push(`第 ${ln} 行: tab 只认 'if <任务>=<状态>'`);}}
       else if(k==="when"){const w=v.match(/^(.*?)\s*->\s*(\S+)$/);
         const conds=w?[...w[1].matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
-          .map(c=>({f:c[1],le:c[2]==="<=",v:parseFloat(c[3])})):[];
-        if(conds.length)t.when.push({node:w[2],conds});
+          .map(c=>({f:c[1],le:c[2]==="<=",v:Number(c[3])})):[];
+        if(conds.length&&conds.every(c=>Number.isFinite(c.v))&&!w[1].replace(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g,"").trim())t.when.push({node:w[2],conds});
         else{keepRaw();t.warn.push(`第 ${ln} 行: when 无法解析 '${v}'`);}}
       else if(k==="trigger")t.triggers.push(v);
       else{keepRaw();t.warn.push(`第 ${ln} 行: 未知的文件头 '${k}'`);}
       continue;}
     /* 节点体 */
-    const seg=line.split(" | ");
-    if(line.startsWith("->")){n.jump=line.slice(2).trim();n.jumpLead=take();continue;}
+    /* 译文行（与 C# DialogParser.Body 同口径）：挂到上一条能翻的行（旁白 / 台词 / 选项）。节点头刚开或 -> 之后没东西可翻、同一语言写两次：
+       C# 那边会拒绝无损回写，这里先在解析警告里点名 */
+    const tr=trLine(line);
+    if(tr){if(!last)t.warn.push(`第 ${ln} 行: 译文行上面没有可翻的句子（节点头刚开 / -> 之后），无法无损回写`);
+      else if(!tr[1])t.warn.push(`第 ${ln} 行: 译文是空的，回写会丢掉这一行`);
+      else{const bag=last.o[last.k]||(last.o[last.k]={});
+        if(bag[tr[0]]!==undefined)t.warn.push(`第 ${ln} 行: 同一语言 ${tr[0]} 写了两次，无法无损回写`);else bag[tr[0]]=tr[1];}
+      continue;}
+    const seg=(line.startsWith("| ")?" "+line:line).split(" | ");
+    if(line.startsWith("->")){n.jump=line.slice(2).trim();n.jumpLead.push(...take());last=null;continue;}
     if(line.startsWith(">")){const d=KV(seg.slice(1)); unk(d,["bg","anim","audio"]);
       /* anim 也要收：以前只收了 bg/audio，旁白上的 anim 存一次就没了 */
-      n.narr.push({text:seg[0].slice(1).trim(),bg:d.bg||"",anim:d.anim,audio:d.audio,lead:take()});continue;}
-    if(line.startsWith("- ")){
+      const nb={text:seg[0].slice(1).trim(),bg:d.bg||"",anim:d.anim,audio:d.audio,lead:take()};n.narr.push(nb);last={o:nb,k:"tr"};continue;}
+    if(line.startsWith("- ")||line==="-"){
       const o={t:"",to:null,act:null,gate:null,gate2:null,once:false,always:false,
                standing:null,setst:null,ifitems:null,setvar:null,ifvar:null,lead:take()};
-      const left=seg[0].slice(2).trim();const ar=left.indexOf(" -> ");
+      let left=seg[0].slice(1).trim();if(left.startsWith("-> "))left=" "+left;const ar=left.indexOf(" -> ");
       o.t=(ar<0?left:left.slice(0,ar)).trim();
       o.to=ar<0?null:left.slice(ar+4).trim();
       seg.slice(1).flatMap(s=>s.split(",")).map(s=>s.trim()).filter(Boolean).forEach(d=>{
@@ -3323,6 +3406,7 @@ function parseDlg(text){
         const key=d.slice(0,c).trim().toLowerCase(),v=d.slice(c+1).trim();
         const sp=v.indexOf(" "),eq=v.indexOf("=");
         /* accept/complete 可以一次写多个任务（空格隔开），每个都过别名表 */
+        if(["accept","complete","handover"].includes(key)&&o.act)(o.extraActs??=[]).push(o.act);
         if(key==="accept")o.act={kind:"accept",q:qids(v).map(A).join(" ")};
         else if(key==="complete")o.act={kind:"complete",q:qids(v).map(A).join(" ")};
         else if(key==="handover")o.act={kind:"handover",q:A(sp<0?v:v.slice(0,sp)),label:sp<0?null:v.slice(sp+1).trim()};
@@ -3330,7 +3414,7 @@ function parseDlg(text){
         else if(key==="ifitems"){o.ifitems={q:v?A(v):""};}
         /* 分支记号（对齐 DialogParser.Var）：名字随作者起，值只能是整数 */
         else if(key==="set"||key==="ifvar"){const nm=(eq<0?v:v.slice(0,eq)).trim(),val=parseInt(eq<0?"":v.slice(eq+1),10);
-          if(eq<0||isNaN(val))t.warn.push(`第 ${ln} 行: 记号要写成 '名字=整数'，如 route=1`);
+          if(eq<0||!/^[-+]?\d+$/.test(v.slice(eq+1).trim())||!Number.isSafeInteger(val)||val<-2147483648||val>2147483647)t.warn.push(`第 ${ln} 行: 记号要写成 '名字=整数'，如 route=1`);
           if(nm)o[key==="set"?"setvar":"ifvar"]={n:nm,v:isNaN(val)?0:val};}
         /* 一个选项上 if 和 ifnot 可以同时存在。界面只编辑 gate 这一个，
            另一个原样搁在 gate2 里带回去 —— 不然存一次就少一条门控。 */
@@ -3338,20 +3422,23 @@ function parseDlg(text){
           /* 同一选项两条 if:（或两条 ifnot:）模型放不下：C# 写手会把任务取后者、状态合并。原来一声不吭 */
           if([o.gate,o.gate2].some(x=>x&&x.kind===key))t.warn.push(`第 ${ln} 行: 同一选项写了两条 ${key}:，只能留一条`);
           if(!o.gate)o.gate=g; else o.gate2=g;}
-        else if(key==="standing")o.standing={who:eq<0?null:v.slice(0,eq).trim(),d:parseFloat(eq<0?v:v.slice(eq+1))||0};
+        else if(key==="standing")o.standing={who:eq<0?null:v.slice(0,eq).trim(),d:Number(eq<0?v:v.slice(eq+1))||0};
         else t.warn.push(`第 ${ln} 行: 未知指令 '${key}'`);});
-      n.opts.push(o);continue;}
+      n.opts.push(o);last={o,k:"tr"};continue;}
     /* npcAt 记的是"台词出现时前面已经有几条旁白"——后面再来的 `>` 行就排在台词之后。
      不记的话行序在这一刻就丢了，存一次盘台词后面的旁白会被永久挪到前面去。 */
-  n.npc=seg[0].trim();n.npcAt=n.narr.length;n.npcLead=take();
+  if(n.npcAt!=null)t.warn.push(`第 ${ln} 行: multiple NPC lines; cannot rewrite losslessly`);
+  n.npc=seg[0].trim();n.npcAt=n.narr.length;n.npcLead.push(...take());
     const d=KV(seg.slice(1));unk(d,["audio"]);if(d.audio)n.audio=d.audio;
+    last={o:n,k:"npcTr"};
   }
   if(n)n.tail=(n.tail||[]).concat(pend);        /* 文件末尾剩下的注释 */
   /* 跳转校验 */
   Object.values(t.nodes).forEach(nd=>{
     [...nd.opts.map(o=>o.to),nd.jump].forEach(tg=>{
       if(tg&&!t.nodes[tg]&&!RESERVED.includes(tg))
-        t.warn.push(`节点 <${nd.name}>: 跳转目标 '${tg}' 不存在`);});});
+        t.warn.push(`节点 <${nd.name}>: 跳转目标 '${tg}' 不存在`);});
+    if(nd.jump&&RESERVED.includes(nd.jump))t.warn.push(`节点 <${nd.name}>: 末尾自动跳转 '${nd.jump}' 游戏当没写（只认真节点）`);});
   /* 文件头里指节点的四样也查：跳不存在的名字 = 直接关闭，作者只会看到「访问按钮点了没反应」 */
   if(Object.keys(t.nodes).length){
     const ref=(where,nd)=>{if(nd&&!t.nodes[nd])t.warn.push(`${where}: 指向的节点 '${nd}' 不存在`);};
@@ -3366,7 +3453,7 @@ function parseDlg(text){
    这样即使别的网页知道了端口，也拿不到令牌，改不了你的文件。 */
 const TOK=document.querySelector('meta[name=tok]')?.content||"";
 const api=(u,o={})=>fetch(u,{...o,headers:{...(o.headers||{}),"X-Token":TOK}})
-  .then(async r=>{if(!r.ok)throw new Error((await r.text())||r.status);
+  .then(async r=>{if(!r.ok)throw Object.assign(new Error((await r.text())||String(r.status)),{status:r.status});
     return r.headers.get("content-type")?.includes("json")?r.json():r.text();});
 
 let filePath=null, dirty=false, savedText="";
@@ -3523,7 +3610,7 @@ function drawNav(){
       ><span>${ico(p.icon)}<em>${String(i+1).padStart(2,"0")}</em></span></button>`).join("");
   $("navBottom").innerHTML=`<button class="nitem" data-p="set" aria-current="${page==='set'}" title="${T('nav_settings')}"><span>${ico("gear")}<em>//</em></span></button>`;
   $("nav").setAttribute("aria-label",T("nav_aria"));
-  document.querySelectorAll(".nav .nitem").forEach(b=>b.onclick=()=>{page=b.dataset.p;render();});}
+  document.querySelectorAll(".nav .nitem").forEach(b=>b.onclick=()=>{if(tourStep>=0)tourEnd(false);hide();page=b.dataset.p;render();});}
 const secNo=id=>{const i=PAGES.findIndex(p=>p.id===id);return i<0?"//":String(i+1).padStart(2,"0");};
 
 function dlgPage(){
@@ -3556,7 +3643,7 @@ function dlgPage(){
     <div class="tape" id="tape"></div>
     <div class="work">
       <section class="viewport" id="viewport">
-        <div class="vtab"><b>${T("sec_viewport")}</b><span class="bgtag" id="bgtag"></span>
+        <div class="vtab"><b>${T("sec_viewport")}</b><span class="langtabs" id="langtabs"></span><span class="bgtag" id="bgtag"></span>
           <button class="audchip" id="bgmChip" title="${T('tip_bgm')}"></button>
           <button class="vfold" id="vfold" title="${T('tip_fold')}">⇤</button></div>
         <div class="beatbar" id="beatbar"></div>
@@ -3671,21 +3758,24 @@ function drawStage(){
   /* 这一行**故意不剥尾缀**，印的就是文件里的原文：顶栏那条灰字是作者确认自己写的 once
      真的进了文件的唯一读数。剥掉就成了「解析对了但界面看不见」。后来人别顺手改掉。 */
   $("bgtag").textContent=b?"bg: "+b:"";
-  drawBody();drawBeats();}
+  drawBody();drawBeats();drawLangs();}
 function drawBody(){
   const n=N();
-  if(!isTalk()){
-    $("body").innerHTML=`<div class="narr" contenteditable="plaintext-only" data-ph="${T('ph_narr')}">${esc(narAt(n,beat).text)}</div>`;
-    $("body").querySelector(".narr").oninput=e=>{narAt(n,beat).text=e.target.textContent;soft();};return;}
+  /* 语言页签（tl，见 drawLangs）：切到某种语言时这三种框显示、编辑的是那一种的译文，原文退成灰色占位；空着 = 游戏显示原文 */
+  const shown=(o,k,def)=>tl?(o[k]?.[tl]??""):def, ph=(def,key)=>tl?(def||T(key)):T(key), tc=tl?" tr":"";
+  const setTr=(o,k,v)=>{const d=o[k]||(o[k]={});if(v.trim())d[tl]=v;else{delete d[tl];if(!Object.keys(d).length)delete o[k];}};
+  if(!isTalk()){const b=narAt(n,beat);
+    $("body").innerHTML=`<div class="narr${tc}" contenteditable="plaintext-only" data-ph="${esc(ph(b.text,'ph_narr'))}">${esc(shown(b,"tr",b.text))}</div>`;
+    $("body").querySelector(".narr").oninput=e=>{if(tl)setTr(b,"tr",e.target.textContent);else b.text=e.target.textContent;soft();};return;}
   const jumpRow=n.jump?`<div class="optrow"><span style="width:18px"></span>
     <span class="otext" style="color:var(--g-dim);font-style:italic">${T("autojump")}</span>
     <button class="jump" data-j="-1">→ ${esc(n.jump)}</button></div>`:"";
-  $("body").innerHTML=`<div class="npc" contenteditable="plaintext-only" data-ph="${T('ph_npc')}">${esc(n.npc)}</div>`+
+  $("body").innerHTML=`<div class="npc${tc}" contenteditable="plaintext-only" data-ph="${esc(ph(n.npc,'ph_npc'))}">${esc(shown(n,"npcTr",n.npc))}</div>`+
     n.opts.map((o,i)=>{const bad=o.to&&!isReal(o.to)&&!isRsv(o.to);
       return `<div class="optrow"><button class="kebab" data-k="${i}" title="${T('tip_more')}">⋮</button>
         <img class="ico" src="${icoFor(o)}" alt="">
-        <span class="otext" contenteditable="plaintext-only" data-o="${i}" data-ph="${T('ph_opt')}">${esc(o.t)}</span>
-        ${o.act?qids(o.act.q).map(q=>`<span class="chip${isQid(q)?"":" bad"}" title="${esc(isQid(q)?qidLabel(q):T("bad_qid_d"))}">${o.act.kind} ${shortQ(q)}</span>`).join("")||`<span class="chip">${o.act.kind}</span>`:""}
+        <span class="otext${tc}" contenteditable="plaintext-only" data-o="${i}" data-ph="${esc(ph(o.t,'ph_opt'))}">${esc(shown(o,"tr",o.t))}</span>
+        ${[o.act,...(o.extraActs||[])].filter(Boolean).map(a=>qids(a.q).map(q=>`<span class="chip${isQid(q)?"":" bad"}" title="${esc(isQid(q)?qidLabel(q):T("bad_qid_d"))}">${esc(a.kind)} ${esc(shortQ(q))}</span>`).join("")||`<span class="chip">${esc(a.kind)}</span>`).join("")}
         ${o.setst?`<span class="chip s${isQid(o.setst.q)?"":" bad"}" title="${esc(isQid(o.setst.q)?qidLabel(o.setst.q):T("bad_qid_d"))}">setstatus ${shortQ(o.setst.q)}</span>`:""}
         ${o.setvar?`<span class="chip s">set ${esc(o.setvar.n)}=${o.setvar.v}</span>`:""}
         ${o.standing?`<span class="chip s">${T("standing")} ${o.standing.d>0?"+":""}${o.standing.d}${
@@ -3697,8 +3787,8 @@ function drawBody(){
         <button class="jump${bad?" bad":o.to?"":" end"}" data-j="${i}">→ ${esc(o.to||T("end_dlg"))}</button>
         <button class="del" data-d="${i}">✕</button></div>`;}).join("")+jumpRow+
     `<button class="addopt" id="addOpt">${T("add_opt")}</button>`;
-  $("body").querySelector(".npc").oninput=e=>{n.npc=e.target.textContent;soft();};
-  $("body").querySelectorAll(".otext[data-o]").forEach(el=>el.oninput=()=>{n.opts[+el.dataset.o].t=el.textContent;soft();});
+  $("body").querySelector(".npc").oninput=e=>{if(tl)setTr(n,"npcTr",e.target.textContent);else n.npc=e.target.textContent;soft();};
+  $("body").querySelectorAll(".otext[data-o]").forEach(el=>el.oninput=()=>{const o=n.opts[+el.dataset.o];if(tl)setTr(o,"tr",el.textContent);else o.t=el.textContent;soft();});
   $("body").querySelectorAll(".kebab").forEach(b=>b.onclick=e=>optMenu(e,+b.dataset.k));
   $("body").querySelectorAll(".jump").forEach(b=>b.onclick=e=>jumpMenu(e,+b.dataset.j));
   $("body").querySelectorAll(".del").forEach(b=>b.onclick=()=>{n.opts.splice(+b.dataset.d,1);refresh();});
@@ -3739,6 +3829,34 @@ function drawBeats(){const n=N(),at=npcAt(n),L=n.narr.length;
   $("beatbar").querySelectorAll("[data-mv]").forEach(b=>b.onclick=()=>moveBeat(+b.dataset.mv));
   $("beatbar").querySelector("[data-bdel]").onclick=delBeat;
   drawAudioChips();}
+
+/* ══ 语言页签（09-23 写法 A）══ 「默认」= 原文；文件里出现过的语言各一页（＋ 本次会话加的），页签上标「已翻 / 总句数」。
+   切到某一页，视口里的旁白 / 台词 / 选项框编辑的就是那种语言的译文（drawBody），触发点表单多出对应的提示语格（trigEdit）。
+   tl 只是视图状态，不进模型；换文件时清掉（loadDoc）。 */
+let tl="",addedLangs=new Set();
+const LANG_NAMES={ch:"中文",cz:"Čeština",en:"English",es:"Español","es-mx":"Español (MX)",fr:"Français",ge:"Deutsch",hu:"Magyar",it:"Italiano",
+  jp:"日本語",kr:"한국어",pl:"Polski",po:"Português",ro:"Română",ru:"Русский",sk:"Slovenčina",tu:"Türkçe"};
+/* 能翻的句子清单：[键, 宿主, 原文]，宿主[键] 就是那一句的译文表（触发点的宿主是 doc.trigTr、键是下标） */
+function trBags(){const bags=[];if(doc.name)bags.push(["nameTr",doc,doc.name]);
+  (doc.triggers||[]).forEach((l,i)=>{const p=trigParse(l);if(p&&p.prompt){doc.trigTr=doc.trigTr||[];bags.push([i,doc.trigTr,p.prompt]);}});
+  Object.values(doc.nodes).forEach(d=>{if(d.npc)bags.push(["npcTr",d,d.npc]);
+    d.narr.forEach(b=>{if(b.text)bags.push(["tr",b,b.text]);});d.opts.forEach(o=>{if(o.t)bags.push(["tr",o,o.t]);});});
+  return bags;}
+function docLangs(){const s=new Set(addedLangs);
+  trBags().forEach(([k,h])=>Object.entries(h[k]||{}).forEach(([l,v])=>{if(v)s.add(l);}));return LANGS.filter(l=>s.has(l));}
+function drawLangs(){const el=$("langtabs");if(!el)return;
+  const bags=trBags(),langs=docLangs();if(tl&&!langs.includes(tl))tl="";
+  el.innerHTML=`<button class="ltab" data-l="" aria-pressed="${!tl}">${T("lang_default")}</button>`
+    +langs.map(l=>{const done=bags.filter(([k,h])=>h[k]?.[l]).length;
+      return `<button class="ltab" data-l="${l}" aria-pressed="${tl===l}" title="${esc(LANG_NAMES[l]||l)} · ${esc(TF("lang_stat",done,bags.length))}">${l.toUpperCase()}<i>${done}/${bags.length}</i></button>`;}).join("")
+    +`<button class="ltab add" data-ladd title="${esc(T('lang_add_d'))}">${T("lang_add")}</button>`;
+  el.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{tl=b.dataset.l;drawStage();});
+  el.querySelector("[data-ladd]").onclick=e=>langMenu(e);
+  const who=document.querySelector(".gwho");if(who)who.textContent=tl?(doc.nameTr?.[tl]||doc.name||""):(doc.name||"");}
+function langMenu(e){const have=new Set(docLangs());
+  const p=place(e,`<h4>${T("lang_add")}</h4><div class="hint">${T("lang_add_d")}</div><div class="audlist">${
+    LANGS.filter(l=>!have.has(l)).map(l=>`<div class="audrow"><button data-lang="${l}">${l.toUpperCase()} · ${esc(LANG_NAMES[l])}</button></div>`).join("")}</div>`);
+  p.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{addedLangs.add(b.dataset.lang);tl=b.dataset.lang;hide();drawStage();});}
 
 /* ══ 音频 ══
    BGM 是节点级的：插件把它挂在节点的**第一拍**上（那一拍不一定是旁白——台词可以排在最前面），
@@ -3908,6 +4026,7 @@ function wireGraph(){const g=$("graph");applyView();
 /* 删掉第 i 条 when / trigger：列表和文件头记录一起动，后面的下标往前挪，不然回写会串行 */
 function dropHead(k,i){
   (k==="when"?doc.when:doc.triggers).splice(i,1);
+  if(k==="trigger"&&doc.trigTr)doc.trigTr.splice(i,1);   /* 提示语译文按下标对齐，跟着挪 */
   doc.headRaw=doc.headRaw.filter(h=>!(h.k===k&&h.i===i));
   doc.headRaw.forEach(h=>{if(h.k===k&&h.i>i)h.i--;});}
 /* 竖分隔：拖的是左侧视口的宽度，不是流程区的高度。
@@ -3937,8 +4056,10 @@ const docJson=()=>({
   /* v 用 ?? 不用 ||：空行的 v 是 ""，用 || 会被当成没有，那一行就没了 */
   headRaw:(doc.headRaw||[]).map(e=>({k:e.k,i:e.i||0,v:e.v??null})),
   when:doc.when,triggers:doc.triggers,alias:doc.alias,aliasOrder:doc.aliasOrder,
+  /* 译文：旁白 / 选项的 .tr 跟着对象整个过去；触发点的按下标对齐送（稀疏位补 null） */
+  nameTr:doc.nameTr||null,trigTr:(doc.triggers||[]).map((_,i)=>doc.trigTr?.[i]||null),
   nodes:nodeOrder().map(nm=>[nm,doc.nodes[nm]]).map(([nm,n])=>({
-    name:nm,bg:n.bg,anim:n.anim,bgm:n.bgm,npc:n.npc,audio:n.audio,jump:n.jump,
+    name:nm,bg:n.bg,anim:n.anim,bgm:n.bgm,npc:n.npc,audio:n.audio,jump:n.jump,npcTr:n.npcTr||null,
     narr:n.narr,npcAt:n.npcAt??null,opts:n.opts,
     lead:n.lead,npcLead:n.npcLead,jumpLead:n.jumpLead,tail:n.tail})),
 });
@@ -3953,7 +4074,8 @@ function badQids(){
   const out=[], al=x=>doc.alias?.[x]||x;
   const add=(where,q)=>qids(q).forEach(x=>{const r=al(x);if(r&&!isQid(r))out.push(`${where}: ${r}`);});
   Object.entries(doc.nodes).forEach(([n,d])=>d.opts.forEach((o,i)=>{
-    if(o.act)add(`<${n}> #${i+1} ${o.act.kind}`,o.act.q);
+    for(const a of [o.act,...(o.extraActs||[])].filter(Boolean))add(`<${n}> #${i+1} ${a.kind}`,a.q);
+    if(o.ifitems?.q)add(`<${n}> #${i+1} ifitems`,o.ifitems.q);
     if(o.gate)add(`<${n}> #${i+1} ${o.gate.kind}`,o.gate.q);
     if(o.gate2)add(`<${n}> #${i+1} ${o.gate2.kind}`,o.gate2.q);
     if(o.setst)add(`<${n}> #${i+1} setstatus`,o.setst.q);}));
@@ -3967,29 +4089,46 @@ function badQids(){
    SORA 说从没提过这个需求。插件 1.3 自己会在选项全被藏掉时补「（结束）」，编辑器不再提示。要再加先问 SORA。 */
 /* 正文守卫（与服务端 DlgJson.BadTexts 同一套规则）：.dlg 没有转义，正文里出现分隔符或行首保留符号，写出去再读回就变形 */
 const LEAD_RE=/^(- |>|->|#|\/\/|<[A-Za-z0-9_.\-]+>)/;
-const badText=(s,opt)=>{s=String(s||"");return s.includes(" | ")||LEAD_RE.test(s)||(!!opt&&s.includes(" -> "));};
+const badText=(s,opt)=>{s=String(s||"");return /[\r\n]/.test(s)||s.includes(" | ")||s.trimEnd().endsWith(" |")||LEAD_RE.test(s.trimStart())||(!!opt&&(s.includes(" -> ")||s.trimEnd().endsWith(" ->")));};
 function badTexts(){const out=[];
+  /* 译文行整行都是文字、不切指令，唯一能把它写坏的是换行（服务端 DlgJson.BadTexts 同一条） */
+  const trBad=(bag,where)=>Object.entries(bag||{}).forEach(([l,v])=>{if(/[\r\n]/.test(String(v||"")))out.push(`${where} ${l}`);});
+  trBad(doc.nameTr,"trader");(doc.trigTr||[]).forEach((b,i)=>trBad(b,`trigger ${i+1}`));
   Object.entries(doc.nodes).forEach(([n,d])=>{
-    if(badText(d.npc))out.push(`<${n}> ${T("bt_npc")}`);
-    d.narr.forEach((b,i)=>{if(badText(b.text))out.push(`<${n}> ${T("bt_narr")} ${i+1}`);});
-    d.opts.forEach((o,i)=>{if(badText(o.t,true))out.push(`<${n}> #${i+1}`);
+    if(badText(d.npc))out.push(`<${n}> ${T("bt_npc")}`);trBad(d.npcTr,`<${n}> ${T("bt_npc")}`);
+    d.narr.forEach((b,i)=>{if(badText(b.text))out.push(`<${n}> ${T("bt_narr")} ${i+1}`);trBad(b.tr,`<${n}> ${T("bt_narr")} ${i+1}`);});
+    d.opts.forEach((o,i)=>{if(badText(o.t,true))out.push(`<${n}> #${i+1}`);trBad(o.tr,`<${n}> #${i+1}`);
       if(o.act&&o.act.kind==="handover"&&/,/.test(o.act.label||""))out.push(`<${n}> #${i+1} handover`);});});
+  return out;}
+/* 「游戏当没写」的写法（1.3.3，逐条对着插件核过）：写得出、存得进、游戏里一声不吭地不生效 —— 和断链一样要在页头点名 */
+function deadWrites(){const out=[];
+  /* 插件只读工作区顶层、文件名正好是 24 位商人 id 的 .dlg（DialogLoader）；别的名字整份不读，.dlg.demo 本来就是示例 */
+  const base=String(filePath||"").split("/").pop();
+  if(filePath&&!/\.demo$/i.test(base)&&(String(filePath).includes("/")||!/^[0-9a-f]{24}\.dlg$/i.test(base)))out.push(T("dead_file"));
+  Object.entries(doc.nodes).forEach(([n,d])=>{
+    if(d.jump&&isRsv(d.jump))out.push(`<${n}> ${TF("dead_jump",d.jump)}`);            /* 节点末尾的自动跳转只认真节点，@xxx 被忽略 */
+    d.opts.forEach((o,i)=>{if(o.ifitems&&!o.ifitems.q&&o.act?.kind!=="handover")out.push(`<${n}> #${i+1} ${T("dead_ifitems")}`);});});   /* Gates.cs：没 handover: 的裸 ifitems 不加门控 */
+  /* 没解锁的任务压根不在玩家的任务簿里：tab: / 触发点门控选「未解锁」永远不满足（TalkButton.TabPasses / VisitTrigger.GatePasses） */
+  if((doc.tabS||[]).includes(0))out.push(T("dead_tab_locked"));
+  (doc.triggers||[]).forEach((l,i)=>{const t=trigParse(l);const st=t?.gate?String(t.gate).split("=")[1]||"":"";
+    if(st.split("/").some(s=>s==="Locked"||s==="0"))out.push(`trigger ${i+1} ${T("dead_gate_locked")}`);});
   return out;}
 function stat(){const bad=[];
   Object.entries(doc.nodes).forEach(([n,d])=>{
     [...d.opts.map(o=>o.to),d.jump].forEach(to=>{
       if(to&&!isReal(to)&&!isRsv(to))bad.push(`<${n}> → '${to}'`);});});
-  const bq=badQids(), bt=badTexts();
+  const bq=badQids(), bt=badTexts(), dw=deadWrites();
   const e=$("stat");if(!e)return;
-  const n=bad.length+bq.length+bt.length;
+  const n=bad.length+bq.length+bt.length+dw.length;
   e.className="stat"+(n?"":" clean");
   $("tape")?.classList.toggle("hot",n>0);
   e.title=n?[...bad.map(x=>T("broken")+": "+x),...bq.map(x=>T("bad_qid")+": "+x),
-             ...bt.map(x=>T("bad_text")+": "+x)].join("\n"):"";
+             ...bt.map(x=>T("bad_text")+": "+x),...dw.map(x=>T("dead")+": "+x)].join("\n"):"";
   const parts=[];
   if(bad.length)parts.push(`${bad.length} ${T("broken")}: ${bad.slice(0,2).join(" · ")}${bad.length>2?"…":""}`);
   if(bq.length)parts.push(`${bq.length} ${T("bad_qid")}: ${bq.slice(0,2).join(" · ")}${bq.length>2?"…":""}`);
   if(bt.length)parts.push(`${bt.length} ${T("bad_text")}: ${bt.slice(0,2).join(" · ")}${bt.length>2?"…":""}`);
+  if(dw.length)parts.push(`${dw.length} ${T("dead")}: ${dw.slice(0,2).join(" · ")}${dw.length>2?"…":""}`);
   e.textContent=n?"⚠ "+parts.join("　|　")
     :`✓ ${Object.keys(doc.nodes).length} ${T("all_ok")} · ${entryNodes().size} ${T("entries")} ${TRIG.size} ${T("trig_entries")}`;}
 /* ⚠️ `e.currentTarget` **只在一次派发进行中有值**，派发一结束就变回 null。
@@ -4022,6 +4161,7 @@ function optMenu(e,i){const o=N().opts[i];
     ${o.act&&o.act.kind==="handover"?`<label class="fld"><i>${T("m_hlabel")}</i>
         <input id="hlIn" value="${esc(o.act.label||"")}" placeholder="${esc(T("m_hlabel_ph"))}"></label>
       <div class="hint">${T("m_hlabel_d")}</div>`:""}
+    ${(o.extraActs||[]).map((a,j)=>`<button class="trrow" data-extra="${j}"><b>${esc(a.kind)} · ${esc(qidLabel(a.q))}</b><span>⋮</span></button>`).join("")}
     <h4>${T("m_cond")}</h4>${seg2(gks,gk.indexOf(o.gate?.kind??null),"g")}
     ${o.gate?`<h4>${T("m_condq")}</h4>${qrow("gate",o.gate.q)}
       <h4>${T("m_condst")}</h4>${segN(shortStatus(),o.gate.s,"os0")}`:""}
@@ -4053,15 +4193,19 @@ function optMenu(e,i){const o=N().opts[i];
     <div class="hint">${T("m_items_d")}</div>`);
   /* 挑完不关窗、原地重开：任务 ID 那一行就在同一个菜单里，关掉就等于"选了但看不见" */
   const back=()=>{refresh();optMenu(e,i);};
+  p.querySelectorAll("[data-extra]").forEach(b=>b.onclick=()=>{
+    const j=+b.dataset.extra, a=o.extraActs[j];
+    if(o.act)o.extraActs[j]=o.act;else o.extraActs.splice(j,1);
+    o.act=a;back();});
   /* 没挑到任务就不落笔。以前这里塞的是「（选择任务）」四个字，作者不改就那么存进 .dlg，
      游戏里当成任务 id 去查，查不到——门控自动补上以后这个选项干脆不出现。 */
   p.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const k=ak[+b.dataset.a];
     if(!k){o.act=null;return back();}
-    if(o.act){o.act.kind=k;return back();}                 /* 换种动作：任务和上交提示都留着 */
+    if(o.act){if(k==="handover"&&qids(o.act.q).length>1)return qidMenu(at,qids(o.act.q)[0],q=>{o.act={kind:k,q};back();});o.act.kind=k;return back();}
     qidMenu(at,"",q=>{o.act={kind:k,q};back();});});
   p.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{const k=gk[+b.dataset.g];
     if(!k){o.gate=o.gate2||null;o.gate2=null;return back();}   /* 撤掉第一条：第二条顶上来，别留孤儿 */
-    if(o.gate){o.gate.kind=k;return back();}
+    if(o.gate){if(o.gate2?.kind===k)o.gate2.kind=o.gate.kind;o.gate.kind=k;return back();}
     qidMenu(at,"",q=>{o.gate={kind:k,q,s:[4]};back();});});
   p.querySelectorAll("[data-qid]").forEach(b=>b.onclick=()=>{const w=b.dataset.qid,j=+b.dataset.j||0,
     tg=w==="act"?o.act:w==="gate2"?o.gate2:o.gate;
@@ -4103,13 +4247,15 @@ function optMenu(e,i){const o=N().opts[i];
     o.standing=v==null?null:{who:keep(),d:v};back();});
   /* 只认回车，不挂 onblur：失焦比点击先发生，点上面那排预设会被输入框的旧值顶掉（挑任务那格同一个坑） */
   $("stIn").onkeydown=ev=>{if(ev.key!=="Enter")return;
-    const v=parseFloat($("stIn").value);
+    const value=$("stIn").value.trim(),v=Number(value);
+    if(value&&!dlgNumber(value)){note(T("invalid_number"),"dirty");return;}
     o.standing=v?{who:keep(),d:v}:null;back();};                /* 空 / 0 / 不是数 一律当"不变" */
   const who=p.querySelector("[data-who]");
   if(who)who.onclick=()=>trMenu(at,o.standing.who,w=>{o.standing.who=w;back();});
   /* 记号：同样只认回车；空 / 格式不对 一律当"清掉" */
   const varIn=(id,key)=>{$(id).onkeydown=ev=>{if(ev.key!=="Enter")return;
-    const m=/^\s*([^=\s]+)\s*=\s*(-?\d+)\s*$/.exec($(id).value);
+    const value=$(id).value.trim(),m=/^([^=\s]+)\s*=\s*([+-]?\d+)$/.exec(value);
+    if(value&&(!m||!Number.isSafeInteger(Number(m[2]))||Number(m[2])<-2147483648||Number(m[2])>2147483647)){note(T("invalid_number"),"dirty");return;}
     o[key]=m?{n:m[1],v:parseInt(m[2],10)}:null;back();};};
   varIn("svIn","setvar");varIn("ivIn","ifvar");
   p.querySelector("[data-once]").onclick=()=>{o.once=!o.once;refresh();hide();};
@@ -4158,12 +4304,14 @@ async function qidMenu(at,curId,pick){
   $("qidIn").onkeydown=ev=>{const v=$("qidIn").value.trim();if(ev.key==="Enter"&&v)pick(v);};
 }
 function jumpMenu(e,i){const n=N();const o=i>=0?n.opts[i]:null;
-  const targets=[...Object.keys(doc.nodes),...RESERVED,T("end_paren")];
+  /* 节点末尾的自动跳转（i<0）只认真节点：@close/@trade 这些插件当没写（这一屏照常显示选项），别列出来教人写 */
+  const none=o?T("end_paren"):T("no_jump");
+  const targets=o?[...Object.keys(doc.nodes),...RESERVED,none]:[...Object.keys(doc.nodes),none];
   const now=o?o.to:n.jump;
   const p=place(e,`<h4>${T("m_jump")}</h4><div class="opts2">`+targets.map(t=>
-    `<button data-t="${t}" aria-pressed="${now===t||(!now&&t===T("end_paren"))}">${t}</button>`).join("")+`</div>`);
+    `<button data-t="${t}" aria-pressed="${now===t||(!now&&t===none)}">${t}</button>`).join("")+`</div>`);
   p.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
-    const v=b.dataset.t===T("end_paren")?null:b.dataset.t;
+    const v=b.dataset.t===none?null:b.dataset.t;
     if(o)o.to=v;else n.jump=v;refresh();hide();});}
 function bgMenu(e){const own=bgOwn(),eff=curBg()||"",list=[...ASSETS.bg.map(a=>a.name),T("no_bg")];
   /* 显隐和勾选读**生效的**背景（curBg 会回落到节点），写回找真正的持有者 own —— 否则
@@ -4224,6 +4372,7 @@ function compatScan(text){
   lines.forEach((raw,idx)=>{
     const ln=idx+1,line=raw.trim();
     if(!line||line[0]==="#"||line.startsWith("//"))return;
+    if(trLine(line))return;   /* 译文行（09-23）不是台词：不然一句台词带一行译文就被当成 4.0.13 的多行台词 */
     if(/^<[\w.\-]+>/.test(line)){inNode=true;plain=0;return;}
     if(!inNode){
       /* 老写法两种顺序都认，新的只认 id 在前 —— 名字在前会把 "名字" 当成商人 id */
@@ -4251,7 +4400,7 @@ function compatScan(text){
   const DIRECTIVE=/\|\s*(accept|complete|handover|setstatus|standing|if|ifnot|set|ifvar|once|always|bg|anim|bgm|audio)\b/;
   lines.forEach((raw,idx)=>{
     const line=raw.trim();
-    if(!line||line[0]==="#"||line.startsWith("//"))return;
+    if(!line||line[0]==="#"||line.startsWith("//")||trLine(line))return;
     if(DIRECTIVE.test(line)&&!/\s\|\s/.test(line))add(idx+1,line,"pipe_space");
     if(/^-\s/.test(line)&&/->/.test(line)&&!/\s->\s/.test(line))add(idx+1,line,"arrow_space");
   });
@@ -4277,16 +4426,23 @@ function compatPane(el){
    所以这里全程按字符串处理，不 parseFloat。 */
 /* 坐标可以没有：`enter N` 型触发点（进图计时）就不写括号，见主框架 DEV_NOTES #63 */
 const TRIG_RE=/^\s*(\S+)\s+([^\s(]+)\s*(?:\(([^)]*)\))?\s*(.*)$/;
+const dlgNumber=s=>/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(String(s).trim())&&Number.isFinite(Number(s))&&Math.abs(Number(s))<=3.4028234663852886e38;
+const trigStatus=s=>/^\d$/.test(s.trim())&&Number(s)<=5?Number(s):STATUS.findIndex(n=>n.toLowerCase()===s.trim().toLowerCase());
 function trigParse(line){
   const m=TRIG_RE.exec(line||""); if(!m)return null;
   const xyz=(m[3]||"").split(",").map(s=>s.trim());
   const t={kind:m[1].toLowerCase(),place:m[2],x:xyz[0]||"0",y:xyz[1]||"0",z:xyz[2]||"0",
            node:"",dist:"",radius:"",free:false,auto:false,once:false,accept:"",finish:"",fail:"",gate:"",prompt:"",enter:""};
+  if(!["hideout","raid"].includes(t.kind)||m[3]!==undefined&&(xyz.length!==3||xyz.some(s=>!dlgNumber(s))))return null;
   let rest=m[4];
   const q=rest.match(/"([^"]*)"/); if(q){t.prompt=q[1];rest=rest.replace(q[0],"");}
+  if(rest.includes('"'))return null;
   const tok=rest.split(/\s+/).filter(Boolean);
+  const seen=new Set();
   for(let i=0;i<tok.length;i++){
     const k=tok[i].toLowerCase();
+    if(seen.has(k))return null;seen.add(k);
+    if(["dist","radius","hit","node","if","accept","enter","finish","fail"].includes(k)&&!tok[i+1])return null;
     if(k==="dist")t.dist=tok[++i]||"";
     else if(k==="radius")t.radius=tok[++i]||"";
     else if(k==="hit"){t.radius=tok[++i]||"";t.free=true;}   /* hit = 半径 + free 的简写 */
@@ -4302,7 +4458,11 @@ function trigParse(line){
     else if(k==="finish")t.finish=tok[++i]||"";
     else if(k==="fail")t.fail=tok[++i]||"";
     else if(k==="free"||k==="door")t.free=true;
+    else return null;
   }
+  if([t.dist,t.radius,t.enter].some(s=>s!==""&&(!dlgNumber(s)||Number(s)<0)))return null;
+  if(m[3]===undefined&&!t.enter||t.enter&&t.kind!=="raid")return null;
+  if(t.gate&&(!t.gate.includes("=")||t.gate.split("=")[1].split("/").some(s=>trigStatus(s)<0)))return null;
   return t;
 }
 /* 生成的顺序照 C# 的 DialogWriter.Trigger 来，两边看起来才是一份东西 */
@@ -4339,7 +4499,7 @@ function trigRaw(el,i){
     <label class="fld"><i>trigger:</i><input data-raw value="${esc(doc.triggers[i])}"></label>
     <div class="opts2" style="margin-top:.5rem"><button data-del>${T("m_trig_del")}</button><button data-back>${T("m_trig_back")}</button></div>`);
   const inp=p.querySelector("[data-raw]");
-  inp.onchange=()=>{doc.triggers[i]=inp.value.trim();markDirty(true);refresh();render();};
+  inp.oninput=()=>{doc.triggers[i]=inp.value.trim();soft();};
   p.querySelector("[data-back]").onclick=()=>trigMenu(el);
   p.querySelector("[data-del]").onclick=async()=>{if(!await confirm2(T("m_trig_delask")))return;
     dropHead("trigger",i);markDirty(true);refresh();render();hide();};
@@ -4349,8 +4509,7 @@ function trigEdit(el,i){
   const t=trigParse(doc.triggers[i]);
   if(!t)return trigRaw(el,i);
   /* 条件拆成「哪个任务」+「什么状态」两块来编；多状态（a/b）只认第一个，点过状态芯片就写成单个 */
-  const ge=t.gate.indexOf("="),gq=ge<0?t.gate:t.gate.slice(0,ge),gs0=ge<0?"":t.gate.slice(ge+1).split("/")[0];
-  const gs=/^\d$/.test(gs0)?+gs0:STATUS.findIndex(x=>x.toLowerCase()===gs0.toLowerCase());
+  const ge=t.gate.indexOf("="),gq=ge<0?t.gate:t.gate.slice(0,ge),gstates=ge<0?[2]:t.gate.slice(ge+1).split("/").map(trigStatus);
   const fld=(k,key,ph)=>`<label class="fld"><i>${T(key)}</i>
     <input data-f="${k}" value="${esc(t[k]??"")}" placeholder="${esc(ph||"")}"></label>`;
   const p=placeAt(el,`<h4>${TF("m_trig_one",i+1)}</h4>
@@ -4361,6 +4520,7 @@ function trigEdit(el,i){
       `<label class="fld"><i>${a}</i><input data-f="${a}" value="${esc(t[a])}"></label>`).join("")}</div>
     <label class="fld"><i>${T("m_tr_node")}</i><select data-f="node">
       <option value="">${T("m_tr_node_no")}</option>
+      ${t.node&&!doc.nodes[t.node]?`<option selected value="${esc(t.node)}">${esc(t.node)}</option>`:""}
       ${Object.keys(doc.nodes).map(n=>
         `<option value="${esc(n)}"${n===t.node?" selected":""}>${esc(n)}</option>`).join("")}
     </select></label>
@@ -4381,18 +4541,30 @@ function trigEdit(el,i){
     ${t.fail?`<div class="opts2"><button data-tfail0>${T("m_tr_off")}</button></div>`:""}
     <h4>${T("m_tr_gate")}</h4>
     <button class="trrow" data-tgate><b>${esc(gq?qidLabel(gq):T("m_tr_gate_no"))}</b><span>⋮</span></button>
-    ${gq?`${seg2(shortStatus(),gs,"gs")}<div class="opts2"><button data-tgate0>${T("m_tr_gate_off")}</button></div>`:""}
+    ${gq?`${segN(shortStatus(),gstates,"gs")}<div class="opts2"><button data-tgate0>${T("m_tr_gate_off")}</button></div>`:""}
     ${fld("prompt","m_tr_prompt",T("m_tr_prompt_ph"))}
+    ${docLangs().map(l=>`<label class="fld"><i>${T("m_tr_prompt")} ${l.toUpperCase()}</i><input data-tr="${l}" value="${esc(doc.trigTr?.[i]?.[l]??"")}" placeholder="${esc(t.prompt)}"></label>`).join("")}
     <div class="hint">${T("m_tr_d2")}</div>
     <div class="hint">${T("m_tr_d")}</div>
     <div class="opts2" style="margin-top:.5rem">
       <button data-del>${T("m_trig_del")}</button><button data-back>${T("m_trig_back")}</button></div>`);
   const put=()=>{
-    p.querySelectorAll("[data-f]").forEach(el=>t[el.dataset.f]=el.value.trim());
-    doc.triggers[i]=trigLine(t);markDirty(true);refresh();render();};
+    const next={...t};let valid=true;
+    p.querySelectorAll("[data-f]").forEach(input=>{
+      const k=input.dataset.f,v=input.value.trim();next[k]=v;
+      const ok=["x","y","z"].includes(k)?dlgNumber(v):["dist","radius","enter"].includes(k)?!v||dlgNumber(v)&&Number(v)>=0:k==="prompt"?!/["\r\n]/.test(v):!/[\s()"]/.test(v)&&!!v||k==="node"&&!v;
+      input.setCustomValidity(ok?"":T("invalid_trigger"));if(!ok)valid=false;
+    });
+    if(!valid)return false;
+    if(next.kind!=="raid")next.enter="";
+    Object.assign(t,next);doc.triggers[i]=trigLine(t);soft();return true;};
   p.querySelectorAll("[data-f]").forEach(el=>{
-    el.onchange=put;
-    el.onkeydown=ev=>{if(ev.key==="Enter"){put();hide();}};});
+    el.oninput=put;el.onchange=put;
+    el.onkeydown=ev=>{if(ev.key==="Enter"&&put())hide();};});
+  /* 提示语的译文（文件里出现过的每种语言一格）：存在 doc.trigTr[i]，不进触发点那一行；空 = 删掉这种语言 */
+  p.querySelectorAll("[data-tr]").forEach(inp=>inp.onchange=()=>{const v=inp.value.trim(),l=inp.dataset.tr;
+    doc.trigTr=doc.trigTr||[];const bag=doc.trigTr[i]||(doc.trigTr[i]={});
+    if(v)bag[l]=v;else{delete bag[l];if(!Object.keys(bag).length)doc.trigTr[i]=null;}soft();});
   p.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{t.kind=b.dataset.k;put();trigEdit(el,i);});
   p.querySelector("[data-free]").onclick=()=>{t.free=!t.free;put();trigEdit(el,i);};
   p.querySelector("[data-auto]").onclick=()=>{t.auto=!t.auto;put();trigEdit(el,i);};
@@ -4412,8 +4584,10 @@ function trigEdit(el,i){
   const tfail0=p.querySelector("[data-tfail0]");
   if(tfail0)tfail0.onclick=()=>{t.fail="";put();trigEdit(el,i);};
   p.querySelector("[data-tgate]").onclick=()=>
-    qidMenu(()=>trigAt(el),gq,q=>{t.gate=q+"="+(gs>=0?STATUS[gs]:"Started");put();trigEdit(el,i);});
-  p.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{t.gate=gq+"="+STATUS[+b.dataset.gs];put();trigEdit(el,i);});
+    qidMenu(()=>trigAt(el),gq,q=>{t.gate=q+"="+gstates.map(s=>STATUS[s]).join("/");put();trigEdit(el,i);});
+  p.querySelectorAll("[data-gs]").forEach(b=>b.onclick=()=>{const s=+b.dataset.gs,at=gstates.indexOf(s);
+    if(at<0)gstates.push(s);else if(gstates.length>1)gstates.splice(at,1);
+    t.gate=gq+"="+gstates.sort((a,b)=>a-b).map(s=>STATUS[s]).join("/");put();trigEdit(el,i);});
   const tgate0=p.querySelector("[data-tgate0]");
   if(tgate0)tgate0.onclick=()=>{t.gate="";put();trigEdit(el,i);};
   p.querySelector("[data-back]").onclick=()=>trigMenu(el);
@@ -4472,8 +4646,8 @@ function roleMenu(el,name){
     if(!v)return;
     /* 和解析器认的是同一套写法，认不出来就直说，别写一条进去然后神秘失效 */
     const conds=[...v.matchAll(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g)]
-      .map(m=>({f:m[1],le:m[2]==="<=",v:parseFloat(m[3])}));
-    if(!conds.length){await say(T("m_role_bad"));return;}
+      .map(m=>({f:m[1],le:m[2]==="<=",v:Number(m[3])}));
+    if(!conds.length||conds.some(c=>!Number.isFinite(c.v))||v.replace(/(level|standing)\s*(>=|<=)\s*([-+\d.]+)/g,"").trim()){await say(T("m_role_bad"));return;}
     doc.when.push({node:name,conds});
     doc.headRaw.push({k:"when",i:doc.when.length-1});
     done();hide();};
@@ -4515,11 +4689,11 @@ function tabMenu(el){
   const tq=p.querySelector("[data-tabq]");
   if(tq)tq.onclick=()=>qidMenu(tabAt,doc.tab||"",id=>{doc.tab=id;done();tabMenu(el);});
   const q=$("tabQ");
-  if(q){q.onchange=()=>{doc.tab=q.value.trim()||null;done();};
+  if(q){q.oninput=()=>{doc.tab=q.value.trim()||null;soft();};
         q.onkeydown=e=>{if(e.key==="Enter"){doc.tab=q.value.trim()||null;done();hide();}};}
   p.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.s,L=(doc.tabS ??= []);
-    const at=L.indexOf(i); if(at<0)L.push(i); else L.splice(at,1);
+    const at=L.indexOf(i); if(at<0)L.push(i); else if(L.length>1)L.splice(at,1);
     L.sort((a,b)=>a-b); done();tabMenu(el);});
 }
 
@@ -4554,17 +4728,18 @@ function modal({title,msg,input,noCancel,danger}){
         <button class="btn ${danger?"warn":"pri"}" id="mdOk"><span>${T("md_ok")}</span></button>
       </div></div>`;
     document.body.appendChild(w);
-    const done=v=>{w.remove();document.removeEventListener("keydown",key,true);res(v);};
-    const okv=()=>input!==undefined?$("mdIn").value:true;
+    const done=v=>{if(!w.isConnected)return;w.remove();document.removeEventListener("keydown",key,true);res(v);};
+    const okv=()=>input!==undefined?w.querySelector("#mdIn").value:true;
     const key=e=>{
-      if(e.key==="Escape"){e.stopPropagation();done(noCancel?true:null);}
-      if(e.key==="Enter"&&input!==undefined){e.preventDefault();done(okv());}};
+      if(w!==[...document.querySelectorAll(".mdwrap")].at(-1))return;
+      if(e.key==="Escape"){e.preventDefault();e.stopImmediatePropagation();done(noCancel?true:null);}
+      if(e.key==="Enter"){e.preventDefault();e.stopImmediatePropagation();done(okv());}};
     document.addEventListener("keydown",key,true);
-    $("mdOk").onclick=()=>done(okv());
-    const c=$("mdCancel"); if(c)c.onclick=()=>done(null);
+    w.querySelector("#mdOk").onclick=()=>done(okv());
+    const c=w.querySelector("#mdCancel"); if(c)c.onclick=()=>done(null);
     /* 点框外＝取消，和点「取消」一个意思；框里点不到就别响应 */
     w.onmousedown=e=>{if(e.target===w)done(noCancel?true:null);};
-    const i=$("mdIn"); if(i){i.focus();i.select();}
+    const i=w.querySelector("#mdIn"); if(i){i.focus();i.select();}else w.querySelector("#mdOk").focus();
   });
 }
 /* ══ 新手引导 ══
@@ -4680,7 +4855,7 @@ const confirm2=(msg,title)=>modal({title,msg:esc(msg),danger:true}).then(v=>v===
 function hide(){$("pop").classList.remove("on");}
 addEventListener("mousedown",e=>{if(!$("pop").contains(e.target)&&!e.target.closest(".kebab,.jump,.bglayer"))hide();});
 
-function soft(){drawGraph();stat();}
+function soft(){drawGraph();stat();autosave();}
 function refresh(){if(!$("gnodes"))return;                 /* 不在对话页时什么都别画 */
   drawStage();drawGraph();stat();drawBars();drawRail();telem();
   const fm=$("fmeta");
@@ -4712,7 +4887,12 @@ function openSrc(sel){
       if(sel){const t=$("srcPre");t.readOnly=false;t.focus();t.select();t.readOnly=true;}})
     .catch(e=>{$("srcPre").value=String(e.message);});}
 let dlgStamp=null;   /* 打开时文件的修改时间，存盘带回去做乐观锁（见 FileApi /api/dlg） */
+let dlgRoot=null, dlgSaving=false;
 async function saveDlg(force){
+  document.activeElement?.blur();
+  const invalid=document.querySelector("#pop :invalid");
+  if(invalid){invalid.reportValidity();note(T("invalid_trigger"),"dirty");return;}
+  if(dlgSaving)return;
   if(!filePath){note(T("save_nofile"),"dirty");return;}
   /* 没改过就别写：服务端每次落盘都先把 .bak 换成当前内容，干净态再按一次 Ctrl+S 就把唯一一代备份毁了（2026-09-08 审查） */
   if(!dirty){note(T("saved_ok"),"hot");return;}
@@ -4720,20 +4900,31 @@ async function saveDlg(force){
   if(/\.dlg\.demo$/i.test(filePath)){
     const real=filePath.replace(/\.demo$/i,"");
     if(!await confirm2(T("demo_save").replace("{0}",real)))return;
-    filePath=real; dlgStamp=null; const fp=$("fpath"); if(fp)fp.textContent=real;
+    let existing=null;
+    try{existing=await api("/api/dlg?path="+encodeURIComponent(real));}
+    catch(e){if(e.status!==404){note(T("save_fail")+" "+e.message,"dirty");return;}}
+    if(existing){
+      if(existing.root!==dlgRoot){note(T("save_fail")+" workspace_changed","dirty");return;}
+      if(!await confirm2(T("dlg_stale")))return;
+    }
+    filePath=real; dlgStamp=existing?.stamp??null; const fp=$("fpath"); if(fp)fp.textContent=real;
   }
   const snap=docSnap();
-  const url="/api/dlg?path="+encodeURIComponent(filePath)+(dlgStamp!=null?"&stamp="+dlgStamp:"")+(force?"&force=true":"");
+  const savingPath=filePath, savingDoc=doc;
+  const url="/api/dlg?path="+encodeURIComponent(filePath)+(dlgStamp!=null?"&stamp="+encodeURIComponent(dlgStamp):"")+(dlgRoot!=null?"&root="+encodeURIComponent(dlgRoot):"")+(force===true?"&force=true":"");
+  dlgSaving=true;
   try{
     const d=await api(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(docJson())});
-    dlgStamp=d.stamp??dlgStamp;savedText=snap;markDirty(false);note(T("saved_ok"),"hot");
+    if(filePath!==savingPath||doc!==savingDoc)return;
+    dlgStamp=d.stamp??dlgStamp;savedText=snap;markDirty(docSnap()!==snap);note(T(dirty?"q_dirty":"saved_ok"),dirty?"dirty":"hot");
     linksRescan();               /* 选项上挂的任务可能刚被改过，任务页那份挂接表跟着更新 */
   }catch(e){
     const msg=String(e.message||"");
     /* 409：打开之后文件被别处改过（另一个窗口、任务页挂接、记事本）。问一句再盖，别默默盖 */
-    if(/"stale"/.test(msg)){if(await confirm2(T("dlg_stale")))return saveDlg(true);return;}
+    if(/"stale"/.test(msg)&&dlgStamp!=null){dlgSaving=false;if(await confirm2(T("dlg_stale")))return await saveDlg(true);return;}
     if(/bad_text/.test(msg))return note(T("bad_text_save"),"dirty");   /* 顶栏状态条里列着是哪几处 */
-    note(T("save_fail")+" "+msg,"dirty");}}
+    if(/unsafe_source/.test(msg))return note(T("unsafe_source"),"dirty");
+    note(T("save_fail")+" "+msg,"dirty");}finally{dlgSaving=false;}}
 /* 离开页面前拦一下——没有草稿兜底了，改了不存就是真丢。
    四个页面各有各的脏标记（对话 dirty / 任务·章节 qdirty / 服装 bdirty / 货架 adirty），原来只看对话那一个，
    任务改了没存按 F5 直接丢（2026-09-08 审查）。切工程那处（pjOpen）早就是四个一起看的，这里对齐 */
@@ -4749,7 +4940,7 @@ function render(){
     m.querySelectorAll(".cart [data-trig]").forEach(b=>b.onclick=e=>trigMenu(e.currentTarget));
     m.querySelectorAll(".cart [data-tab]").forEach(b=>b.onclick=e=>tabMenu(e.currentTarget));
     m.querySelectorAll(".cart [data-compat]").forEach(b=>b.onclick=e=>compatPane(e.currentTarget));
-    $("saveBtn").onclick=saveDlg;
+    $("saveBtn").onclick=()=>saveDlg();
     $("openBtn").onclick=openPicker;
     $("vfold").onclick=()=>{
       const w=document.querySelector(".work");w.classList.toggle("folded");
@@ -5185,11 +5376,13 @@ function listDir(dir){
 /* gotoNode：打开后直接停在某个节点上。任务编辑器"点挂接行跳过来"就靠它 */
 async function loadDoc(path,gotoNode){
   if(dirty&&!await confirm2(T("confirm_discard")))return;
-  api("/api/dlg?path="+encodeURIComponent(path)).then(d=>{
+  return api("/api/dlg?path="+encodeURIComponent(path)).then(d=>{
     doc=parseDlg(d.text);filePath=d.path;relaid=false;savedText="";
+    tl="";addedLangs=new Set();                      /* 语言页签回到「默认」：那是视图状态，不跟文件走 */
     /* 空文件（帮助页教的起手法：建个空文本改名 .dlg）：没有节点整条渲染链会在 curBg() 上抛，半页空白零提示。补一个入口节点 */
-    if(!Object.keys(doc.nodes).length){doc.start=doc.start||"root";doc.nodes[doc.start]={x:40,y:40,bg:"",narr:[],npc:"",opts:[]};doc.order=[doc.start];}
+    if(!Object.keys(doc.nodes).length){doc.start=/^[A-Za-z0-9_]+$/.test(doc.start||"")?doc.start:"root";doc.nodes[doc.start]={x:40,y:40,bg:"",narr:[],npc:"",opts:[]};doc.order=[doc.start];}
     dlgStamp=d.stamp??null;                          /* 存盘时带回去做乐观锁 */
+    dlgRoot=d.root??null;
     TRIG=triggerEntries();
     COMPAT=compatScan(d.text);                       /* 旧版写法自动认一下 */
     cur=gotoNode&&doc.nodes[gotoNode]?gotoNode
@@ -5222,6 +5415,7 @@ function place2(html){
   else{p.style.left=Math.max(m,(innerWidth-w)/2)+"px";p.style.top="76px";}
   return p;}</script>
 
+<script src="/ui/compat.js"></script>
 <script src="/ui/quest.js"></script>
 <script src="/ui/chapter.js"></script>
 <script src="/ui/modroot.js"></script>

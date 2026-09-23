@@ -29,11 +29,22 @@ public sealed class Customization
 
     readonly string _sptDb, _modDb;
     List<LookRow>? _rows;
+    string? _revision;
 
     public Customization(string sptDatabaseDir, string modDbDir)
     { _sptDb = sptDatabaseDir; _modDb = modDbDir; }
 
     public List<LookRow> Rows() => _rows ??= LoadSpt().Concat(ModLooks.Scan(_modDb)).ToList();
+
+    public void Refresh()
+    {
+        var files = new[] { "CustomClothing", "CustomHeads", "CustomVoices" }.Select(d => Path.Combine(_modDb, d))
+            .Where(Directory.Exists).SelectMany(d => Directory.GetFiles(d, "*.json", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }));
+        var revision = ReadOnlyJson.Revision(files.Concat(new[] { Path.Combine(_sptDb, "templates", "customization.json"),
+            Path.Combine(_sptDb, "locales", "global", "ch.json"), Path.Combine(_sptDb, "locales", "global", "en.json") }));
+        if (_revision == revision) return;
+        _revision = revision; _rows = null;
+    }
 
     /// <summary>
     /// SPT 那张原生外观表读到了没有。
@@ -56,7 +67,8 @@ public sealed class Customization
         if (!File.Exists(p)) return list;
         var zh = Names("ch");
         var en = Names("en");
-        using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+        using var doc = ReadOnlyJson.Read(p);
+        if (doc?.RootElement.ValueKind != JsonValueKind.Object) return list;
         foreach (var e in doc.RootElement.EnumerateObject())
         {
             if (e.Value.ValueKind != JsonValueKind.Object) continue;
@@ -76,7 +88,8 @@ public sealed class Customization
         var p = Path.Combine(_sptDb, "locales", "global", lang + ".json");
         if (!File.Exists(p)) return d;
         // 这些文件里有只差大小写的重复键，JsonObject 会抛；JsonDocument + TryAdd 保留先出现的
-        using var doc = JsonDocument.Parse(JsonBytes.Read(p));
+        using var doc = ReadOnlyJson.Read(p);
+        if (doc?.RootElement.ValueKind != JsonValueKind.Object) return d;
         foreach (var e in doc.RootElement.EnumerateObject())
             if (e.Value.ValueKind == JsonValueKind.String) d.TryAdd(e.Name, e.Value.GetString()!);
         return d;

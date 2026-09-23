@@ -20,8 +20,9 @@ public static class QuestApi
     static SptData Spt(Workspace ws)
     {
         var cur = _spt;
-        if (cur is { } c && c.Path == ws.SptData) return c.Data;
+        if (cur is { } c && c.Path == ws.SptData) { c.Data.Refresh(); return c.Data; }
         var made = (ws.SptData, new SptData(ws.SptData));
+        made.Item2.Refresh();
         _spt = made;
         return made.Item2;
     }
@@ -102,12 +103,12 @@ public static class QuestApi
             var modDir = QuestImages.ModDir(ws.QuestDb);
             return Results.Json(new
             {
-                spt = new { dir = sptDir, files = QuestImages.List(sptDir) },
+                spt = new { dir = Path.GetDirectoryName(sptDir), files = QuestImages.Routes(sptDir) },
                 mod = new
                 {
-                    dir = modDir,
+                    dir = Path.GetDirectoryName(modDir),
                     name = QuestImages.ModName(ws.QuestDb),
-                    files = QuestImages.List(modDir),
+                    files = QuestImages.Routes(modDir),
                     // VisitAPI-Server 会替作者注册；别的模组得自己调 AddRoute，界面据此提示
                     registers = QuestImages.Registers(ws.QuestDb),
                 },
@@ -138,15 +139,21 @@ public static class QuestApi
         app.MapGet("/api/quests", () =>
         {
             if (!ws.HasQuestDb) return Results.Json(new { ok = false, dir = ws.QuestDb });
+            var stamp = Stamp(ws);
             var (quests, loc) = Load(ws);
+            if (stamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
             var spt = Spt(ws);
             var (traders, known) = AllTraders(ws, spt, quests);
             return Results.Json(new
             {
                 ok = true,
                 dir = ws.QuestDb,
-                stamp = Stamp(ws),
+                stamp,
                 files = quests.Files.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+                rawFiles = quests.Files,
+                brokenFiles = quests.Broken.Keys,
+                visitApiDb = QuestImages.Registers(ws.QuestDb),
+                zones = QuestZones.Scan(ws.QuestDb).Zones,
                 owner = quests.Owner,
                 // 不能用 ToDictionary：同一个 id 出现在两个文件里它会直接抛，
                 // 而那正是 dup_id 那条校验要提示的场景 —— 用户会拿到 500 而不是一句人话。
@@ -168,14 +175,14 @@ public static class QuestApi
         app.MapGet("/api/quests/items", () =>
         {
             var spt = Spt(ws);
-            if (!spt.Ok) return Results.Json(new { ok = false, cats = Array.Empty<object>(), items = Array.Empty<object>() });
-            var (cats, items) = spt.Handbook();
+            var (cats, items) = spt.Ok ? spt.Handbook() : (new List<CatRow>(), new List<ItemRow>());
             // 模组离线注册的物品接在原版表后面（WTT CustomItems 约定，见 ModItems），带 mod 字段；已在原版表里的 id 不重复列。
             // 中英名缺一边就拿另一边顶：选择器两列都得有字，别露 24 位 hex
             var known = items.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var mod = ModItems.Scan(ws.EftRoot).Where(m => known.Add(m.Id))
                 .Select(object (m) => new { id = m.Id, cat = m.Cat, zh = m.Zh.Length > 0 ? m.Zh : m.En, en = m.En.Length > 0 ? m.En : m.Zh, price = m.Price, mod = m.Mod });
-            return Results.Json(new { ok = true, cats, items = items.Select(object (i) => i).Concat(mod) });
+            var rows = items.Select(object (i) => i).Concat(mod).ToArray();
+            return Results.Json(new { ok = spt.Ok || rows.Length > 0, cats, items = rows });
         });
 
         // Kills 目标的 savageRole 选项。**从原版任务里提取**而不是列 bots\types 目录 ——
@@ -202,14 +209,19 @@ public static class QuestApi
         // .dlg 住在工作区（ws.Root），任务住在 QuestDb，是两个根，别搞混
         app.MapGet("/api/quests/links", () =>
         {
-            if (!ws.HasRoot) return Results.Json(new { ok = false });
+            var native = NativeDialogues.Scan(ws.QuestDb, ws.SptData);
+            if (!ws.HasRoot && !QuestImages.Registers(ws.QuestDb)) return Results.Json(new { ok = false });
+            var stamp = ws.HasRoot ? FileStamp.Files(ws.Root, DlgLinks.Files(ws.Root)) : null;
             var (links, trigs, broken, _) = DlgLinks.Scan(ws.Root);
+            var nodes = Nodes(ws.Root);
+            if (ws.HasRoot && stamp != FileStamp.Files(ws.Root, DlgLinks.Files(ws.Root)))
+                return Results.Json(new { error = "stale" }, statusCode: 409);
             return Results.Json(new
             {
                 ok = true,
                 files = DlgLinks.Files(ws.Root).Select(Path.GetFileName),
                 links, triggers = trigs, broken,
-                nodes = Nodes(ws.Root),
+                nodes, stamp, canAttach = ws.HasRoot, native,
             });
         });
 
@@ -217,8 +229,13 @@ public static class QuestApi
         {
             if (!ws.HasRoot) return Results.BadRequest(new { error = "no_workspace" });
             // 文件名走 SafeName 牢笼：.dlg 只在工作区根下，不该出现路径（含 C:x.dlg 这种盘符相对路径）
-            if (!SafeName.Ok(r.File) || !r.File.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase))
+            if (!SafeName.Ok(r.File) || !r.File.EndsWith(".dlg", StringComparison.OrdinalIgnoreCase)
+                || Path.GetFileNameWithoutExtension(r.File).Length != 24)
                 return Results.BadRequest(new { error = "bad_name", name = r.File });
+            // 快照必须是 /api/quests/links 刚给的那份（整个工作区的 .dlg 指纹）：别处改过任何一份就先刷新再挂，别拿旧选项序号往错的行上写。
+            // 先验请求形状再验快照：坏请求不管快照新旧都是 400
+            if (r.Stamp == null || r.Stamp != FileStamp.Files(ws.Root, DlgLinks.Files(ws.Root)))
+                return Results.Json(new { error = "stale" }, statusCode: 409);
             // 解析失败（作者手写坏的 .dlg）不许 500：兄弟调用 Scan 有 broken 机制，这里同口径回一句
             string? err;
             try { err = DlgLinks.Apply(ws.Root, r.File, r.Node, r.Opt, r.Action, r.QuestId, r.Add); }
@@ -259,7 +276,7 @@ public static class QuestApi
                 o.HandoverId != null ? "handover" : null, o.SetStatusId != null ? "setstatus" : null }
         .Where(x => x != null).ToArray()!;
 
-    public sealed record LinkReq(string File, string Node, int Opt, string Action, string QuestId, bool Add);
+    public sealed record LinkReq(string File, string Node, int Opt, string Action, string QuestId, bool Add, string? Stamp = null);
     public sealed record RootReq(string Path);
     public sealed record AckReq(string Id, bool On);
 
@@ -288,17 +305,20 @@ public static class QuestApi
     static string Stamp(Workspace ws)
     {
         var dirs = new[] { Path.Combine(ws.QuestDb, "quests"), Path.Combine(ws.QuestDb, "locales") };
-        var parts = dirs.Where(Directory.Exists)
-            .SelectMany(d => Directory.GetFiles(d, "*.json"))
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-            .Select(f => $"{Path.GetFileName(f)}:{new FileInfo(f).LastWriteTimeUtc.Ticks}");
-        return string.Join("|", parts);
+        return FileStamp.Files(ws.QuestDb, dirs.Where(Directory.Exists).SelectMany(d => Directory.GetFiles(d, "*.json")));
     }
 
     static IResult Save(Workspace ws, SaveReq r)
     {
         if (!ws.HasQuestDb) return Results.BadRequest(new { error = "no_quest_db", dir = ws.QuestDb });
-        if (!r.Force && r.Stamp != null && r.Stamp != Stamp(ws))
+        // 先验请求形状再验快照：文件名不合规的请求不管快照新旧都是 400（下面那道更全的检查要先读盘，这里只是提前拦）
+        foreach (var name in (r.Files ?? []).Keys)
+            if (!SafeName.Ok(name) || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "bad_name", name });
+        if (r.Stamp != null && !FileStamp.SameRoot(r.Stamp, ws.QuestDb))
+            return Results.Json(new { error = "workspace_changed" }, statusCode: 409);
+        var acceptedStamp = Stamp(ws);
+        if (r.Stamp == null || (!r.Force && r.Stamp != acceptedStamp))
             return Results.Json(new { error = "stale" }, statusCode: 409);
 
         var (quests, loc) = Load(ws);
@@ -312,20 +332,40 @@ public static class QuestApi
 
         foreach (var (name, content) in r.Files ?? [])
         {
+            if (quests.Broken.ContainsKey(name)) return Results.BadRequest(new { error = "broken_file", name });
+            var clash = quests.Files.Keys.Concat((r.Files ?? []).Keys)
+                .FirstOrDefault(k => k != name && k.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (clash != null) return Results.BadRequest(new { error = "bad_name", name, existing = clash });
             // 文件名走 SafeName 牢笼（不带目录、不许 ..、不许盘符相对路径/ADS/尾点）
             if (!SafeName.Ok(name) || !name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_name", name });
             if (ws.ResolveQuest(Path.Combine("quests", name)) == null)
                 return Results.BadRequest(new { error = "bad_name", name });
-            quests.Files[name] = content;
+            var value = content;
+            if (r.BaseFiles?.TryGetValue(name, out var baseline) == true && quests.Files.TryGetValue(name, out var original))
+                value = (JsonObject)JsonPreserve.Merge(original, baseline, content)!;
+            else if (quests.Files.TryGetValue(name, out var old))
+                foreach (var (key, item) in old.Where(p => p.Value is not JsonObject && !value.ContainsKey(p.Key)))
+                    value[key] = item?.DeepClone();
+            JsonPreserve.Parse(value.ToJsonString());
+            quests.Files[name] = value;
         }
         foreach (var (lang, content) in r.Locales ?? [])
-            if (LocaleStore.Known.Contains(lang)) loc.Langs[lang] = content;
+            if (LocaleStore.Known.Contains(lang))
+            {
+                var value = r.BaseLocales?.TryGetValue(lang, out var baseline) == true
+                    ? (JsonObject)JsonPreserve.Merge(loc.Langs[lang], baseline, content)! : content;
+                JsonPreserve.Parse(value.ToJsonString());
+                loc.Langs[lang] = value;
+            }
 
         // 只写这次送来的文件。盘上有、但请求里没有的文件不动 ——
         // 删任务不能靠"没发过来"来推断，界面要**明确送一个空对象**表示"这份文件空了"（见 SaveFile）。
-        foreach (var name in (r.Files ?? []).Keys) quests.SaveFile(name);
-        if (r.Locales is { Count: > 0 }) loc.SaveAll(r.Locales.Keys);   // 只写送来的语言，别给没动的也刷一份 .bak
+        var batch = new FileBatch();
+        foreach (var name in (r.Files ?? []).Keys) quests.SaveFile(name, batch);
+        if (r.Locales is { Count: > 0 }) loc.SaveAll(r.Locales.Keys, batch);
+        if (acceptedStamp != Stamp(ws)) return Results.Json(new { error = "stale" }, statusCode: 409);
+        batch.Commit();
 
         var (fresh, freshLoc) = Load(ws);
         var (_, known) = AllTraders(ws, Spt(ws), fresh);
@@ -345,7 +385,7 @@ public static class QuestApi
     {
         IReadOnlySet<string>? acc = null, com = null;
         List<DlgLinks.DlgBadId> dlgBad = [];
-        if (ws.HasRoot)
+        if (ws.HasRoot || QuestImages.Registers(ws.QuestDb))
             try
             {
                 var (links, trigs, _, bad) = DlgLinks.Scan(ws.Root);
@@ -354,22 +394,46 @@ public static class QuestApi
                 dlgBad = bad;
                 // 触发点也是入口/出口：`trigger: … accept X` 和 `… finish X` 与对话选项等价，
                 // 漏算的话，用触发点开场的剧本会被误判成"玩家接不到这条任务"
-                acc = links.Where(l => l.Action == "accept").Select(l => l.QuestId)
-                    .Concat(trigs.Where(t => t.Accept != null).Select(t => t.Accept!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                com = links.Where(l => l.Action == "complete").Select(l => l.QuestId)
-                    .Concat(trigs.Where(t => t.Finish != null).Select(t => t.Finish!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var native = NativeDialogues.Scan(ws.QuestDb, ws.SptData);
+                acc = links.Where(l => l.Action == "accept" || l.Action == "setstatus" && l.Status == 2).Select(l => l.QuestId)
+                    .Concat(trigs.Where(t => t.Accept != null).Select(t => t.Accept!))
+                    .Concat(native.Links.Where(l => l.Action == "AcceptQuest").Select(l => l.QuestId)).ToHashSet(StringComparer.Ordinal);
+                com = links.Where(l => l.Action == "complete" || l.Action == "setstatus" && l.Status == 4).Select(l => l.QuestId)
+                    .Concat(trigs.Where(t => t.Finish != null).Select(t => t.Finish!))
+                    .Concat(native.Links.Where(l => l.Action == "FinishQuest").Select(l => l.QuestId)).ToHashSet(StringComparer.Ordinal);
             }
             catch { }
         // 原版任务 id 兜底 missing_prereq：没有 SPT 数据就传 null，那条规则自动降成提示
         var spt = Spt(ws);
         var areas = spt.Ok ? spt.Areas() : [];   // 设备表空着（没 SPT 文案）就传 null：扫不到 ≠ 不存在，别把每条 HideoutArea 都报成坏号
         var maps = spt.Ok ? spt.Exits().Select(e => e.Map).ToList() : [];   // 地图短 id 表（bad_transit_map 用），同一口径：空着就不查
-        return QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), spt.Ok ? spt.QuestIds() : null, areas.Count > 0 ? areas : null, maps.Count > 0 ? maps : null);
+        var ours = QuestImages.Registers(ws.QuestDb);
+        var zoneData = QuestZones.Scan(ws.QuestDb);
+        // 工作区里有 .dlg 的商人（文件名 = 商人 id）：unlockDialogue 对他们不管用，校验要点名
+        var dlgTraders = ws.HasRoot ? DlgLinks.Files(ws.Root).Select(f => Path.GetFileNameWithoutExtension(f)!).ToHashSet(StringComparer.OrdinalIgnoreCase) : null;
+        // 兄弟包（09-23）：同一模组别的包里的任务，插件会合起来加载——前置指过去不算「找不到」（并进原版 id 表），同 id 两边都有另报 dup_id_pack
+        var siblings = PackSiblings.QuestIds(ws.QuestDb);
+        var vanilla = spt.Ok ? spt.QuestIds() : null;
+        var knownIds = vanilla == null || siblings.Count == 0 ? vanilla : new HashSet<string>(vanilla.Concat(siblings.Keys), StringComparer.OrdinalIgnoreCase);
+        var issues = QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), knownIds, areas.Count > 0 ? areas : null, maps.Count > 0 ? maps : null, ours,
+            ours ? zoneData.Zones : null, ours ? QuestZones.StockReferences(ws.SptData) : null, dlgTraders, siblings.Count > 0 ? siblings : null);
+        // db\locales 里 SPT 不认识的语言文件（zh.json / in.json…）：插件加载每条任务都报错，章节子任务借章节名那一步也断。
+        // 只拿这台 SPT 真有的语言表比，没有 SPT 数据就不查（扫不到 ≠ 不存在）
+        var langs = spt.Ok ? spt.GlobalLangs() : null;
+        var locDir = Path.Combine(ws.QuestDb, "locales");
+        if (langs is { Count: > 0 } && Directory.Exists(locDir))
+            foreach (var f in Directory.GetFiles(locDir, "*.json"))
+                if (!langs.Contains(Path.GetFileNameWithoutExtension(f))) issues.Add(new Issue("err", "", "bad_locale_file", [Path.GetFileName(f)]));
+        issues.AddRange(zoneData.Broken.Select(b => new Issue("warn", "", "zone_file_broken", [b.Key, b.Value])));
+        issues.AddRange(NativeDialogues.Scan(ws.QuestDb, ws.SptData).Broken.Select(b => new Issue("warn", "", "native_dialogue_broken", [b.Key, b.Value])));
+        return issues;
     }
 
     public sealed record SaveReq(
         string? Stamp,
         bool Force,
         Dictionary<string, JsonObject>? Files,
-        Dictionary<string, JsonObject>? Locales);
+        Dictionary<string, JsonObject>? Locales,
+        Dictionary<string, JsonObject>? BaseFiles = null,
+        Dictionary<string, JsonObject>? BaseLocales = null);
 }

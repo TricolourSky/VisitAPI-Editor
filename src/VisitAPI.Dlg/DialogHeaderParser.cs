@@ -10,14 +10,30 @@ internal static class DialogHeaderParser
         var qa = Regex.Match(line, @"^quest\s+(\S+)\s*=\s*(\S+)$", RegexOptions.IgnoreCase);
         if (qa.Success)
         {
+            if (t.QuestAliasOrder.Contains(qa.Groups[1].Value)) DialogParser.Loss(t, ln, "duplicate alias: " + qa.Groups[1].Value);
             t.QuestAliases[qa.Groups[1].Value] = qa.Groups[2].Value;
             t.QuestAliasOrder.Add(qa.Groups[1].Value);
             t.HeadRaw.Add(new HeadLine { Kind = "quest", Index = t.QuestAliasOrder.Count - 1 });
             return;
         }
+        // 译文行（DialogLangs）：挂到紧挨着的上一行——trigger: 的提示语或 trader: 的名字。别的位置没东西可翻：原文留住、给警告
+        if (DialogLangs.TryMatch(line, out var lang, out var text))
+        {
+            var h = t.HeadRaw.Count > 0 ? t.HeadRaw[t.HeadRaw.Count - 1] : null;
+            var tr = h?.Kind == "trigger" && h.Index < t.Triggers.Count ? t.Triggers[h.Index].Tr : h?.Kind == "trader" ? t.NameTr : null;
+            if (tr == null || text.Length == 0 || tr.ContainsKey(lang))
+            {
+                t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 这条译文挂不上（上一行不是 trigger: / trader:，或同一语言写了两次），按原样留着", $"Line {ln}: translation has nothing to attach to (previous line is not trigger:/trader:, or the language repeats); kept as is"));
+                t.HeadRaw.Add(new HeadLine { Kind = "raw", Raw = line });
+            }
+            else tr[lang] = text;
+            return;
+        }
         var kv = line.Split(new[] { ':' }, 2);
         var v = kv.Length > 1 ? kv[1].Trim() : "";
         var key = kv[0].Trim().ToLowerInvariant();
+        if (Array.IndexOf(new[] { "trader", "start", "first", "actor", "scene", "tab" }, key) >= 0 &&
+            t.HeadRaw.Exists(h => h.Kind == key)) DialogParser.Loss(t, ln, "duplicate header: " + key);
         // 先记下这一行占的位置；下标要在列表 Add 之前取（trigger/when 的解析在下面才发生）
         t.HeadRaw.Add(new HeadLine
         {
@@ -33,7 +49,8 @@ internal static class DialogHeaderParser
             // 头一行就会写成 `trader:  "SORA"` —— id 被洗掉，文件直接废。
             // 编辑器这边就是这么用的，第一次接对话挂接时正好踩到。
             case "trader":
-                t.DisplayName = Regex.Match(v, "\"(.*)\"").Groups[1].Value;
+                var display = Regex.Match(v, "\"(.*)\"");
+                t.DisplayName = display.Success ? display.Groups[1].Value : null;
                 if (string.IsNullOrEmpty(t.TraderId))
                 {
                     var id = Regex.Match(v, @"^\s*(\S+)").Groups[1].Value;
@@ -58,8 +75,12 @@ internal static class DialogHeaderParser
             case "when":
                 var w = Regex.Match(v, @"^(.*?)\s*->\s*(\S+)$");
                 var rule = new WhenRule { Node = w.Groups[2].Value };
-                foreach (Match c in Regex.Matches(w.Groups[1].Value, @"(level|standing)\s*(>=|<=)\s*([-+\d.]+)"))
+                const string condPattern = @"(level|standing)\s*(>=|<=)\s*([-+\d.]+)";
+                foreach (Match c in Regex.Matches(w.Groups[1].Value, condPattern))
                     rule.Conds.Add(new WhenCond { Field = c.Groups[1].Value, LessEq = c.Groups[2].Value == "<=", Value = DialogParser.Num(c.Groups[3].Value) });
+                if (Regex.Replace(w.Groups[1].Value, condPattern, "").Trim().Length > 0 ||
+                    System.Linq.Enumerable.Any(System.Linq.Enumerable.Cast<Match>(Regex.Matches(w.Groups[1].Value, condPattern)), c => !DialogParser.TryNum(c.Groups[3].Value, out _)))
+                    DialogParser.Loss(t, ln, "invalid when condition");
                 if (w.Success && rule.Conds.Count > 0) t.WhenRules.Add(rule);
                 else { t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: when 无法解析 '{v}'", $"Line {ln}: cannot parse when '{v}'")); KeepRaw(t, line); }
                 break;

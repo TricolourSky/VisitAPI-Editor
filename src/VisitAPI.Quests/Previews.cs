@@ -37,7 +37,7 @@ public static class Previews
     public static string? Resolve(string modDb, string id)
     {
         if (modDb.Length == 0 || string.IsNullOrWhiteSpace(id)) return null;
-        if (id.Contains('/') || id.Contains('\\') || id.Contains("..")) return null;
+        if (!SafeName.Ok(id)) return null;
         foreach (var e in Ext)
         {
             var p = Path.Combine(modDb, Dir, id + e);

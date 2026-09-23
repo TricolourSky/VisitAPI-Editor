@@ -10,7 +10,7 @@ public sealed record Issue(string Level, string QuestId, string Code, string[] A
 /// 上一版原型是 JS 里写的，真代码再抄一份就又是"两个 writer"那种同步债 ——
 /// .dlg 的回写已经因为这个丢过一次数据，不再犯。
 /// </summary>
-public static class QuestValidator
+public static partial class QuestValidator
 {
     /// <summary>SPT 的 QuestTypeEnum（反编译 SPTarkov.Server.Core.dll 得到），去掉 Arena 那三个。</summary>
     public static readonly string[] Types =
@@ -24,7 +24,9 @@ public static class QuestValidator
     public static List<Issue> Run(QuestStore quests, LocaleStore loc, IReadOnlySet<string> knownTraders,
                                   IReadOnlySet<string>? dlgAccept = null, IReadOnlySet<string>? dlgComplete = null,
                                   IEnumerable<(string File, string Id)>? dlgBadIds = null, IReadOnlySet<string>? vanillaQuests = null,
-                                  IReadOnlyList<AreaRow>? areas = null, IReadOnlyCollection<string>? transitMaps = null)
+                                  IReadOnlyList<AreaRow>? areas = null, IReadOnlyCollection<string>? transitMaps = null,
+                                  bool visitApiDb = false, IReadOnlyList<QuestZone>? zones = null, IReadOnlySet<string>? stockZones = null,
+                                  IReadOnlySet<string>? dlgTraders = null, IReadOnlyDictionary<string, string>? siblingQuests = null)
     {
         var all = quests.All().ToList();
         var ids = all.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -52,10 +54,14 @@ public static class QuestValidator
             void Warn(string code, params string[] a) => out_.Add(new Issue("warn", id, code, a));
 
             if (!IsMongoId(id)) Err("bad_id", id);
-            // isStoryQuest 是 1.1 的字段（插件 1.3 认）：1.1 的剧情任务 successMessageText 本来就是空串（服务端对「没正文且没物品」的邮件不寄），
-            // 名字为空时服务端拿章节名顶上。所以这两条对剧情任务降级：文案空只提示、没名字不报
-            var story = Bool(q, "isStoryQuest");
-            if (Text(loc, q, "successMessageText").Length == 0) { if (story) Warn("no_success_msg"); else Err("no_success_msg"); }
+            // 同一模组的另一个内容包里也有这条 id（09-23）：插件加载时先来的赢、后来的整条跳过，两边只能留一份
+            if (siblingQuests != null && siblingQuests.TryGetValue(id, out var otherPack)) Warn("dup_id_pack", otherPack);
+            // isStoryQuest 是 1.1 的字段（插件 1.3 认）：1.1 的剧情任务 successMessageText 本来就是空串（服务端只对剧情任务压「没物品」的信，
+            // 别的任务只压「没正文且没物品」的），名字为空时服务端拿章节名顶上。所以这两条对剧情任务降级：文案空只提示、没名字不报
+            var story = Bool(q, "isStoryQuest") || Bool(q, "notDisplayedQuest");
+            if (!visitApiDb && !story && Text(loc, q, "successMessageText").Length == 0) Err("no_success_msg");
+            Compatibility(id, q, loc, visitApiDb, Err, Warn);
+            CheckZones(q, zones, stockZones, dlgComplete?.Contains(id) == true, Err, Warn);
             if (Conds(q, "AvailableForFinish").Count == 0) Err("no_objectives");
             var vx = q["visitapi"] as JsonObject;   // 一律 as JsonObject：`"visitapi": true` 这种脏数据不能让整页 500
             // anyOf：true = 全部目标任一达成即可交；数组 = 「二选一组」的目标 id（09-10，插件同日改：组内任一达成算组达成、组外照旧全要）。
@@ -72,11 +78,14 @@ public static class QuestValidator
             if ((q["conditions"] as JsonObject)?.ContainsKey("AutoStart") == true) Err("cond_autostart_bucket");
 
             // 章节系统（Rework DEV_NOTES #70/#71）：章节的子任务就是它目标里的「完成任务」；日记 id 必须是 24 位 hex 且要有正文
-            if (Bool(vx, "chapter")) Chapter(q, vx!, all, Err, Warn);
+            if (Bool(vx, "chapter")) Chapter(id, q, vx!, all, dlgAccept, Err, Warn);
             // 剧情任务不进支线/商人列表（插件 StoryList），子任务的接/交只剩自动开关和 .dlg 两条路——两条都没有就是死任务
-            // 剧情任务的横幅由 VisitAPI 出，原生那条必须闭嘴，否则接/交时双响（Rework DEV_NOTES #64/#71）
-            if ((Bool(vx, "chapter") || subIds.Contains(id) || story) && Bool(q, "canShowNotificationsInGame"))
-                Warn("story_native_notify");
+            if (Bool(q, "notDisplayedQuest") && Bool(q, "canShowNotificationsInGame")) Warn("hidden_notify");
+            // 1.1 剧情标记打在章外的单独任务上：插件把它当剧情家族——不进商人列表、原生横幅被拦、又没有章节横幅，接/交/完成全程无声（1.3.3 核过）
+            if (Bool(q, "isStoryQuest") && !Bool(vx, "chapter") && !subIds.Contains(id) && !Bool(q, "notDisplayedQuest")) Warn("story_outside_chapter");
+            // 新建任务落的占位文案（q_new_* / ch_new_name，中英各一份）：是「还没写」，不是写好了——按空白处理并点名（1.3.3）
+            foreach (var field in new[] { "name", "description", "successMessageText" })
+                if (Str(q, field) is { Length: > 0 } pk && LocaleStore.Known.Any(l => Placeholders.Contains(loc.Get(l, pk) ?? ""))) Warn("placeholder_text", field);
             // 死锁：子任务把"自己所在的章节"当成前置。章节要等所有子任务成功才算成功，
             // 子任务又要等章节成功才接得到 —— 两边互相等，永远开不了（实机踩过）。
             // 原生前置在战局内根本不重算（没满足的任务服务端压根不下发，任务书里查不到），
@@ -85,13 +94,16 @@ public static class QuestValidator
             var startAfter = Str(vx, "startAfter");
             var owners = chapterOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var sibs = siblingsOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // 同一条任务挂进两个章节：插件只按其中一章算门控和剧情页归属（QuestFlags 一条任务一个章节），另一章里它永远打不上勾
+            if (owners.Count > 1) Warn("sub_two_chapters");
             // 定时联系（插件 Dev_Note #132，迷宫章「等待 Jaeger 找来钥匙卡」）：兄弟子任务当原生前置**且带 availableAfter** 是唯一能定时的写法
             // （SPT 起定时器靠的就是原生前置），不算「一局之内解不开」的那种错；没带定时的兄弟原生前置照旧红
             var timed = Conds(q, "AvailableForStart")
                 .Where(c => Str(c, "conditionType") == "Quest" && c["availableAfter"] is JsonValue av && av.TryGetValue<double>(out var sec) && sec > 0)
                 .Select(c => Str(c, "target")).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var deadlockSaid = false;   // 原生前置和 startAfter 都指着所在章节时只报一次，别一条脏数据两行同码
-            foreach (var t in QuestRefs(Conds(q, "AvailableForStart")).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var t in QuestRefs(Conds(q, "AvailableForStart").Where(c =>
+                c["status"] is not JsonArray st || !st.Any(s => s is JsonValue v && v.TryGetValue<int>(out var n) && n is 2 or 3)).ToList()).Distinct(StringComparer.OrdinalIgnoreCase))
                 if (owners.Contains(t)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
                 else if (startAfter.Length > 0) Err("startafter_with_prereq", Cut(t));
                 else if (sibs.Contains(t) && !timed.Contains(t)) Err("sub_prereq_is_sub", Cut(t));
@@ -109,10 +121,9 @@ public static class QuestValidator
                     }
                     return false;
                 }
-                if (!ids.Contains(startAfter) || startAfter.Equals(id, StringComparison.OrdinalIgnoreCase)) Err("startafter_bad", Cut(startAfter));
+                if (startAfter.Equals(id, StringComparison.OrdinalIgnoreCase) || (!ids.Contains(startAfter) && vanillaQuests != null && !vanillaQuests.Contains(startAfter))) Err("startafter_bad", Cut(startAfter));
                 else if (owners.Contains(startAfter)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
                 else if (Loops(startAfter)) Err("startafter_cycle", Cut(startAfter));
-                else if (!sibs.Contains(startAfter)) Warn("startafter_outside", Cut(startAfter));
                 if (Bool(vx, "dialogOnly")) Warn("startafter_dialogonly");
             }
             if (subIds.Contains(id) && !Bool(vx, "chapter"))
@@ -123,6 +134,7 @@ public static class QuestValidator
             var noteIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var n in (q["notes"] as JsonObject) ?? new JsonObject())
             {
+                if (n.Value == null) continue;
                 var nid = n.Value is JsonValue nv && nv.TryGetValue<string>(out var ns) ? ns : "";
                 if (!IsMongoId(nid)) Err("bad_note_id", n.Key);
                 else if (!LocaleStore.Known.Any(l => !string.IsNullOrWhiteSpace(loc.Get(l, nid)))) Warn("note_no_text", n.Key);
@@ -169,6 +181,8 @@ public static class QuestValidator
                 var tid = u is JsonValue uv && uv.TryGetValue<string>(out var us) ? us : "";
                 if (!IsMongoId(tid)) Err("bad_unlock_trader", tid);
                 else if (knownTraders.Count > 0 && !knownTraders.Contains(tid)) Warn("unlock_unknown_trader", Cut(tid));
+                // 有 .dlg 的商人，「访问」按钮只看它文件头的 tab:（TalkButton.TabPasses）；unlockDialogue 对他只压住金色电话，按钮照旧
+                else if (dlgTraders?.Contains(tid) == true) Warn("unlock_dlg_trader", Cut(tid));
             }
             // 章节显示顺序 visitapi.order：有就得是数字（插件按 double 读，别的类型整条当没标）
             if (vx?["order"] is JsonNode on && !(on is JsonValue ov && ov.TryGetValue<double>(out _))) Err("bad_order");
@@ -179,17 +193,17 @@ public static class QuestValidator
                 var tpl = raw.StartsWith("craft:") || raw.StartsWith("offer:") ? raw[6..] : raw;
                 if (!IsMongoId(tpl)) Err("bad_item", it?.ToString() ?? "");
             }
-            if (Text(loc, q, "description").Length == 0) Warn("no_desc");
-            if (!story && Text(loc, q, "name").Length == 0) Warn("no_name");
+            if (!story && Text(loc, q, "description").Length == 0) Warn("no_desc");
+            if (!story && !(visitApiDb && subIds.Contains(id)) && Text(loc, q, "name").Length == 0) Warn("no_name");
 
             var type = Str(q, "type");
-            if (type.Length > 0 && !Types.Contains(type)) Warn("bad_type", type);
+            if (type.Length > 0 && !Types.Contains(type)) Err("bad_type", type);
 
             var trader = Str(q, "traderId");
             if (!IsMongoId(trader)) Err("bad_trader", trader);
             else if (knownTraders.Count > 0 && !knownTraders.Contains(trader)) Warn("unknown_trader", trader);
 
-            if (Conds(q, "Fail").Count > 0 && Text(loc, q, "failMessageText").Length == 0)
+            if (!visitApiDb && !story && Conds(q, "Fail").Count > 0 && Text(loc, q, "failMessageText").Length == 0)
                 Warn("fail_no_msg");
 
             // 前置指向的任务：本库里没有 → 原版里有就算数（作者接在原版任务后面是最常见的写法）；
@@ -218,19 +232,26 @@ public static class QuestValidator
         foreach (var g in all.GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
             out_.Add(new Issue("err", g.Key, "dup_id", [string.Join(", ", g.Select(x => x.File))]));
 
+        IdentityAndCycles(all, vanillaQuests, out_);
         return out_;
     }
 
-    /// <summary>章节本身的规则（Rework DEV_NOTES #70/#71 的数据模型）：有子任务、隐秘、末条 isFinisher、有图标/横幅、不套章节。</summary>
-    static void Chapter(JsonObject q, JsonObject vx, List<(string Id, string File, JsonObject Quest)> all,
+    /// <summary>新建任务 / 章节时落下的占位文案（index.html 的 q_new_name / q_new_desc / q_new_mail / ch_new_name，中英各一份，改那边要同步这里）。</summary>
+    static readonly HashSet<string> Placeholders = new(StringComparer.Ordinal)
+        { "新任务", "（还没写描述）", "（还没写完成邮件）", "新章节", "New quest", "(no description yet)", "(no completion mail yet)", "New chapter" };
+
+    /// <summary>章节本身的规则（Rework DEV_NOTES #70/#71 的数据模型）：有子任务、有终章（可多个：任一终章成功整章结束，1.3.3）、有图标/横幅、不套章节、开得了头。</summary>
+    static void Chapter(string id, JsonObject q, JsonObject vx, List<(string Id, string File, JsonObject Quest)> all, IReadOnlySet<string>? dlgAccept,
                         Action<string, string[]> err, Action<string, string[]> warn)
     {
         var conds = Conds(q, "AvailableForFinish");
         var subs = QuestRefs(conds).ToList();
         if (subs.Count == 0) err("chapter_no_subs", []);
-        if (!Bool(q, "secretQuest")) warn("chapter_not_secret", []);
-        var last = conds.LastOrDefault(c => Str(c, "conditionType") == "Quest");
-        if (last != null && !Bool(last, "isFinisher")) warn("chapter_no_finisher", []);
+        if (!conds.Any(c => Str(c, "conditionType") == "Quest" && Bool(c, "isFinisher"))) warn("chapter_no_finisher", []);
+        // 整章怎么开始：章节自己自动接 / 接在别的任务后面 / 对话（.dlg 或原生对话）接章节或它任一条子任务。一样都没有 = 永远不开始。
+        // 子任务自己的 autoStart / startAfter 不算——两样都要章节先开了才起作用（插件 ChapterChain）
+        if (dlgAccept != null && !Bool(vx, "autoStart") && Str(vx, "startAfter").Length == 0 && !dlgAccept.Contains(id) && !subs.Any(dlgAccept.Contains))
+            warn("chapter_no_entry", []);
         if (Str(vx, "icon").Length == 0) warn("chapter_no_icon", []);
         if (Str(q, "image").Length == 0) warn("chapter_no_banner", []);
         foreach (var s in subs)

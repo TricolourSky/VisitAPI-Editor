@@ -27,6 +27,7 @@ public static class ProjectApi
 
         app.MapPost("/api/project/save", (SaveReq r) =>
         {
+            if ((r.Name ?? "").IndexOfAny(['\r', '\n']) >= 0) return Results.BadRequest(new { error = "bad_name" });
             var path = (r.Path ?? "").Trim();
             if (!path.EndsWith(".vaproj", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "bad_path", path });
@@ -73,9 +74,7 @@ public static class ProjectApi
             if (!Directory.Exists(mods)) missing.Add("mods");
             if (missing.Count > 0) return Results.BadRequest(new { error = "dir_missing", missing });
 
-            ws.SetRoot(root);
-            ws.SetQuestDb(quests);
-            ws.SetModDb(mods);
+            if (!ws.OpenProject(root, quests, mods)) return Results.BadRequest(new { error = "dir_unusable" });
             Remember(ws, full);
             return Results.Json(new
             {

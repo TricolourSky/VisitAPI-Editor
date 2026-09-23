@@ -22,7 +22,7 @@
 let ccur=null;        /* 当前章节 id */
 let cSt=1;            /* 卡片上模拟的章节状态：0 未开放 / 1 进行中 / 2 已完成 —— 只影响外观，不写数据 */
 /* 章节顺序 = visitapi.order 小的在前（插件 1.3 G20），没标的按文件原序垫底 —— 图标列和游戏里一个顺序 */
-const chOrd=x=>{const o=dig(QD.quests[x],"visitapi.order");return typeof o==="number"?o:Number.MAX_VALUE;};
+const chOrd=x=>{const o=dig(QD.quests[x],"visitapi.order");return typeof o==="number"?o:100;};
 const chapters=()=>QD&&QD.ok?Object.keys(QD.quests).filter(x=>isChap(QD.quests[x])).sort((a,b)=>chOrd(a)-chOrd(b)):[];
 const cq=()=>QD.quests[ccur];
 const cimg=v=>v?`style="background-image:url('/qimg?name=${encodeURIComponent(v)}&t=${encodeURIComponent(TOK)}')"`:"";
@@ -88,7 +88,9 @@ const chEmpty=()=>`<div class="tool"><div class="tnote">${T("ch_empty_note")}</d
 function chCard(ch){
   const subs=subConds(ch).map(c=>QD.quests[c.target]).filter(Boolean);
   const objs=subs.flatMap(s=>(s.conditions?.AvailableForFinish||[]).map((c,i)=>({s,c,i})));
-  const main=objs.filter(x=>x.c.isNecessary!==false), opt=objs.filter(x=>x.c.isNecessary===false);
+  /* 和插件剧情页同一个分法（09-15）：挂在别的目标下面的进可选，顶层一律主要——顶层标了 isNecessary=false 的游戏里也在主要，行上挂警告 */
+  const isChild=x=>x.c.parentId&&(x.s.conditions?.AvailableForFinish||[]).some(c=>c.id===x.c.parentId);
+  const main=objs.filter(x=>!isChild(x)), opt=objs.filter(isChild);
   const icon=dig(ch,"visitapi.icon")||"";
   return `<div class="chcard" data-st="${["unavail","active","done"][cSt]}">
     <div class="chicons">${chapters().map(chTile).join("")}
@@ -138,9 +140,10 @@ const chObjRow=x=>{const o=objText(x.c), hd=isHideout(x.c), txt=hd?hideoutTitle(
   return `<div class="chobj"><i class="tick"></i>
     ${hd?`<span class="tt ro" data-chdesc="${x.s._id}|${x.i}" title="${esc(T("q_hd_title_d"))}">${esc(txt)}</span>`   /* 设备目标：标题引擎拼的，点了填小字（09-14） */
         :`<span class="tt" contenteditable="plaintext-only" ${x.c.id?`data-lockey="${esc(x.c.id)}"`:""}>${esc(txt)}</span>`}
-    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}${inGrp(x.s,x.c)?` · ${esc(T("q_tag_grp"))}`:""}${x.c.id&&qloc(x.c.id+" talk")?` · ${esc(T("q_tag_talk"))}`:""}</small>
+    <small>${esc(qname(x.s))} · ${esc(o.kind)}${o.value>1?` × ${esc(o.value)}`:""}${inGrp(x.s,x.c)?` · ${esc(T("q_tag_grp"))}`:""}${x.c.id&&qloc(x.c.id+" talk")?` · ${esc(T("q_tag_talk"))}`:""}${x.c.parentId?` · ${esc(TF("q_opt_under",condLabel(x.s,x.c.parentId)))}`:""}</small>
     ${a?`<span class="chvis" title="${esc(T("q_vis_d"))}">${esc(grpOf(x.s)?.includes(a)?T("q_vis_after_grp"):TF("q_vis_after",condLabel(x.s,a)))}</span>`:""}
-    <button class="nec" data-cnec="${x.s._id}|${x.i}" title="${esc(T("ch_nec_tip"))}">${T(x.c.isNecessary===false?"ch_optional":"ch_main")}</button>
+    ${optTop(x.c)?`<span class="chvis optwarn" title="${esc(T("q_opt_top_d"))}">${T("q_opt_top")}</span>`:""}
+    <button class="nec" data-cnec="${x.s._id}|${x.i}" title="${esc(T("ch_nec_tip"))}">${T(isOpt(x.c)?"ch_optional":"ch_main")}</button>
     <button class="dots" data-cmenu="${x.s._id}|${x.i}">⋮</button></div>`;};
 
 /* 日记：章节自己一组 + 每条子任务一组；模拟状态下该解锁的亮、没解锁的暗 */
@@ -382,8 +385,7 @@ function wireCard(ch,M){
   M.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cmenu.split("|");qcur=id;qRowMenu("obj",+i,b);});
   M.querySelectorAll("[data-chdesc]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.chdesc.split("|");askDesc((QD.quests[id]?.conditions?.AvailableForFinish||[])[+i]);});
   M.querySelectorAll("[data-menu]").forEach(b=>b.onclick=()=>{qcur=ccur;qRowMenu(b.dataset.menu,+b.dataset.i,b);});
-  M.querySelectorAll("[data-cnec]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cnec.split("|");
-    const c=QD.quests[id].conditions.AvailableForFinish[+i]; c.isNecessary=c.isNecessary===false; qtouch(); render();});
+  M.querySelectorAll("[data-cnec]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.cnec.split("|");necToggle(QD.quests[id],+i,b);});
   M.querySelectorAll("[data-csw]").forEach(b=>b.onclick=()=>{const [id,p]=b.dataset.csw.split("|"), q=QD.quests[id];
     /* 和 quest.js 的 [data-sw] 同一道分流：autoStart 和 startAfter 互斥，全站只许 setWhen 写这两个键。
        今天这张可点清单里没有 autoStart，但 162/253 两串只读芯片还字面写着它，是现成的复制粘贴源——先把闸修在这儿 */
@@ -392,9 +394,7 @@ function wireCard(ch,M){
   /* 「什么时候接」是三选一（手动 / 自动接 / 跟在某条之后），不是开关：点了弹菜单，写入统一走 quest.js 的 setWhen */
   M.querySelectorAll("[data-cwhen]").forEach(b=>b.onclick=()=>whenMenu(QD.quests[b.dataset.cwhen],ch,b));
   /* 日记：正文存 locale，键是日记自己的 id（第一次输入才生成）；清空 = 连 id 带两种语言的正文一起撤 */
-  M.querySelectorAll("[data-cnote]").forEach(el=>el.oninput=()=>{const [id,k]=el.dataset.cnote.split("|"), q=QD.quests[id], v=el.textContent;
-    if(!v.trim()){if(q.notes?.[k]){dropLoc([q.notes[k]]);delete q.notes[k];if(!Object.keys(q.notes).length)delete q.notes;}qtouch();return;}
-    (q.notes ??= {}); q.notes[k] ??= NEWID(); qsetLocSync(q.notes[k],v); qtouch();});
+  M.querySelectorAll("[data-cnote]").forEach(el=>el.oninput=()=>{const [id,k]=el.dataset.cnote.split("|");setNoteText(QD.quests[id],k,el.textContent);});
   M.querySelectorAll("[data-cdelitem]").forEach(b=>b.onclick=()=>{ch.visitapi.items.splice(+b.dataset.cdelitem,1);qtouch();render();});
   const cn=M.querySelector("[data-chain]"); if(cn)cn.onclick=()=>chainSubs(ch);
   if(!QITEMS&&!qiWait&&M.querySelector(".chitem b"))cItemsFetch();   /* 物品要显示名字：表没拉就拉一趟，回来还在这一页才重画 */

@@ -59,11 +59,11 @@ public static class DialogParser
                 if (n != null) { n.Tail.AddRange(pending); pending.Clear(); }   // 上一个节点尾巴上的注释
                 var name = head.Groups[1].Value;
                 // 重名：第二份会把第一份整个盖掉，作者看不到任何提示（2026-09-08 审查）
-                if (t.Nodes.ContainsKey(name)) t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 节点 <{name}> 重复，前一份会被覆盖", $"Line {ln}: node <{name}> is defined twice, the earlier one is overwritten"));
+                if (t.Nodes.ContainsKey(name)) Loss(t, ln, "duplicate node: " + name);
                 n = t.Nodes[name] = new DialogNode { Name = name };
                 n.Lead.AddRange(pending); pending.Clear();
                 // `<root> | bg: x` 也认：文档里就是这么写的，原来第一段成了「| bg」这个键，bg 静默丢
-                var d = KV(head.Groups[2].Value.TrimStart(' ', '|').Split(new[] { " | " }, StringSplitOptions.None));
+                var d = KV(head.Groups[2].Value.TrimStart(' ', '|').Split(new[] { " | " }, StringSplitOptions.None), t, ln);
                 n.Bg = G(d, "bg"); n.Anim = G(d, "anim"); n.Bgm = G(d, "bgm");
                 Unknown(t, d, ln, "bg", "anim", "bgm");
             }
@@ -98,17 +98,30 @@ public static class DialogParser
     {
         foreach (var k in d.Keys)
             if (Array.IndexOf(known, k) < 0)
+            {
+                t.UnsafeToRewrite = true;
                 t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 这一行不认 '{k}:'，回写会丢掉", $"Line {ln}: '{k}:' is not valid on this line and will be dropped on save"));
+            }
     }
 
     static void Body(DialogTree t, DialogNode n, string line, int ln, List<string> pending)
     {
-        var seg = line.Split(new[] { " | " }, StringSplitOptions.None);
-        if (line.StartsWith("->")) { n.JumpTo = line.Substring(2).Trim(); n.JumpLead.AddRange(pending); }
-        else if (line.StartsWith(">")) { var d = KV(seg.Skip(1)); Unknown(t, d, ln, "bg", "anim", "audio"); var nl = new NarrationLine { Text = seg[0].Substring(1).Trim(), Bg = G(d, "bg"), Anim = G(d, "anim"), Audio = G(d, "audio") }; nl.Lead.AddRange(pending); n.Narration.Add(nl); }
-        else if (line.StartsWith("- ")) Option(t, n, seg, ln, pending);
+        // 译文行（DialogLangs）：挂到上一条能翻的行上。节点头刚开 / `->` 之后没东西可翻，就是写错了位置——拒绝无损回写，让作者自己挪。
+        // 译文行不是元素：攒着的注释不清，照旧等下一个元素（原文里夹在原行和译文之间的注释回写会落到译文后面，不丢）。
+        if (DialogLangs.TryMatch(line, out var lang, out var text))
+        {
+            if (n.LastTr == null) Loss(t, ln, "translation line has no line above it to translate");
+            else if (text.Length == 0) t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 译文是空的，回写会丢掉这一行", $"Line {ln}: empty translation; this line is dropped on save"));
+            else if (n.LastTr.ContainsKey(lang)) Loss(t, ln, "duplicate translation: " + lang);
+            else n.LastTr[lang] = text;
+            return;
+        }
+        var seg = (line.StartsWith("| ") ? " " + line : line).Split(new[] { " | " }, StringSplitOptions.None);
+        if (line.StartsWith("->")) { n.JumpTo = line.Substring(2).Trim(); n.JumpLead.AddRange(pending); n.LastTr = null; }
+        else if (line.StartsWith(">")) { var d = KV(seg.Skip(1), t, ln); Unknown(t, d, ln, "bg", "anim", "audio"); var nl = new NarrationLine { Text = seg[0].Substring(1).Trim(), Bg = G(d, "bg"), Anim = G(d, "anim"), Audio = G(d, "audio") }; nl.Lead.AddRange(pending); n.Narration.Add(nl); n.LastTr = nl.Tr; }
+        else if (line.StartsWith("- ") || line == "-") Option(t, n, seg, ln, pending);
         // NpcAt 记的是"台词出现时，前面已经有几条旁白" —— 后面再来的 `>` 行就排在台词之后
-        else { var d = KV(seg.Skip(1)); Unknown(t, d, ln, "audio"); n.NpcText = seg[0].Trim(); n.NpcAt = n.Narration.Count; n.NpcAudio = G(d, "audio") ?? n.NpcAudio; n.NpcLead.AddRange(pending); }
+        else { if (n.NpcText != null) Loss(t, ln, "multiple NPC lines"); var d = KV(seg.Skip(1), t, ln); Unknown(t, d, ln, "audio"); n.NpcText = seg[0].Trim(); n.NpcAt = n.Narration.Count; n.NpcAudio = G(d, "audio") ?? n.NpcAudio; n.NpcLead.AddRange(pending); n.LastTr = n.NpcTr; }
         pending.Clear();
     }
 
@@ -116,12 +129,20 @@ public static class DialogParser
     {
         var o = new DialogOption();
         o.Lead.AddRange(pending);
-        var left = seg[0].Substring(2).Trim();
+        var left = seg[0].Substring(1).Trim();
+        if (left.StartsWith("-> ")) left = " " + left;
         var arrow = left.IndexOf(" -> ", StringComparison.Ordinal);
         o.Text = (arrow < 0 ? left : left.Substring(0, arrow)).Trim();
         o.Target = arrow < 0 ? null : left.Substring(arrow + 4).Trim();
-        foreach (var d in seg.Skip(1).SelectMany(s => s.Split(',')).Select(s => s.Trim()).Where(s => s.Length > 0)) Directive(t, o, d, ln);
+        var seen = new HashSet<string>();
+        foreach (var d in seg.Skip(1).SelectMany(s => s.Split(',')).Select(s => s.Trim()).Where(s => s.Length > 0))
+        {
+            var key = d.Split(':')[0].Trim().ToLowerInvariant();
+            if (key != "accept" && key != "complete" && !seen.Add(key)) Loss(t, ln, "duplicate directive: " + key);
+            Directive(t, o, d, ln);
+        }
         n.Options.Add(o);
+        n.LastTr = o.Tr;
     }
 
     static void Directive(DialogTree t, DialogOption o, string d, int ln)
@@ -130,7 +151,7 @@ public static class DialogParser
         if (d == "always") { o.Always = true; return; }
         if (d == "ifitems") { o.IfItems = true; return; }   // 不带任务 = 用本选项 handover: 的那条
         var kv = d.Split(new[] { ':' }, 2);
-        if (kv.Length < 2) { t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知指令 '{d}'", $"Line {ln}: unknown directive '{d}'")); return; }
+        if (kv.Length < 2) { Loss(t, ln, "unknown directive: " + d); return; }
         var v = kv[1].Trim();
         var sp = v.IndexOf(' ');
         var eq = v.IndexOf('=');
@@ -146,8 +167,11 @@ public static class DialogParser
             case "set": o.SetVarName = Var(v, out o.SetVarValue, t, ln); break;
             case "ifvar": o.IfVarName = Var(v, out o.IfVarValue, t, ln); break;
             case "ifitems": o.IfItems = true; o.IfItemsId = A(t, v); break;
-            case "standing": o.StandingTraderId = eq < 0 ? null : v.Substring(0, eq).Trim(); o.StandingDelta = Num(eq < 0 ? v : v.Substring(eq + 1)); break;
-            default: t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知指令 '{kv[0].Trim()}'", $"Line {ln}: unknown directive '{kv[0].Trim()}'")); break;
+            case "standing":
+                o.StandingTraderId = eq < 0 ? null : v.Substring(0, eq).Trim();
+                if (!TryNum(eq < 0 ? v : v.Substring(eq + 1), out o.StandingDelta)) Loss(t, ln, "invalid standing number");
+                break;
+            default: Loss(t, ln, "unknown directive: " + kv[0].Trim()); break;
         }
     }
 
@@ -161,7 +185,7 @@ public static class DialogParser
         var real = id != null && t.QuestAliases.TryGetValue(id, out var r) ? r : id;
         // 任务 id 必须是 24 位十六进制。写错的（占位符、拼错的别名、手抖）在游戏里查不到任何任务，
         // 而自动门控会顺手把那个选项藏起来 —— 现象是"选项莫名其妙不出现"，最难查的一类。
-        if (!string.IsNullOrEmpty(real) && !IsQuestId(real))
+        if (real != null && !IsQuestId(real))
             t.Warnings.Add(DlgLoc.Pick($"任务 id 不是 24 位十六进制: '{real}'", $"quest id is not 24 hex chars: '{real}'"));
         return real;
     }
@@ -179,8 +203,9 @@ public static class DialogParser
         value = 0;
         var eq = v.IndexOf('=');
         if (eq < 0 || !int.TryParse(v.Substring(eq + 1).Trim(), out value))
-            t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 记号要写成 '名字=整数'，如 route=1", $"Line {ln}: flag must be 'name=integer', e.g. route=1"));
+            Loss(t, ln, "flag must be name=integer");
         var name = (eq < 0 ? v : v.Substring(0, eq)).Trim();
+        if (name.Length == 0) Loss(t, ln, "empty flag name");
         return name.Length > 0 ? name : null;
     }
 
@@ -197,18 +222,34 @@ public static class DialogParser
         s = s.Trim();
         if (int.TryParse(s, out var i) && i >= 0 && i <= 5) return i;
         var idx = Array.FindIndex(StatusNames, x => x.Equals(s, StringComparison.OrdinalIgnoreCase));
-        if (idx < 0) t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知任务状态 '{s}'", $"Line {ln}: unknown quest status '{s}'"));
+        if (idx < 0) Loss(t, ln, "unknown quest status: " + s);
         return idx;
     }
 
-    internal static Dictionary<string, string> KV(IEnumerable<string> segs)
+    internal static Dictionary<string, string> KV(IEnumerable<string> segs, DialogTree t = null, int ln = 0)
     {
         var d = new Dictionary<string, string>();
-        foreach (var s in segs) { var kv = s.Split(new[] { ':' }, 2); if (kv.Length == 2) d[kv[0].Trim().ToLowerInvariant()] = kv[1].Trim(); }
+        foreach (var s in segs)
+        {
+            var kv = s.Split(new[] { ':' }, 2);
+            if (kv.Length == 2)
+            {
+                var key = kv[0].Trim().ToLowerInvariant();
+                if (t != null && d.ContainsKey(key)) Loss(t, ln, "duplicate field: " + key);
+                d[key] = kv[1].Trim();
+            }
+            else if (t != null && s.Trim().Length > 0) Loss(t, ln, "unrecognized segment: " + s);
+        }
         return d;
     }
 
     internal static string G(Dictionary<string, string> d, string k) => d.TryGetValue(k, out var v) ? v : null;
 
-    internal static double Num(string s) => double.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : 0;
+    internal static bool TryNum(string s, out double v) => double.TryParse(s.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v) && !double.IsNaN(v) && !double.IsInfinity(v);
+    internal static double Num(string s) => TryNum(s, out var v) ? v : 0;
+    internal static void Loss(DialogTree t, int ln, string detail)
+    {
+        t.UnsafeToRewrite = true;
+        t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行：无法无损回写，请先修正原文：{detail}", $"Line {ln}: cannot rewrite losslessly; fix source first: {detail}"));
+    }
 }

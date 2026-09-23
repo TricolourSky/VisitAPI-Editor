@@ -62,11 +62,20 @@ function wireBack() {
     const cut = b.dataset.bk.indexOf("|");
     const area = b.dataset.bk.slice(0, cut), name = b.dataset.bk.slice(cut + 1);
     const disp = name.slice(0, -4);
+    const entry=BK?.areas?.[area]?.find(x=>x.name===name);
+    if(!entry)return;
+    const affectedDirty=area==="dlg"?dirty:area==="quest"||area==="locale"?qdirty():area==="bot"?bdirty():adirty();
+    if(affectedDirty&&!await confirm2(T("confirm_discard")))return;
     if (!await confirm2(TF(+b.dataset.live ? "bk_ask" : "bk_ask_gone", disp))) return;
     api("/api/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ area, name }) })
+      body: JSON.stringify({ area, name, stamp:entry.stamp }) })
       /* 还原完把货架 / 服装页的内存缓存一并作废：不作废的话回那边保存会 409，点「覆盖」就把刚还原回来的又盖掉 */
-      .then(d => { say(d && d.leftover ? TF("bk_done_left", d.leftover) : TF("bk_done", disp)); BK = null; AD = null; BD = null; ATPL = {}; render(); })
+      .then(d => { say(d && d.leftover ? TF("bk_done_left", d.leftover) : TF("bk_done", disp)); BK = null;
+        if(area==="bot")BD=null;
+        else if(area==="assort"||area==="scheme"){AD=null;ATPL={};}
+        else if(area==="quest"||area==="locale"){QD=null;QL=null;}
+        else if(area==="dlg"){QL=null;if(filePath?.toLowerCase()===disp.toLowerCase()){markDirty(false);loadDoc(filePath,cur);}}
+        render(); })
       /* .swap 残件是上次中途失败时的现役文件本体，服务端不再替人删，这里把话说清楚 */
       .catch(e => { const m = String(e.message || ""); const sw = /swap_leftover/.test(m) ? (m.match(/"name":"([^"]+)"/) || [])[1] : null;
         say(sw ? TF("bk_swap_left", sw) : TF("bk_fail", m)); });

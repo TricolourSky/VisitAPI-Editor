@@ -52,6 +52,8 @@ public static class BackupApi
             if (!File.Exists(full)) return Results.NotFound(new { error = "gone", name });
 
             var live = full[..^4];                       // 去掉 ".bak"
+            if (r.Stamp != RestoreStamp(ar.Dir, full))
+                return Results.Json(new { error = "backup_changed" }, statusCode: 409);
             if (!File.Exists(live))                      // 现役已删：搬回来＝复活，备份随之用掉
             {
                 File.Move(full, live);
@@ -83,9 +85,13 @@ public static class BackupApi
             .Select(object (f) => new
             {
                 name = Path.GetFileName(f),
+                stamp = RestoreStamp(a.Dir, f),
                 time = File.GetLastWriteTimeUtc(f),
                 live = File.Exists(f[..^4]),
             }).ToArray();
 
-    public sealed record RestoreReq(string? Area, string? Name);
+    static string RestoreStamp(string dir, string file) =>
+        FileStamp.Files(dir, File.Exists(file[..^4]) ? [file, file[..^4]] : [file]);
+
+    public sealed record RestoreReq(string? Area, string? Name, string? Stamp = null);
 }

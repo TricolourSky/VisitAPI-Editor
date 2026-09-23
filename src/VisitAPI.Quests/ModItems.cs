@@ -1,9 +1,11 @@
 using System.Text.Json;
+using VisitAPI.Packs;
 
 namespace VisitAPI.Quests;
 
 /// <summary>一件模组加的物品：<c>Mod</c> 是来源目录名，<c>CloneOf</c> 是它克隆的原版 tpl（货架校验拿那件的槽位当自己的）。</summary>
-public sealed record ModItem(string Id, string Cat, string Zh, string En, int Price, string Mod, string CloneOf);
+public sealed record ModItem(string Id, string Cat, string Zh, string En, int Price, string Mod, string CloneOf,
+    JsonElement? Properties = null, string Parent = "", JsonElement? Template = null);
 
 /// <summary>
 /// 离线扫模组注册的物品（SORA 2026-09-13 定走这条路，不连运行中的 SPT 服务端）。
@@ -19,19 +21,43 @@ public sealed record ModItem(string Id, string Cat, string Zh, string En, int Pr
 public static class ModItems
 {
     static readonly JsonDocumentOptions Lenient = new() { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip };
+    static (string Key, List<ModItem> Items)? _cache;
+    static readonly EnumerationOptions Recursive = new() { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+
+    public static string Revision(string eftRoot)
+    {
+        var mods = Path.Combine(eftRoot, "SPT_Runtime", "user", "mods");
+        if (eftRoot.Length == 0 || !Directory.Exists(mods)) return eftRoot;
+        var paths = Directory.GetDirectories(mods).SelectMany(mod =>
+            new[] { "CustomItems", "CustomQuestItems", "CustomLocales", "items" }.Select(d => Path.Combine(mod, "db", d))
+                .Concat(PackItemDirs(mod))
+                .Where(Directory.Exists).SelectMany(d => Directory.GetFiles(d, "*.json", Recursive))
+                .Append(Path.Combine(mod, "VisitAPI-Server.dll")));
+        return ReadOnlyJson.Revision(paths.Append(mods));
+    }
+
+    /// <summary>内容包（09-23）：<c>&lt;模组&gt;\packs\*\items</c> 也算进变更指纹。</summary>
+    static IEnumerable<string> PackItemDirs(string mod)
+    {
+        var packs = Path.Combine(mod, PackLayout.PacksDir);
+        return Directory.Exists(packs) ? Directory.GetDirectories(packs).Select(p => Path.Combine(p, "items")) : [];
+    }
 
     public static List<ModItem> Scan(string eftRoot)
     {
         var list = new List<ModItem>();
+        var revision = Revision(eftRoot);
+        if (_cache is { } cached && cached.Key == revision) return cached.Items;
         if (eftRoot.Length == 0) return list;
         var mods = Path.Combine(eftRoot, "SPT_Runtime", "user", "mods");
         if (!Directory.Exists(mods)) return list;
         foreach (var mod in Directory.GetDirectories(mods))
         {
             var dirs = new[] { "CustomItems", "CustomQuestItems" }.Select(d => Path.Combine(mod, "db", d)).Where(Directory.Exists).ToList();
+            if (QuestImages.RegistersMod(mod)) list.AddRange(VisitApiItems(mod));
             if (dirs.Count == 0) continue;
             var zh = Loc(mod, "ch"); var en = Loc(mod, "en"); var name = Path.GetFileName(mod);
-            foreach (var f in dirs.SelectMany(d => Directory.GetFiles(d, "*.json", SearchOption.AllDirectories)))
+            foreach (var f in dirs.SelectMany(d => Directory.GetFiles(d, "*.json", Recursive)))
             {
                 JsonDocument doc;
                 try { doc = JsonDocument.Parse(JsonBytes.Read(f), Lenient); } catch { continue; }
@@ -46,11 +72,46 @@ public static class ModItems
                         en.GetValueOrDefault(e.Name + " Name") is { Length: > 0 } n ? n : LocName(v, "en"),
                         // 09-15 审查：价格不是数字（null / "15000"）时 TryGetInt32 直接抛，整张物品表和货架页跟着 500 —— 先认类型，不是数字按 0
                         v.TryGetProperty("handbookPriceRoubles", out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var pr) ? pr : 0,
-                        name, Str(v, "itemTplToClone")));
+                        name, Str(v, "itemTplToClone"),
+                        v.TryGetProperty("overrideProperties", out var props) && props.ValueKind == JsonValueKind.Object ? props.Clone() : null,
+                        Str(v, "parentId")));
                 }
             }
         }
+        _cache = (revision, list);
         return list;
+    }
+
+    /// <summary>VisitAPI 自己的物品：每个内容包的 <c>items\*.json</c>（老布局是 <c>db\items</c>），列表上标「模组/包」。</summary>
+    static IEnumerable<ModItem> VisitApiItems(string mod)
+    {
+        foreach (var pack in PackLayout.Discover(mod))
+        {
+            var label = pack.IsLegacy ? Path.GetFileName(mod) : Path.GetFileName(mod) + "/" + pack.Name;
+            foreach (var file in PackLayout.DataFiles(pack, "items"))
+            {
+                JsonDocument doc;
+                try { doc = JsonDocument.Parse(JsonBytes.Read(file), Lenient); } catch { continue; }
+                using (doc)
+                {
+                    if (doc.RootElement.ValueKind != JsonValueKind.Object) continue;
+                    foreach (var entry in doc.RootElement.EnumerateObject())
+                    {
+                        var value = entry.Value;
+                        if (!QuestValidator.IsMongoId(entry.Name) || value.ValueKind != JsonValueKind.Object ||
+                            !value.TryGetProperty("template", out var tpl) || tpl.ValueKind != JsonValueKind.Object) continue;
+                        var hb = value.TryGetProperty("handbook", out var h) && h.ValueKind == JsonValueKind.Object ? h : default;
+                        var price = hb.ValueKind == JsonValueKind.Object && hb.TryGetProperty("price", out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var amount)
+                            ? (int)Math.Clamp(amount, 0, int.MaxValue) : 0;
+                        string Name(string lang) => value.TryGetProperty("locales", out var ls) && ls.ValueKind == JsonValueKind.Object
+                            && ls.TryGetProperty(lang, out var l) && l.ValueKind == JsonValueKind.Object ? Str(l, "Name") : "";
+                        yield return new(entry.Name, Str(hb, "parentId"), Name("ch"), Name("en"), price, label, "",
+                            tpl.TryGetProperty("_props", out var props) && props.ValueKind == JsonValueKind.Object ? props.Clone() : null,
+                            Str(tpl, "_parent"), tpl.Clone());
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>配置里的 <c>locales.&lt;lang&gt;.name</c>；要的语言没有就退回 en（本机的配置只有 en）。</summary>
@@ -78,5 +139,5 @@ public static class ModItems
     }
 
     static string Str(JsonElement e, string k) =>
-        e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
 }

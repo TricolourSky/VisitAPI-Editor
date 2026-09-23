@@ -426,3 +426,7 @@
 .trow.goal.opt .tt{color:var(--ink-2)}
 .trow .tag.vis{background:transparent;box-shadow:inset 0 0 0 1px var(--tech);max-width:34%}
 .trow .tag.vis s{color:var(--tech);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+/* 顶层标了可选、游戏里照样按主要算（09-15）：和普通小标同形，换成警告色 */
+.trow .tag.vis.optwarn{box-shadow:inset 0 0 0 1px var(--warn,#e0a030)}
+.trow .tag.vis.optwarn s,.chvis.optwarn{color:var(--warn,#e0a030)}
+.chvis.optwarn{box-shadow:inset 0 0 0 1px var(--warn,#e0a030)}

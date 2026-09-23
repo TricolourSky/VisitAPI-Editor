@@ -11,12 +11,20 @@ internal static class TriggerParser
     internal static void Parse(DialogTree t, string v, int ln)
     {
         var tr = new DialogTrigger { Raw = v };   // 原文留底，回写时优先照抄（见 DialogTrigger.Raw 注释）
+        var valid = true;
+        float Number(string text)
+        {
+            if (DialogParser.TryNum(text, out var n) && Math.Abs(n) <= float.MaxValue) return (float)n;
+            valid = false;
+            t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 无效触发点数字 '{text}'", $"Line {ln}: invalid trigger number '{text}'"));
+            return 0;
+        }
         var q = Quote.Match(v);
         if (q.Success) { tr.Prompt = q.Groups[1].Value; v = Quote.Replace(v, "", 1); }
         var vec = Vec.Match(v);
         var xyz = vec.Success ? vec.Groups[1].Value.Split(',') : null;
         var hasXyz = xyz != null && xyz.Length == 3;
-        if (hasXyz) { tr.X = (float)DialogParser.Num(xyz[0]); tr.Y = (float)DialogParser.Num(xyz[1]); tr.Z = (float)DialogParser.Num(xyz[2]); }
+        if (hasXyz) { tr.X = Number(xyz[0]); tr.Y = Number(xyz[1]); tr.Z = Number(xyz[2]); }
         if (vec.Success) v = Vec.Replace(v, "", 1);
         var tok = v.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);   // Tab 也算分隔：JS 那边 \s+ 认，这边不认的话整条触发点被插件忽略
         tr.Kind = tok.Length > 0 ? tok[0].ToLowerInvariant() : "";
@@ -25,9 +33,9 @@ internal static class TriggerParser
         for (var i = 2; i < tok.Length; i++)
             switch (tok[i].ToLowerInvariant())
             {
-                case "dist": tr.Dist = (float)DialogParser.Num(N(tok, ++i)); break;
-                case "radius": tr.Radius = (float)DialogParser.Num(N(tok, ++i)); break;
-                case "hit": tr.Radius = (float)DialogParser.Num(N(tok, ++i)); tr.Free = true; break;
+                case "dist": tr.Dist = Number(N(tok, ++i)); break;
+                case "radius": tr.Radius = Number(N(tok, ++i)); break;
+                case "hit": tr.Radius = Number(N(tok, ++i)); tr.Free = true; break;
                 case "node": tr.Node = N(tok, ++i); break;
                 case "if": tr.IfQuestId = DialogParser.Gate(N(tok, ++i), tr.IfStatuses, t, ln); break;
                 case "accept": tr.AcceptId = DialogParser.A(t, N(tok, ++i)); break;
@@ -36,12 +44,13 @@ internal static class TriggerParser
                 case "fail": tr.FailId = DialogParser.A(t, N(tok, ++i)); break;
                 case "auto": tr.Auto = true; break;
                 case "once": tr.Once = true; break;
-                case "enter": tr.Enter = (float)DialogParser.Num(N(tok, ++i)); break;
+                case "enter": tr.Enter = Number(N(tok, ++i)); break;
                 case "free": case "door": tr.Free = true; break;
                 default: t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 未知触发器参数 '{tok[i]}'", $"Line {ln}: unknown trigger parameter '{tok[i]}'")); break;
             }
         // 坐标只有 enter（进图计时起爆）能省，别的触发点没坐标就无从判距离
         if (!hasXyz && tr.Enter < 0f) { t.Warnings.Add(DlgLoc.Pick($"第 {ln} 行: 触发器缺少 (x, y, z) 坐标", $"Line {ln}: trigger is missing (x, y, z)")); return; }
+        if (!valid) return;
         t.Triggers.Add(tr);
     }
 

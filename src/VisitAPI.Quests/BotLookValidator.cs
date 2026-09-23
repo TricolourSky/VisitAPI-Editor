@@ -44,7 +44,7 @@ public static class BotLookValidator
                     if (weight <= 0) res.Add(Err(file, "bot_bad_weight", id, weight.ToString()));
                 }
             // 一个条目都没有的文件不会让游戏出错，但它百分之百不是作者想要的结果
-            if (total == 0) res.Add(new Issue("warn", file, "bot_empty", [type]));
+            if (total == 0 && !(obj["inventory"] is JsonObject inventory && inventory.Count > 0)) res.Add(new Issue("warn", file, "bot_empty", [type]));
         }
 
         foreach (var (file, why) in looks.Broken) res.Add(Err(file, "broken_file", file, why));
@@ -59,7 +59,7 @@ public static class BotLookValidator
     {
         if (known.Contains(type)) return;
         if (known.Contains(type.ToLowerInvariant())) res.Add(Err(file, "bot_case", type, type.ToLowerInvariant()));
-        else res.Add(Err(file, "bot_unknown_type", type));
+        else res.Add(new Issue("warn", file, "bot_unknown_type", [type]));
     }
 
     static Issue Err(string file, string code, params string[] args) => new("err", file, code, args);

@@ -35,7 +35,7 @@ public sealed class LocaleStore
             if (!File.Exists(p)) { Langs[lang] = new JsonObject(); continue; }
             try
             {
-                Langs[lang] = JsonNode.Parse(File.ReadAllText(p)) as JsonObject
+                Langs[lang] = JsonPreserve.Parse(File.ReadAllText(p)) as JsonObject
                               ?? throw new InvalidDataException("not_object");
                 Styles[lang] = JsonFile.Sniff(p);
             }
@@ -59,15 +59,17 @@ public sealed class LocaleStore
     /// 有任何一个语言文件读不动就整个拒写 —— 宁可让用户看见"文案文件坏了"，
     /// 也不能拿一份空对象去覆盖人家几百条文案。
     /// </summary>
-    public bool SaveAll(IEnumerable<string>? langs = null)
+    public bool SaveAll(IEnumerable<string>? langs = null, FileBatch? batch = null)
     {
         if (Broken.Count > 0) return false;
-        Directory.CreateDirectory(Dir);
+        var ownBatch = batch == null;
+        batch ??= new FileBatch();
         foreach (var lang in langs ?? Langs.Keys.ToList())
         {
             if (!Langs.TryGetValue(lang, out var obj)) continue;
-            JsonFile.Write(Path.Combine(Dir, lang + ".json"), obj, Styles.TryGetValue(lang, out var st) ? st : null);
+            batch.Json(Path.Combine(Dir, lang + ".json"), obj, Styles.TryGetValue(lang, out var st) ? st : null);
         }
+        if (ownBatch) batch.Commit();
         return true;
     }
 }

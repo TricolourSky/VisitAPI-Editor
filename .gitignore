@@ -35,6 +35,10 @@ docs/SORA与Abyss*
 tests/
 docs/
 
+# ── 作者的分镜 / 生成图输出 ──
+# output/ 里是 SORA 自己的生成图与制作记录，不是项目文件，不上传（09-23 定）
+output/
+
 # ── 头像原图 ──
 # 程序里用的是 wwwroot/author.jpg（320px，33KB，随源码发布）。
 # 根目录这张是它的 992KB 原图，构建用不到，不进仓库。

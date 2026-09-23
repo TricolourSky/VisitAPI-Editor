@@ -474,40 +474,49 @@ function bModal(title, body, wire) {
 async function bNew() {
   /* 比名字要不分大小写：盘上是 BossKilla.json、这里新建 bosskilla，服务端的表和 NTFS 都当同一个文件，
      保存等于把人家那份覆盖掉（空 appearance 还会触发"删文件"）。2026-09-08 审查 */
-  const have = new Set(Object.keys(BD.files || {}).map(n => btype(n).toLowerCase()));
+  const have = new Set([...Object.keys(BD.files || {}),...(BD.brokenFiles||[])].map(n => btype(n).toLowerCase()));
   const left = (BD.botTypes || []).filter(t => !have.has(t));
   if (!left.length) return say(T("b_alltypes"));
   const t = await ask(TF("b_newask", left.length), left[0]);
   if (t == null) return;
   const name = String(t).trim().toLowerCase();
-  if (!(BD.botTypes || []).includes(name)) return say(TF("b_badtype", esc(name)));
+  if (have.has(name) || !(BD.botTypes || []).includes(name)) return say(TF("b_badtype", esc(name)));
   BD.files[name + ".json"] = { appearance: {} };
   bcur = name + ".json";
   render();
 }
 
 /* ── 保存 ── */
+let bSaving=false;
 function bPost(force) {
-  if (!BD?.ok) return;
-  api("/api/bots", {
+  document.activeElement?.blur();
+  if (!BD?.ok || bSaving || !bdirty()) return;
+  const loaded=BD, snapshot=bsnap(), sent=JSON.parse(snapshot);
+  bSaving=true;
+  return api("/api/bots", {
     method: "POST", headers: { "Content-Type": "application/json" },
     /* **只送改过的那几份。** 服务端只写它收到的文件，所以没动过的那些连时间戳都不会变，
        也不会平白多出一堆 .bak */
-    body: JSON.stringify({ stamp: BD.stamp, force, files: bChanged() }),
+    body: JSON.stringify({ stamp: BD.stamp, force:force===true, files: bChanged(), baseFiles:JSON.parse(bBase||"{}") }),
   }).then(d => {
+    if(BD!==loaded)return;
     BD.stamp = d.stamp; BD.issues = d.issues;
     /* 服务端可能刚删掉一份空配置，界面得跟上，否则下次保存又给它送一遍 */
-    for (const k of Object.keys(BD.files)) if (!(d.files || []).includes(k)) delete BD.files[k];
+    for (const k of Object.keys(sent)) if (!(d.files || []).includes(k)) {
+      if(JSON.stringify(BD.files[k])===JSON.stringify(sent[k]))delete BD.files[k];
+      delete sent[k];
+    }
     if (bcur && !BD.files[bcur]) bcur = Object.keys(BD.files)[0] || null;
-    bMark();
+    bBase=JSON.stringify(sent);bWas=Object.fromEntries(Object.entries(sent).map(([k,v])=>[k,JSON.stringify(v)]));
     render();
   }).catch(async e => {
+    if(BD!==loaded)return;
     /* 409：文件在编辑器外面被改过了。别默默盖掉，让人自己选 */
     if (String(e.message || "").includes("stale")) {
       const go = await confirm2(T("b_stale"), T("nav_cloth"));
-      if (go) bPost(true); else botLoad();
+      if (go) {bSaving=false;return await bPost(true);}
       return;
     }
     say(TF("b_savefail", String(e.message || e).slice(0, 80)));
-  });
+  }).finally(()=>{bSaving=false;});
 }

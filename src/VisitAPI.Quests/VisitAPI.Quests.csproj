@@ -15,4 +15,9 @@
     <ProjectReference Include="..\VisitAPI.Dlg\VisitAPI.Dlg.csproj" />
   </ItemGroup>
 
+  <!-- 内容包的布局（什么算一个包、图片格怎么映射、版本要求怎么判）：和插件服务端共用同一份源码（它链源码编进去），只有这一处定义 -->
+  <ItemGroup>
+    <Compile Include="..\VisitAPI.Packs\*.cs" LinkBase="Packs" />
+  </ItemGroup>
+
 </Project>

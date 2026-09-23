@@ -36,7 +36,7 @@ public static class DialogWriter
             seen.Add(h.Kind);
         }
         // 兜底：HeadRaw 缺了这两样也不能少（比如整棵树是代码里新建的，没经过解析）
-        if (!seen.Contains("trader")) sb.Insert(0, Trader(t) + "\n");
+        if (!seen.Contains("trader")) sb.Insert(0, Trader(t) + DialogLangs.Lines(t.NameTr) + "\n");
         if (!seen.Contains("start")) sb.Append("start: ").Append(t.Start).Append('\n');
     }
 
@@ -45,7 +45,8 @@ public static class DialogWriter
         switch (h.Kind)
         {
             case "raw": return h.Raw;
-            case "trader": return Trader(t);
+            // 译文行（DialogLangs.Lines）紧跟在 trader: / trigger: 行后面，和解析时的归属规则对得上
+            case "trader": return Trader(t) + DialogLangs.Lines(t.NameTr);
             case "start": return "start: " + t.Start;
             case "first": return t.First == null ? null : "first: " + t.First;
             case "actor": return t.Actor == null ? null : "actor: " + t.Actor;
@@ -66,12 +67,12 @@ public static class DialogWriter
             case "trigger":
                 if (h.Index < 0 || h.Index >= t.Triggers.Count) return null;
                 var g = t.Triggers[h.Index];
-                return "trigger: " + (g.Raw ?? Trigger(t, g));   // 有原文就照抄，别去动作者手填的坐标
+                return "trigger: " + (g.Raw ?? Trigger(t, g)) + DialogLangs.Lines(g.Tr);   // 有原文就照抄，别去动作者手填的坐标
             default: return null;
         }
     }
 
-    static string Trader(DialogTree t) => $"trader: {t.TraderId} \"{t.DisplayName}\"";
+    static string Trader(DialogTree t) => $"trader: {t.TraderId}" + (t.DisplayName == null ? "" : $" \"{t.DisplayName}\"");
 
     static string Trigger(DialogTree t, DialogTrigger g)
     {
@@ -105,22 +106,18 @@ public static class DialogWriter
         // 旁白 [0, NpcSlot) → 台词 → 旁白 [NpcSlot, 末尾)。作者把旁白写在台词后面，回写就还在后面
         var at = n.NpcSlot;
         for (var i = 0; i < at; i++) Narr(n.Narration[i], sb);
-        if (!string.IsNullOrEmpty(n.NpcText))
+        if (!string.IsNullOrEmpty(n.NpcText) || n.NpcAudio != null || n.NpcLead.Count > 0 || n.NpcTr.Count > 0)
         {
             foreach (var c in n.NpcLead) sb.Append(c).Append('\n');
             sb.Append(n.NpcText);
             if (n.NpcAudio != null) sb.Append(" | audio: ").Append(n.NpcAudio);
-            sb.Append('\n');
+            sb.Append(DialogLangs.Lines(n.NpcTr)).Append('\n');   // 译文行紧跟台词（DialogLangs）
         }
         for (var i = at; i < n.Narration.Count; i++) Narr(n.Narration[i], sb);
         foreach (var o in n.Options)
         {
             foreach (var c in o.Lead) sb.Append(c).Append('\n');
-            sb.Append("- ").Append(o.Text);
-            if (o.Target != null) sb.Append(" -> ").Append(o.Target);
-            var d = Directives(t, o);
-            if (d.Count > 0) sb.Append(" | ").Append(string.Join(", ", d));
-            sb.Append('\n');
+            sb.Append(OptionText(t, o)).Append(DialogLangs.Lines(o.Tr)).Append('\n');
         }
         if (n.JumpTo != null)
         {
@@ -130,13 +127,20 @@ public static class DialogWriter
         foreach (var c in n.Tail) sb.Append(c).Append('\n');
     }
 
+    public static string OptionText(DialogTree t, DialogOption o)
+    {
+        var line = "- " + o.Text + (o.Target == null ? "" : " -> " + o.Target);
+        var directives = Directives(t, o);
+        return line + (directives.Count == 0 ? "" : " | " + string.Join(", ", directives));
+    }
+
     static void Narr(NarrationLine l, StringBuilder sb)
     {
         foreach (var c in l.Lead) sb.Append(c).Append('\n');
         sb.Append("> ").Append(l.Text);
         var k = Kv(("bg", l.Bg), ("anim", l.Anim), ("audio", l.Audio));
         if (k != null) sb.Append(" | ").Append(k);
-        sb.Append('\n');
+        sb.Append(DialogLangs.Lines(l.Tr)).Append('\n');
     }
 
     /// <summary>指令的顺序照原格式：setstatus → 任务动作 → 门控 → 记号(set/ifvar) → 好感 → ifitems → once/always。</summary>

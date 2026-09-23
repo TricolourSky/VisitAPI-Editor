@@ -43,7 +43,7 @@ public sealed class QuestStore
             var name = Path.GetFileName(f);
             try
             {
-                if (JsonNode.Parse(File.ReadAllText(f)) is not JsonObject obj)
+                if (JsonPreserve.Parse(File.ReadAllText(f)) is not JsonObject obj)
                 { Broken[name] = "not_object"; continue; }    // 顶层得是 { "<id>": {...} }
                 Files[name] = obj;
                 Styles[name] = JsonFile.Sniff(f);
@@ -67,18 +67,21 @@ public sealed class QuestStore
     /// 服务端不能照着写下去：那样 <c>db\quests</c> 里会攒一堆空文件，SPT 的加载器还得每个都读一遍。
     /// 删之前照样留 .bak，删错了能捡回来。
     /// </summary>
-    public void SaveFile(string name)
+    public void SaveFile(string name, FileBatch? batch = null)
     {
         if (!Files.TryGetValue(name, out var obj)) return;
-        Directory.CreateDirectory(Dir);
+        var ownBatch = batch == null;
+        batch ??= new FileBatch();
         var path = Path.Combine(Dir, name);
         if (obj.Count == 0)
         {
-            if (File.Exists(path)) { File.Copy(path, path + ".bak", true); File.Delete(path); }
+            batch.Delete(path);
+            if (ownBatch) batch.Commit();
             Files.Remove(name);
             foreach (var id in Owner.Where(kv => kv.Value == name).Select(kv => kv.Key).ToList()) Owner.Remove(id);
             return;
         }
-        JsonFile.Write(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        batch.Json(path, obj, Styles.TryGetValue(name, out var st) ? st : null);
+        if (ownBatch) batch.Commit();
     }
 }
