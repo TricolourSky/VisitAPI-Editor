@@ -35,7 +35,7 @@ Anywhere else works too; it asks for the folder once, then remembers.
 **Requires the .NET 10 + ASP.NET Core 10 runtime** — if you have SPT, you already have both.
 It binds `127.0.0.1` only and every request needs a per-run token, so nothing is exposed to your network.
 
-Editor 1.3.3 pairs with VisitAPI 1.3.3; older frameworks still open, but their help text and validation rules are the newer ones.
+Editor 1.3.4 pairs with VisitAPI 1.3.4; older frameworks still open, but their help text and validation rules are the newer ones.
 
 ## Where things live
 

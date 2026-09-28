@@ -31,9 +31,28 @@ public static partial class QuestValidator
         var trader = Str(call, "dialogueTraderId");
         if (call?["dialogueTraderId"] is not JsonValue tv || !tv.TryGetValue<string>(out _)) trader = Str(call, "fromTraderId");
         if (Bool(call, "isEnabled") && !IsMongoId(trader)) warn("bad_call", [trader]);
-        if (Bool(q, "isStoryQuest") && !Bool(vx, "autoStart") && Str(vx, "startAfter").Length == 0
+        if (Bool(q, "isStoryQuest") && !Bool(vx, "autoStart") && Afters(vx).Count == 0
             && Conds(q, "AvailableForStart").Any(c => Number(c, "availableAfter") > 0)
             && !(Bool(call, "isEnabled") && IsMongoId(trader))) warn("timed_no_badge", []);
+        // 1.1 聊天邀请（插件 1.3.4 InviteRouter / ChatInvites）：开了、写了发信商人、不是自动接的任务，一变成可接，发信商人就在聊天里寄一封信，
+        // 正文是文案「<任务id> whileAvailableMessageText」。中英都没有：服务端要么不寄（哪种语言都没有），要么照寄、中英玩家看到一串文案键
+        if (Bool(call, "isEnabled") && IsMongoId(Str(call, "fromTraderId")) && !Bool(vx, "autoStart")
+            && !LocaleStore.Known.Any(l => !string.IsNullOrWhiteSpace(loc.Get(l, id + " whileAvailableMessageText")))) warn("invite_no_text", []);
+        var entry = Str(call, "entryPoint");
+        if (Bool(call, "isEnabled") && entry.Length > 0 && entry is not ("InLobby" or "InRaid" or "ViaRadio" or "ViaNotebook")) warn("invite_bad_entry", [entry]);
+        else if (Bool(call, "isEnabled") && (entry is "ViaRadio" or "ViaNotebook") && Str(call, "dialogueId").Length == 0) warn("invite_no_dialogue", []);
+        // 任务进入某状态时给档案变量赋值（插件 1.3.4 visitapi.setVariables {Started|Success|Fail: {变量id: 整数}}，1.1 GlobalVariable 奖励的替身）：
+        // 状态名只认这三个、变量 id 要 24 位十六进制、值要整数，别的写法插件悄悄跳过
+        if (vx?["setVariables"] is JsonNode svn)
+        {
+            if (svn is not JsonObject sv) err("field_type", ["visitapi.setVariables", "object"]);
+            else foreach (var (st, m) in sv)
+            {
+                if (st is not ("Started" or "Success" or "Fail") || m is not JsonObject vars) { warn("setvar_bad", [st]); continue; }
+                foreach (var (vid, val) in vars)
+                    if (!IsMongoId(vid) || val is not JsonValue v || !v.TryGetValue<int>(out _)) warn("setvar_bad", [st + " " + Cut(vid)]);
+            }
+        }
         CheckRewards(q, loc, ours, err, warn);
         CheckConditions(q, ours, err, warn);
     }
@@ -119,7 +138,7 @@ public static partial class QuestValidator
             issues.Add(new("err", group.First().Id, "duplicate_quest_identity", [group.Key]));
         var map = all.GroupBy(x => x.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Quest, StringComparer.Ordinal);
         IEnumerable<string> Edges(string id) => map.TryGetValue(id, out var q)
-            ? QuestRefs(Conds(q, "AvailableForStart")).Append(Str(q["visitapi"] as JsonObject, "startAfter")).Where(s => s.Length > 0) : [];
+            ? QuestRefs(Conds(q, "AvailableForStart")).Concat(Afters(q["visitapi"] as JsonObject)).Where(s => s.Length > 0) : [];
         foreach (var (id, _, q) in all)
         {
             if (vanilla?.Contains(Str(q, "_id")) == true) issues.Add(new("warn", id, "vanilla_quest_identity", [Str(q, "_id")]));

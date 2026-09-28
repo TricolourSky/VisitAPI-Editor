@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using VisitAPI.Packs;
 
 namespace VisitAPI.Quests;
 
@@ -7,7 +8,7 @@ namespace VisitAPI.Quests;
 /// 一个可选的商人。<paramref name="Source"/> 说明它是从哪儿来的 —— 这不是装饰，
 /// 它直接回答"这个商人到底存不存在"：
 ///   spt  = SPT 自带，一定存在
-///   mod  = 某个 mod 的 db\traders\&lt;id&gt;\base.json，装了那个 mod 就存在
+///   mod  = 某个 mod 的 db\traders\&lt;id&gt;\base.json（或 VisitAPI 内容包的 traders\&lt;id&gt;\，1.3.4），装了那个 mod / 包就存在
 ///   dlg  = 只在 .dlg 的 `trader:` 行里出现过。**这不代表它是个 SPT 商人**
 ///   used = 只在现有任务的 traderId 里出现过，来历不明
 /// </summary>
@@ -43,7 +44,7 @@ public static class CustomTraders
                            .ToList();
     }
 
-    /// <summary>mod 自带的商人：`user\mods\&lt;mod&gt;\db\traders\&lt;id&gt;\base.json`（和 SPT_Data 同一套约定）。</summary>
+    /// <summary>mod 自带的商人：`user\mods\&lt;mod&gt;\db\traders\&lt;id&gt;\base.json`（和 SPT_Data 同一套约定），VisitAPI-Server 再加上各内容包的（见 FromPacks）。</summary>
     static IEnumerable<TraderOpt> FromMods(string eftRoot)
     {
         if (eftRoot.Length == 0) yield break;
@@ -70,7 +71,48 @@ public static class CustomTraders
                 var name = nick.Length > 0 ? nick : Path.GetFileName(t);
                 yield return new TraderOpt(id, name, name, "mod", Path.GetFileName(mod));
             }
+            if (QuestImages.RegistersMod(mod)) foreach (var t in FromPacks(mod)) yield return t;
         }
+    }
+
+    /// <summary>1.3.4：内容包自带的商人 `packs\&lt;包&gt;\traders\&lt;id&gt;\base.json`（1.1 的 Kerman、电台这类，插件服务端 TraderLoader 注册）。
+    /// 和插件同口径：文件夹名得是 24 位 id、base.json 的 _id 得和它一致，否则插件不注册、这里也不算；名字取包文案的「&lt;id&gt; Nickname」（游戏里显示的就是它）。</summary>
+    static IEnumerable<TraderOpt> FromPacks(string mod)
+    {
+        foreach (var p in PackLayout.Discover(mod).Where(x => !x.IsLegacy))
+        {
+            var dirs = PackLayout.TraderDirs(p);
+            if (dirs.Length == 0) continue;
+            var zh = PackLoc(p, "ch"); var en = PackLoc(p, "en");
+            foreach (var t in dirs)
+            {
+                var id = Path.GetFileName(t); string baseId = "", nick = "";
+                try
+                {
+                    using var doc = JsonDocument.Parse(JsonBytes.Read(Path.Combine(t, "base.json")));
+                    if (doc.RootElement.TryGetProperty("_id", out var i)) baseId = i.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("nickname", out var n)) nick = n.GetString() ?? "";
+                }
+                catch { continue; }
+                if (!QuestValidator.IsMongoId(id) || !baseId.Equals(id, StringComparison.OrdinalIgnoreCase)) continue;
+                var e = en.GetValueOrDefault(id + " Nickname") is { Length: > 0 } x ? x : nick.Length > 0 ? nick : id;
+                var z = zh.GetValueOrDefault(id + " Nickname") is { Length: > 0 } y ? y : e;
+                yield return new TraderOpt(id, z, e, "mod", Path.GetFileName(mod) + "/" + p.Name);
+            }
+        }
+    }
+
+    static Dictionary<string, string> PackLoc(PackInfo p, string lang)
+    {
+        var d = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            using var doc = JsonDocument.Parse(JsonBytes.Read(Path.Combine(PackLayout.DataDir(p, "locales"), lang + ".json")));
+            foreach (var e in doc.RootElement.EnumerateObject())
+                if (e.Value.ValueKind == JsonValueKind.String) d.TryAdd(e.Name, e.Value.GetString()!);
+        }
+        catch { }
+        return d;
     }
 
     /// <summary>.dlg 头部的 `trader: &lt;id&gt; "名字"`。**只是对话里的说话人，未必是注册过的商人。**</summary>

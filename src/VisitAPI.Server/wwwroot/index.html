@@ -897,12 +897,14 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
       <tr><td><b>目标二选一</b></td><td>好几个目标，<b>随便达成一个</b>就能交。原版是必须全部达成。做"三条路你走哪条都行"用这个。只想让其中几条二选一、其余照旧要做：目标行 ⋮ →「加入二选一组」（指向组内目标的显示条件，组达成就算开门）</td></tr>
       <tr><td><b>达成即解锁商人</b></td><td>任务一变成「可提交」就把发这条任务的商人解锁，<b>不用等玩家去交</b></td></tr>
       <tr><td><b>这是一个章节</b></td><td>把这条任务变成剧情页里的<b>一章</b>。详见右栏 <code>G17</code>——建章节直接去<b>章节编辑</b>页，别在这儿手动开</td></tr>
-      <tr><td><b>可接时自动接下</b></td><td>前置一完成、这条一变成可接，就<b>自动接下</b>，不用玩家去点「接受」</td></tr>
+      <tr><td><b>可接时自动接下</b></td><td>前置一完成、这条一变成可接，就<b>自动接下</b>，不用玩家去点「接受」。章节里的子任务（没写前置的）按子任务清单的顺序来：上一条结束（成功或失败都算）才接，第一条跟章节一起开（插件 1.3.4）</td></tr>
       <tr><td><b>达成即自动交</b></td><td>目标一达成就<b>自动交、自动发奖励</b>，不用回去找商人。1.1 的剧情任务都是这样的</td></tr>
       <tr><td><b>只能通过对话接/交</b></td><td>任务列表里的「接受/完成」按钮换成「<b>去找商人</b>」，接和交只能走对话。
         <code>.dlg</code> 里没有对应选项时，按钮直接藏起来</td></tr>
-      <tr><td><b>章节图标</b></td><td>剧情页那一列的小图标。填服务端的图片路径，图放模组的 <code>images/quest/icon/</code> 下</td></tr>
+      <tr><td><b>章节图标</b></td><td>剧情页那一列的小图标。填服务端的图片路径，图放内容包的 <code>images\\icons\\</code>（老布局是 <code>images\\quest\\chapters_icon\\</code>）</td></tr>
       <tr><td><b>完成后开放访问</b></td><td>这条任务完成之后，列出来的商人才会出现「访问」按钮（1.1 就是这样一位一位放开商人对话的）。没填＝按钮一直在。VisitAPI 1.3+</td></tr>
+      <tr><td><b>聊天邀请</b></td><td>在属性页下面的「1.3.4 剧情设置」里。任务一变成可接，<b>发信商人</b>就在聊天窗「特殊通讯」里寄一封信，信上的按钮是「访问」（进他的房间）或「回复」（直接打开你选的那段对话，没房间的商人用它）。
+        开关就是「联系商人」那一个；信的正文在消息区的「邀请」页写，上面画着它在游戏里的样子。开了自动接的任务不发信。VisitAPI 1.3.4+</td></tr>
       <tr><td><b>剧情任务（1.1 字段）</b></td><td>在上面「开关」那一栏。1.1 的剧情标记：不进商人的普通任务列表、没名字就用章节名、完成文案空着也不寄邮件。<b>移植 1.1 数据才用</b>，自己写的章节子任务不用开</td></tr>
     </tbody></table>
     <p>目标行的 ⋮ 里还有三样 1.1 的东西（VisitAPI 1.3+）：<b>目标小字</b>（目标下面那行灰字）、<b>达成时解锁日记</b>（这条目标打勾那一刻多出一条日记，不用等任务交掉）、<b>不画计数</b>（「与某人交谈」这类目标不该有进度条）。</p>
@@ -923,15 +925,18 @@ g_shop_b:`<p>侧栏第五格「商人售卖」。一行一件商品：名字、�
         任务库里会因此多出一条任务——<b>这是正常的</b>，那条就是章节本身</td></tr>
       <tr><td><b>2 · 挂子任务</b></td><td>卡片下面的<b>子任务</b>栏。可以挂已有的任务，也可以当场新建一条。
         子任务自己的目标、奖励、邮件去<b>任务编辑</b>页改</td></tr>
-      <tr><td><b>3 · 排顺序</b></td><td>子任务从上往下就是剧情顺序。点<b>「串起来」</b>可以一键给每条加「前置＝上一条」，
-        玩家就只能按顺序往下推</td></tr>
+      <tr><td><b>3 · 排顺序</b></td><td>子任务从上往下就是剧情顺序，也是<b>自动接的顺序</b>：开了「自动接」、又没写前置的子任务，
+        要等清单里上一条结束（成功或失败都算）才接（插件 1.3.4）。点<b>「串起来」</b>可以一键给还没设接法的每条加「接在上一条之后」，
+        那样要上一条<b>成功</b>才接</td></tr>
       <tr><td><b>4 · 让玩家接得到 ⚠️</b></td><td><b>这是最容易卡住的一步。</b>剧情任务<b>不进商人的任务列表</b>，
         玩家没法自己去点「接受」。所以每条子任务要么开<b>「自动接」+「自动交」</b>，
         要么在<b>对话</b>里用 <code>accept:</code> / <code>complete:</code> 挂上去。
         两样都不给＝玩家永远接不到，右上角会报警告</td></tr>
       <tr><td><b>5 · 日记和物品</b></td><td>卡片右下角是<b>日记</b>（任务开始/完成/失败各解锁一条），
-        底部是<b>相关物品</b>。上交类目标里的物品会自动并进来，不用重复填</td></tr>
+        底部是<b>相关物品</b>：章节自己填的、正在进行的子任务自己填的、日记挂的。目标里的物品<b>不会</b>自动出现，要显示就填上</td></tr>
     </tbody></table>
+    <p><b>剧情页里章节的排序</b>（插件 1.3.4）：已开始的排在没开始的前面；1.1 原版章节的位次插件写死（1～9），
+      自制章节按卡片上的「显示顺序」，不填＝100，排在原版后面。<b>开了「隐藏任务」的子任务</b>，剧情页不列它的目标（1.1 也是这样），卡片预览同样不列。</p>
     <p><b>卡片上面那排「未开放 / 进行中 / 已完成」是预览，不是设置。</b>点它只是让你看看玩家在那个阶段
       看到的样子（勾亮不亮、日记解锁没有），<b>不会改任何数据</b>。游戏里的真状态是由子任务推出来的。</p>
     <p><b>右边上下两块</b>：上面画的是这一章商人那份 <code>.dlg</code> 的对话流程，
@@ -1117,7 +1122,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       点了从 <code>&lt;C&gt;</code> 开始说。</p>
     <p>读法（第二条）：任务还没接的时候，人走到 Sandbox 那个坐标，<b>不弹任何对话</b>，任务当场到手。
       门控写 <code>=AvailableForStart</code> 很关键——不写的话任务接完了那个点还在，会反复触发。</p>
-    <p><b>坐标怎么来</b>：在 BepInEx 配置里给 VisitAPI → Debug → CoordKey 绑一个键（默认没绑），进藏身处或战局站到位置上按一下，
+    <p><b>坐标怎么来</b>：进藏身处或战局，站到位置上按 <b>F11</b>，
       <code>BepInEx\\LogOutput.log</code> 里会多一行 <code>[coord] (x, y, z)  location=…</code>——括号里的数直接抄进触发点（插件判距离用的就是这个相机位置），
       <code>location=</code> 后面就是战局触发点该填的地图 id。改完保存时，<b>只有你动过的那一条会被重写</b>，
       其余的连小数点后几位都原样不动。</p>`,
@@ -1142,7 +1147,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>accept:</code></td><td>点了就<b>接下</b>这个任务。要一次接好几个，id 之间用空格隔开：<code>accept: 任务A 任务B</code></td></tr>
       <tr><td><code>complete:</code></td><td>点了就<b>交掉</b>这个任务，同样可以空格隔开写多个</td></tr>
       <tr><td><code>handover:</code></td><td>上交物品（后面可以跟一句提示，比如「建筑材料」）</td></tr>
-      <tr><td><code>setstatus:</code></td><td>直接把某个任务改成某个状态，不走接取/交付流程</td></tr>
+      <tr><td><code>setstatus:</code></td><td>把某个任务推到某个状态。插件 1.3.4 起，在大厅里（藏身处、商人界面、访问）推到「进行中」＝真的接下、「已完成」＝真的交掉（会发奖励）、「失败」＝真的判失败，都会告诉服务端；别的状态、以及在战局里，只改本地（战局里的随撤离一起结算）</td></tr>
       <tr><td><code>ifitems</code></td><td>背包里有这条任务要交的东西时，这个选项才出现（有一件就算）。<b>要和 <code>handover:</code> 搭配</b>（或者写成 <code>ifitems: 任务id</code> 点名任务）——单写一个 ifitems 什么都不做</td></tr>
       <tr><td><code>standing:</code></td><td>加减好感，<code>+0.05</code> 这样写；<code>standing: 商人id=+0.05</code> 可以改别人的好感，那个 id 必须是 24 位商人 id，写错了游戏里悄悄不动</td></tr>
       <tr><td><code>if:</code> / <code>ifnot:</code></td><td>什么时候<b>才</b>显示 / 什么时候<b>不</b>显示这条选项。状态可以点<b>好几个</b>（任一满足就算，写出来是 <code>if: 任务=Started/AvailableForFinish</code>），还可以再挂<b>第二条</b>——两条<b>都</b>满足才显示</td></tr>
@@ -1190,7 +1195,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
     <ul>
       <li>是从<b>商人界面点「访问」</b>或章节页的「去找 XX」按钮进来的。<b>触发点进来的不加载</b>，战局里也不加载</li>
       <li><b>不在战局里</b>。战局里只有对话框</li>
-      <li>装了<b>场景包</b>（<code>bundles\\vendors\\</code> 下面有这个商人的房间包）。没装就退回没有房间的样子</li>
+      <li>装了<b>房间包</b>（<code>BepInEx\\plugins\\VisitAPI\\rooms\\</code> 下面有这个商人的房间包，EFT11 附加包里带着）。没装就退回没有房间的样子</li>
     </ul>
     <p><b><code>actor:</code> 现在还没用上。</b>文件里写得下、编辑器存得住、也不会被吃掉，
       但插件那边目前<b>没有任何地方读它</b>——先占个位子。同理 <code>anim:</code> 也还没有入口。
@@ -1274,7 +1279,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   cp_tab_always:"tab: 后面不是 if …",
   cp_tab_always_fix:"4.0.13 支持 tab: always，4.1 不认了（会被静默忽略）。想一直显示就把这一行删掉；想按任务控制就写 tab: if <任务id>=<状态>。",
   cp_hideout_offset:"藏身处触发器的坐标：老版是相对区域的偏移",
-  cp_hideout_offset_fix:"4.1 这三个数是**世界坐标**。数字一样但位置完全不同，得在游戏里重新量一次（BepInEx 配置 Debug → CoordKey 绑个键，站到位置上按一下，日志里就有）。",
+  cp_hideout_offset_fix:"4.1 这三个数是**世界坐标**。数字一样但位置完全不同，得在游戏里重新量一次（站到位置上按 F11，日志里就有）。",
   cp_trig_offset:"触发器里用了 offset 参数",
   cp_trig_offset_fix:"4.1 没有这个参数了，把它删掉，坐标直接写世界坐标。",
   cp_npc_multiline:"一个节点里写了不止一行商人台词",
@@ -1296,9 +1301,9 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_gate:"出现条件（某任务处于某状态时才有这个触发点）",m_tr_gate_no:"不设条件（随时出现）",m_tr_gate_off:"去掉条件",
   m_tr_enter:"进图几秒后自动触发（填了就不看坐标）",m_tr_prompt:"提示语",m_tr_prompt_ph:"不填就是「对话」",
   lang_default:"默认",lang_add:"＋语言",lang_stat:"已翻 {0} / {1} 句",
-  lang_add_d:"给这份剧本加一种语言：切到那一页写译文，空着的句子游戏里显示原文。文件里是紧跟原行的「en: 译文」一行；游戏按自己的语言取（插件配置 Language 强制中 / 英时照它）。",
+  lang_add_d:"给这份剧本加一种语言：切到那一页写译文，空着的句子游戏里显示原文。文件里是紧跟原行的「en: 译文」一行；游戏按自己的语言取。",
   m_tr_d2:"接/完成/作废可以同时写，写了就不弹对话；三个都不写才会打开上面选的节点。",
-  m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…，插件只当备注、按坐标判定）；raid＝战局，地点填游戏内部的地图 id（bigmap / RezervBase / laboratory…，写 Customs 这类显示名触发点不会生成），* 表示任何地图。坐标是游戏里的世界坐标（BepInEx 配置 Debug → CoordKey 绑个键按一下，日志里就有），改过的那一行才会被重写，别的原样不动。",
+  m_tr_d:"hideout＝藏身处，地点填区域名（IntelligenceCenter / Security / Gym…，插件只当备注、按坐标判定）；raid＝战局，地点填游戏内部的地图 id（bigmap / RezervBase / laboratory…，写 Customs 这类显示名触发点不会生成），* 表示任何地图。坐标是游戏里的世界坐标（站到位置上按 F11，日志里就有），改过的那一行才会被重写，别的原样不动。",
   m_head_d:"写进文件头的 scene: / actor:。留空就不写这一行。能填什么取决于游戏里有哪些原生房间与角色，还在摸底，所以这里不给下拉。",
   md_title:"VISITAPI EDITOR",md_ok:"确定",md_cancel:"取消",
   set_tour_d:"第一次进对话页和任务页时会自动带你走一遍，只带一次。想再看就点这里。",
@@ -1317,6 +1322,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_notes_d:"任务<b>开始 / 完成 / 失败</b>各解锁一条，显示在章节卡右下角。留空就是没有这一条。只在剧情里用得上，普通任务不用管。",
   tr_q_items:"相关物品：章节卡底下那一排",
   tr_q_items_d:"章节页「相关物品」栏显示的东西：章节自己填的、正在进行的子任务填的、日记挂的。目标里的物品<b>不会自动出现</b>，要显示就在这儿填——比如「这一章你会用到这把钥匙」。",
+  tr_q_invite:"聊天邀请：商人在聊天里喊你来",
+  tr_q_invite_d:"1.1 的剧情任务一变成可接，商人会在聊天窗「特殊通讯」里发一封信，信上有「访问」或「回复」按钮（插件 1.3.4）。这里挑<b>谁发信</b>、<b>按钮是哪种</b>、「回复」打开<b>哪段对话</b>；信的正文在下面消息区的「邀请」页写。开关就是上面「联系商人」那一个。",
 
   tr_c_chain:"一键串成顺序",
   tr_c_chain_d:"给每条子任务加上「前置＝上一条」，玩家就只能<b>按顺序</b>往下推。已经有前置的不会被重复加，点了不怕。想让玩家自由挑着做，就别点。",
@@ -1425,7 +1432,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_stat:"这里会告诉你哪儿写得不对",
   tr_q_stat_d:"绿色的勾＝这一库任务都没问题。有问题时它变成橙色并写明几条，常见的是<b>完成邮件空着</b>（会让任务卡死在「已完成」、还给玩家发一封空信）、<b>一条目标都没有</b>（接得到但永远做不完）。这些都是照着框架真踩过的坑做的检查，别忽略它。",
   tr_q_graph:"任务之间的先后",tr_q_graph_d:"一张卡片是一个任务。从一张卡拖一条线到另一张，意思就是「先做完这个，才能接那个」。",
-  tr_q_mail:"商人发的信和玩家说的话",tr_q_mail_d:"接到任务、做完、失败的时候，商人各发一封信；还有玩家自己说的那几句。",
+  tr_q_mail:"商人发的信和玩家说的话",tr_q_mail_d:"接到任务、做完、失败的时候，商人各发一封信；还有玩家自己说的那几句。「邀请」是 1.1 的聊天邀请信，任务一可接就寄，上面画着它在游戏聊天窗里的样子。",
   tr_q_save:"保存",tr_q_save_d:"写回任务文件。要是你在编辑器外面动过这些文件，它会先问你一句，不会闷头把你的改动盖掉。",
   new_trader:"新商人",new_npc:"在这里写商人说的第一句话。",new_opt2:"一个选项",
   no_file:"（未打开文件）",unsaved:"有未保存改动",saved_ok:"已保存",
@@ -1755,13 +1762,13 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   tr_c_auto:"第四步：让玩家接得到 ⚠️",tr_c_auto_d:"剧情任务<b>不进商人的任务列表</b>，玩家没法自己去点「接受」。所以每条子任务都要开「自动接」和「自动交」——前置一完成就自动接下、目标一达成就自动交。<br>（想让玩家跑去和商人对话才接，就改用<b>对话编辑</b>页的 accept:／complete:。）<br>两样都不给 = 玩家永远接不到，右上角会报警告。",
   tr_c_sim:"上面这三个是预览，不是设置",tr_c_sim_d:"点「未开放／进行中／已完成」只是让你看看玩家在那个阶段会看到什么样（打勾亮不亮、日记解锁没有），<b>不会改数据</b>。",
   tr_c_save:"改完记得保存",tr_c_save_d:"和任务编辑页共用一个任务库，哪边点保存都一样。右上角会显示有没有校验问题，点底部的 WARN 能看清单。",
-  q_look_hint:"点方块选图。图放模组的 images/quest/icon/ 下；图标是左边那列的小图，横幅是章节页顶上那张",
+  q_look_hint:"点方块选图。内容包里横幅放 images\\banners\\、图标放 images\\icons\\（老布局在 images\\quest\\icon\\ 和 images\\quest\\chapters_icon\\）；图标是左边那列的小图，横幅是章节页顶上那张",
   q_sec_subs:"子任务",q_add_sub:"＋ 子任务",q_m_sub:"挑一条任务当子任务",q_m_newsub:"＋ 新建一条子任务",
   q_e_subs:"还没有子任务——一章至少要有一条",q_sub_missing:"找不到任务 {0}…",q_sub_stat:"{0} 个目标 · {1} 条日记",
   q_ch_auto:"自动接",q_ch_autoFinish:"自动交",q_ch_dlg:"只走对话",q_ch_fin:"终章",
-  q_ch_after:"「{0}」完成后接取",q_ch_manual:"手动接",q_ch_timed:"等 {0} 小时后商人联系",q_ch_wait:"（等 {0} 小时）",
+  q_ch_after:"「{0}」完成后接取",q_after_any:"（任一）",q_ch_manual:"手动接",q_ch_timed:"等 {0} 小时后商人联系",q_ch_wait:"（等 {0} 小时）",
   q_a_down:"下移",q_a_goto:"打开这条任务",q_m_chap:"挂进哪一章",
-  q_chap_chain:"串成链",q_chap_chain_d:"给每条子任务加「接在上一条之后」，玩家只能按顺序推进；已经设过的不覆盖",q_chap_chain_btn:"串起来",
+  q_chap_chain:"串成链",q_chap_chain_d:"给还没设接法的每条子任务加「接在上一条之后」（上一条成功才接），玩家只能按顺序推进；已经设过的不覆盖。开了自动接的子任务本来就按清单顺序接（插件 1.3.4），不动它们",q_chap_chain_btn:"串起来",
   q_chain_done:"加了 {0} 条前置",
   q_prev_st0:"未开放",q_prev_st1:"进行中",q_prev_st2:"已完成",
   q_prev_main:"主要目标",q_prev_opt:"可选目标",q_prev_notes:"日记",q_prev_items:"相关物品",
@@ -1847,14 +1854,14 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_vx_anyOf:"目标二选一",q_vx_anyOf_d:"多个目标里任一达成就可以交任务（原版要求全部达成）。只想让其中几条二选一、其余照旧必须完成：去目标行 ⋮ 里「加入二选一组」",
   q_grp_n:"二选一组 {0} 条",q_a_grp_in:"加入二选一组",q_a_grp_out:"移出二选一组",q_tag_grp:"二选一",q_vis_after_grp:"「二选一组」任一完成后显示",
   q_grp_d:"和组里其它目标任一达成即可，组外的目标照旧全部要做；显示条件指向组内任一条的，组达成就算门开。需要插件 09-10 之后的版本",
-  q_vx_unlock:"完成后解锁商人",q_vx_unlock_d:"任务成功（交掉、或自动交）时解锁商人——插件 1.3.3 起改写成原生的「解锁商人」奖励，默认解锁发布它的商人，下面「1.3.3 剧情设置」里可以换成别人。代价：装了 VisitAPI 的玩家新建角色时这位商人一开始是锁着的，直到这条任务成功；老档不受影响。只对放在 VisitAPI-Server 自己任务库里的任务生效",
+  q_vx_unlock:"完成后解锁商人",q_vx_unlock_d:"任务成功（交掉、或自动交）时解锁商人——插件 1.3.3 起改写成原生的「解锁商人」奖励，默认解锁发布它的商人，下面「1.3.4 剧情设置」里可以换成别人。代价：装了 VisitAPI 的玩家新建角色时这位商人一开始是锁着的，直到这条任务成功；老档不受影响。只对放在 VisitAPI-Server 自己任务库里的任务生效",
   q_vx_chapter:"这是一个章节",q_vx_chapter_d:"任务页「剧情」页签里的一章；目标里每条「完成任务」就是一个子任务（最后一条勾 isFinisher），本身建议设成隐秘任务",
-  q_vx_auto:"可接时自动接下",q_vx_auto_d:"这条任务一变成可接就自动接下，不用玩家去点。它跟前置没关系：同一章里的子任务要排先后，得用「什么时候接 → 某条子任务完成后自动接」，写原生前置在打图打到一半是不会解锁的。想让整章自动开始，把这个开关打在章节上。和「接在这条之后」互斥，开一个会清掉另一个",
-  q_vx_startAfter:"接在这条之后",q_vx_startAfter_d:"那条任务完成之后，这一条自动接下来。这是 VisitAPI 自己的前置，打图打到一半也算数；用它的时候原生前置要留空",
+  q_vx_auto:"可接时自动接下",q_vx_auto_d:"这条任务一变成可接就自动接下，不用玩家去点。章节里的子任务（没写原生前置、也没写「接在…之后」的）按子任务清单的顺序来：清单上一条结束（成功或失败都算）才接这一条，第一条跟章节一起开（插件 1.3.4）。要「上一条成功才接」就用「什么时候接 → 某条子任务完成后自动接」。想让整章自动开始，把这个开关打在章节上。和「接在这条之后」互斥，开一个会清掉另一个",
+  q_vx_startAfter:"接在这条之后",q_vx_startAfter_d:"那条任务完成之后，这一条自动接下来。这是 VisitAPI 自己的前置，打图打到一半也算数；用它的时候原生前置要留空。文件里也可以写成一组（插件 1.3.4：任一完成就接，陨落星辰的开章就是这样），编辑器照样显示、逐条检查；在菜单里重选会换成单独一条",
   q_vx_timed:"定时联系",q_vx_timed_d:"前置完成后要等一段时间才可接（原生 availableAfter，文件里存秒）。章节的子任务且不自动接的话，到点后商人头像亮金色电话角标，去对话接取；开着自动接就是到点自动接下。别开「剧情任务（1.1 字段）」那个开关——开了插件只认 1.1 的 mailSettings 来电设置，没配就永远不亮角标",q_vx_timed_v:"「{0}」完成后等 {1} 小时",
   q_vx_autoFinish:"达成即自动交",q_vx_autoFinish_d:"目标一达成就自动交任务、发奖励（1.1 的剧情任务都是这样，不用回去找商人）。章节里的子任务不进支线列表，要么这样自动交、要么在对话里 complete:",
   q_vx_dialogOnly:"只能通过对话接/交",q_vx_dialogOnly_d:"任务列表里的「接受/完成」按钮换成「去找商人」，接交只走 .dlg 对话；.dlg 里没有对应选项时按钮直接藏起来",
-  q_vx_icon:"章节图标",q_vx_icon_d:"章节列的小图标，填服务端图片路径（图放模组的 images/quest/icon/ 下，横幅用上面的任务图）",q_vx_icon_ph:"/files/quest/icon/…",
+  q_vx_icon:"章节图标",q_vx_icon_d:"章节列的小图标，填服务端图片路径（内容包放 images\\icons\\，老布局放 images\\quest\\chapters_icon\\；横幅用上面的任务图）",q_vx_icon_ph:"/files/quest/chapters_icon/…",
   q_sw_isStoryQuest:"剧情任务（1.1 字段）",q_sw_isStoryQuest_d:"1.1 的剧情标记：不进商人的普通任务列表；没名字时游戏里用所属章节的名字；奖励里没物品的完成信不寄；定时联系的金色电话只按 1.1 的 mailSettings 来电设置亮。移植 1.1 数据用，自己写的章节子任务不用开——开了又不在任何章节里，接/交/完成会全程没提示",
   q_sec_unlock:"完成后开放访问",q_unlock_note:"这条任务完成之后，下面这些商人的「访问」按钮才会出现（1.1 靠奖励逐步解锁商人对话，插件 1.3 认这个键）。没填 = 按钮一直在",
   q_add_trader:"＋ 商人",q_tag_trader:"商人",q_m_unlock:"完成后开放哪位商人的访问",q_unlock_none:"商人表里的都已经挂上了",
@@ -1864,7 +1871,9 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_a_cnote:"达成时解锁日记",q_ask_cnote:"这条目标打勾那一刻多出来的一条日记（留空 = 去掉）",q_tag_cnote:"日记",
   q_a_counter_off:"不画计数/进度条",q_a_counter_on:"恢复计数/进度条",q_nocounter:"不计数",
   q_add_note_item:"＋ 给这条日记挂物品",q_m_nltype:"挂什么",
-  ch_order:"显示顺序",ch_order_d:"剧情页先按玩家解锁章节的先后排，这个数字只在同时解锁（或都还没开始）时决定谁在前，小的在前；1.1 官方章节用 1～10。留空按玩家配置里的默认值 100 算，不是排最后",
+  ch_order:"显示顺序",ch_order_d:"剧情页里章节怎么排（插件 1.3.4）：已开始的排在没开始的前面（没开始的要打开插件的「显示未开始的章节」才看得到），同一组里按这个数字，小的在前。1.1 原版章节的位次插件写死在 1～9，这里改了不起作用；自制章节留空按玩家配置的默认值 100 算，排在原版后面，写小于 9 的数能插到原版章节中间",
+  ch_order_fixed:"1.1 原版章节：插件把它固定排在第 {0} 位，包里写的顺序不起作用",
+  ch_hidden_sub:"隐藏",ch_hidden_sub_d:"这条子任务开了「隐藏任务」：剧情页不列它的目标（和 1.1 一样，插件 1.3.4），日记和相关物品照常算",
   q_sec_notes:"剧情日记",q_notes_note:"章节页右下角的日记：任务到了对应状态就解锁一条，按当前内容语言写。留空＝没有这条日记",
   q_note_Started:"开始时",q_note_Started_d:"接下这条任务时解锁（章节：任一子任务开始时）",
   q_note_Success:"完成时",q_note_Success_d:"这条任务完成时解锁",
@@ -1929,7 +1938,7 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_a_vis:"显示条件",q_m_vis:"哪条目标完成后，这一条才显示出来。只对『目标真的一条条完成』的任务有效；靠触发点或对话直接改状态的任务，加了也一样全部显示",q_vis_none:"随时显示（不设条件）",
   q_vis_after:"「{0}」完成后显示",q_vis_d:"前一条目标完成之前，玩家在任务界面上看不到这一条（原版 197 处这么用）。只对『目标真的一条条完成』的任务有效；靠触发点或对话直接改状态的任务，加了也一样全部显示",
   q_a_when:"什么时候接",q_m_when:"这条子任务什么时候接下来",
-  q_when_auto:"跟章节一起自动接",q_when_after:"某条子任务完成后自动接",q_when_manual:"靠触发点或对话接",
+  q_when_auto:"按清单顺序自动接（上一条结束就接）",q_when_after:"某条子任务完成后自动接",q_when_manual:"靠触发点或对话接",
   q_m_after:"接在哪一条子任务之后",q_after_alone:"这一章只有这一条子任务，没得挑",
   q_when_timed:"某条子任务完成后等一段时间，商人联系你",q_when_timed_d:"写原生前置 + 定时：前置完成时 SPT 起定时器，到点这条变可接。得是剧情任务且不自动接，到点后商人头像亮金色电话角标，去对话接（需 09-13 之后的插件）",
   q_m_timed:"等哪一条子任务完成后开始计时",q_ask_wait:"前置完成后等几小时才可接？（填小时，可带小数；0 = 不等）",q_a_wait:"等多久才可接",q_c_wait:"（之后等 {0} 小时）",
@@ -1968,7 +1977,7 @@ qe_as_over_capacity:"{0} 里装了 {1} 个，超过容量 {2}",
   q_link_nows:"工作区还没设置，读不到 .dlg。先在「对话编辑」里点「打开」指一次。",
   q_sec_accept:"接取入口",q_hint_accept:"玩家点了这个选项，任务就到手了",
   q_sec_complete:"交付入口",q_hint_complete:"玩家点了这个选项，任务就交掉了（上交＝同时把物品给出去）",
-  q_sec_setstatus:"改状态",q_hint_setstatus:"不接也不交，只把任务状态推一格。常用来做剧情里的隐性推进",
+  q_sec_setstatus:"改状态",q_hint_setstatus:"把任务推到某个状态：大厅里推到进行中 / 已完成 / 失败，会真的接 / 交（发奖励）/ 判失败并告诉服务端（插件 1.3.4）；别的状态只改本地。常用来做剧情里的隐性推进",
   q_sec_trig:"触发点",q_hint_trig:".dlg 头部的 trigger 行：玩家走到哪、按什么键会打开这段对话。只能在对话编辑器里改",
   q_add_link:"＋ 挂到对话选项",q_e_link:"没有",
   q_e_trig:"没有 —— 这个任务不靠场景里的触发点开启对话",
@@ -2114,11 +2123,13 @@ but refuse to sell.</p>`,
       <tr><td><b>Any one objective</b></td><td>Several objectives, <b>any one of them</b> is enough to hand in. Vanilla requires all of them. Good for "take whichever of the three routes you like". To make only some of them interchangeable and keep the rest required: objective row ⋮ → "Join either-group" (a visibility condition pointing at a group member opens once the group is done)</td></tr>
       <tr><td><b>Unlock trader on ready</b></td><td>The moment the quest becomes ready to hand in, the trader who gave it is unlocked — <b>without waiting for the player to hand it in</b></td></tr>
       <tr><td><b>This is a chapter</b></td><td>Turns this quest into <b>one chapter</b> of the story page. See <code>G17</code> — build chapters on the <b>Chapters</b> page rather than flipping this by hand</td></tr>
-      <tr><td><b>Auto-accept when available</b></td><td>As soon as the prerequisites clear and this becomes available, it is <b>taken automatically</b> — the player never clicks Accept</td></tr>
+      <tr><td><b>Auto-accept when available</b></td><td>As soon as the prerequisites clear and this becomes available, it is <b>taken automatically</b> — the player never clicks Accept. Chapter sub-quests without prerequisites follow the sub-quest list: each waits until the previous one has ended (success or failure both count), the first opens with the chapter (plugin 1.3.4)</td></tr>
       <tr><td><b>Auto-complete when done</b></td><td>The moment the objectives are met it <b>hands itself in and pays out</b>, no trip back to the trader. This is how every 1.1 story quest works</td></tr>
       <tr><td><b>Dialogue only</b></td><td>The Accept/Complete button in the quest list becomes "<b>Go see the trader</b>"; taking and handing in only happen through dialogue. If the <code>.dlg</code> has no matching option, the button is hidden entirely</td></tr>
-      <tr><td><b>Chapter icon</b></td><td>The small icon in the story column. Give a server image path; put the file under your mod's <code>images/quest/icon/</code></td></tr>
+      <tr><td><b>Chapter icon</b></td><td>The small icon in the story column. Give a server image path; put the file in the content pack's <code>images\\icons\\</code> (legacy layout: <code>images\\quest\\chapters_icon\\</code>)</td></tr>
       <tr><td><b>Unlocks visits when done</b></td><td>Only after this quest is completed do the listed traders get their Visit button (this is how 1.1 opens trader dialogue one trader at a time). Empty = the button is always there. VisitAPI 1.3+</td></tr>
+      <tr><td><b>Chat invite</b></td><td>Under “1.3.4 story settings” at the bottom of the Properties tab. Once the quest becomes available, the <b>sender</b> posts a letter in the chat's special channel with a Visit button (go to their room) or a Reply button (open the dialogue you picked directly — use it for traders without a room).
+        Its switch is the Calling trader one; the letter text goes on the Invite tab of the message area, with a preview of how it looks in game. Quests that auto-accept never send it. VisitAPI 1.3.4+</td></tr>
       <tr><td><b>Story quest (1.1 field)</b></td><td>Up in the <b>Switches</b> section. The 1.1 story flag: kept out of the trader's normal list, an empty name falls back to the chapter's name, an empty success text sends no mail. <b>For ported 1.1 data</b> — your own chapter sub-quests don't need it</td></tr>
     </tbody></table>
     <p>The ⋮ on an objective row has three more 1.1 things (VisitAPI 1.3+): <b>objective subtext</b> (the grey line under it), <b>note unlocked on completion</b> (a journal entry that appears the moment this objective is ticked, before the quest is handed in) and <b>hide counter</b> (a "talk to X" objective has no business showing a progress bar).</p>
@@ -2138,10 +2149,12 @@ but refuse to sell.</p>`,
     <table class="hptab"><tbody>
       <tr><td><b>1 · Create it</b></td><td><b>Chapters</b> page → <b>+ New chapter</b>. It asks which file to save into and which trader owns it. A new quest appears in your library — <b>that is expected</b>, it is the chapter itself</td></tr>
       <tr><td><b>2 · Attach sub-quests</b></td><td>The <b>Sub-quests</b> strip under the card. Attach existing quests or create one on the spot. A sub-quest's own objectives, rewards and mails are edited on the <b>Quests</b> page</td></tr>
-      <tr><td><b>3 · Order them</b></td><td>Top to bottom is story order. <b>Chain them</b> adds "prerequisite = the previous one" to every sub-quest in one click, so the player can only advance in order</td></tr>
+      <tr><td><b>3 · Order them</b></td><td>Top to bottom is story order, and also the <b>auto-accept order</b>: an auto-accept sub-quest without prerequisites waits until the previous entry has ended (success or failure both count; plugin 1.3.4). <b>Chain them</b> gives every sub-quest that has no start rule yet "starts after the previous one" in one click — then the previous one must <b>succeed</b></td></tr>
       <tr><td><b>4 · Let the player reach them ⚠️</b></td><td><b>This is where people get stuck.</b> Story quests <b>do not appear in the trader's quest list</b>, so the player cannot click Accept. Every sub-quest must either have <b>auto-accept + auto-complete</b> on, or be hung off a dialogue option with <code>accept:</code> / <code>complete:</code>. Neither one means the player can never reach it — you get a warning in the top right</td></tr>
-      <tr><td><b>5 · Journal and items</b></td><td>Bottom right of the card is the <b>journal</b> (one entry each for started / completed / failed); along the bottom are the <b>related items</b>. Items from hand-over objectives are merged in automatically</td></tr>
+      <tr><td><b>5 · Journal and items</b></td><td>Bottom right of the card is the <b>journal</b> (one entry each for started / completed / failed); along the bottom are the <b>related items</b>: the chapter's own list, the lists of sub-quests in progress, and items attached to notes. Items inside objectives do <b>not</b> show up on their own — list them if you want them</td></tr>
     </tbody></table>
+    <p><b>Chapter order on the story page</b> (plugin 1.3.4): started chapters come before unstarted ones; the official 1.1 chapters have fixed places (1–9) in the plugin,
+      a custom chapter follows the Order box on its card — empty = 100, after the official ones. <b>A sub-quest with Hidden quest on</b> has its objectives left off the story page (1.1 does the same), and the card preview leaves them off too.</p>
     <p><b>The "Locked / In progress / Done" row above the card is a preview, not a setting.</b> Clicking it
       only shows you what the player sees at that stage (which ticks are lit, which journal entries are
       unlocked). It <b>never changes data</b> — in game the real state is derived from the sub-quests.</p>
@@ -2347,8 +2360,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
     <p>Reads as (second): while the quest hasn't been taken yet, walking to that spot in Sandbox hands it
       over on the spot with <b>no dialogue at all</b>. The <code>=AvailableForStart</code> gate matters —
       without it the spot stays live after the quest is taken and keeps firing.</p>
-    <p><b>Where do coordinates come from</b>: in the BepInEx config bind a key to VisitAPI → Debug → CoordKey (unbound by default),
-      stand on the spot in the hideout or a raid and press it — <code>BepInEx\\LogOutput.log</code> gets a line
+    <p><b>Where do coordinates come from</b>: stand on the spot in the hideout or a raid and press <b>F11</b>
+      — <code>BepInEx\\LogOutput.log</code> gets a line
       <code>[coord] (x, y, z)  location=…</code>. Paste the numbers straight into the trigger (the plugin measures distance from that
       same camera position); <code>location=</code> is the map id a raid trigger wants. When you save,
       <b>only the line you edited is rewritten</b> — the others keep every decimal exactly as typed.</p>`,
@@ -2374,7 +2387,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
       <tr><td><code>accept:</code></td><td><b>takes</b> the quest. Several at once: separate the ids with spaces — <code>accept: questA questB</code></td></tr>
       <tr><td><code>complete:</code></td><td><b>hands in</b> the quest; several ids with spaces work here too</td></tr>
       <tr><td><code>handover:</code></td><td>hand over items (an optional label follows, e.g. "Building materials")</td></tr>
-      <tr><td><code>setstatus:</code></td><td>force a quest into a status, skipping the accept/hand-in flow</td></tr>
+      <tr><td><code>setstatus:</code></td><td>push a quest into a status. Since plugin 1.3.4, in the lobby (hideout, trader screen, visits) Started = really accepted, Success = really handed in (rewards paid), Fail = really failed — all reported to the server; any other status, and anything in a raid, only changes the local copy (raid changes settle with the extraction)</td></tr>
       <tr><td><code>ifitems</code></td><td>only show this option while the player carries something the quest wants. <b>Pair it with <code>handover:</code></b> (or name the quest: <code>ifitems: questId</code>) — a bare ifitems on its own does nothing</td></tr>
       <tr><td><code>standing:</code></td><td>change standing, written like <code>+0.05</code>; <code>standing: traderId=+0.05</code> changes another trader's, and that id must be a 24-character trader id or the game silently skips it</td></tr>
       <tr><td><code>if:</code> / <code>ifnot:</code></td><td>when this option <b>does</b> / <b>doesn't</b> show. You can tick <b>several</b> statuses (any one of them counts — it writes out as <code>if: quest=Started/AvailableForFinish</code>), and hang a <b>second</b> condition on it: <b>both</b> must hold</td></tr>
@@ -2427,7 +2440,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
     <ul>
       <li>the player came in by <b>clicking Visit on the trader screen</b> or the chapter page's Visit button. <b>Trigger points don't load it</b>, and neither does a raid</li>
       <li><b>not in a raid</b>. In a raid you only get the dialogue box</li>
-      <li>the <b>scene pack is installed</b> (a room pack for this trader under <code>bundles\\vendors\\</code>). Without it, you fall back to no room</li>
+      <li>the <b>room pack is installed</b> (a room pack for this trader under <code>BepInEx\\plugins\\VisitAPI\\rooms\\</code>; the EFT11 add-on ships them). Without it, you fall back to no room</li>
     </ul>
     <p><b><code>actor:</code> is not wired up yet.</b> You can write it, the editor keeps it and never eats it,
       but <b>nothing in the plugin reads it</b> today — it's a placeholder. Same for <code>anim:</code>,
@@ -2515,7 +2528,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   cp_tab_always:"tab: is not followed by if …",
   cp_tab_always_fix:"4.0.13 supported tab: always; 4.1 ignores it silently. Delete the line to always show Talk, or write tab: if <questId>=<status>.",
   cp_hideout_offset:"Hideout trigger coordinates used to be an offset",
-  cp_hideout_offset_fix:"In 4.1 these three numbers are **world coordinates**. Same numbers, completely different spot — measure them again in game (bind BepInEx config Debug → CoordKey, stand on the spot, press it; the log prints them).",
+  cp_hideout_offset_fix:"In 4.1 these three numbers are **world coordinates**. Same numbers, completely different spot — measure them again in game (stand on the spot and press F11; the log prints them).",
   cp_trig_offset:"The trigger uses the offset parameter",
   cp_trig_offset_fix:"4.1 dropped it. Remove the word and put world coordinates in the brackets.",
   cp_npc_multiline:"More than one trader line in a single node",
@@ -2538,9 +2551,9 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   m_tr_gate:"Condition (only while a quest is in a status)",m_tr_gate_no:"No condition (always there)",m_tr_gate_off:"Remove condition",
   m_tr_enter:"Fire N seconds after spawning (coordinates ignored)",m_tr_prompt:"Prompt",m_tr_prompt_ph:"defaults to \"Talk\"",
   lang_default:"Default",lang_add:"+ language",lang_stat:"{0} / {1} lines translated",
-  lang_add_d:"Add a language to this script: switch to its tab and write the translations; untranslated lines show the default text in game. In the file it is one \"en: translation\" line right under the original; the game picks by its own language (or the plugin's Language setting when forced).",
+  lang_add_d:"Add a language to this script: switch to its tab and write the translations; untranslated lines show the default text in game. In the file it is one \"en: translation\" line right under the original; the game picks by its own language.",
   m_tr_d2:"Accept / complete / fail can be combined; with any of them set the trigger acts silently instead of opening the dialogue node.",
-  m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…; the plugin treats it as a note and judges by the coordinates); raid = in a raid, place is the game's internal map id (bigmap / RezervBase / laboratory…; display names like Customs never spawn the trigger), * means any map. Coordinates are world coordinates (bind BepInEx config Debug → CoordKey and press it on the spot; the log prints them). Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
+  m_tr_d:"hideout = the hideout, place is an area name (IntelligenceCenter / Security / Gym…; the plugin treats it as a note and judges by the coordinates); raid = in a raid, place is the game's internal map id (bigmap / RezervBase / laboratory…; display names like Customs never spawn the trigger), * means any map. Coordinates are world coordinates (stand on the spot and press F11; the log prints them). Only the line you edit gets rewritten — the rest stay byte-for-byte as they were.",
   m_head_d:"Written to the file header as scene: / actor:. Leave empty to omit the line. What you can put here depends on which built-in rooms and characters the game has — still being mapped out, so no dropdown yet.",
   md_title:"VISITAPI EDITOR",md_ok:"OK",md_cancel:"Cancel",
   set_tour_d:"It runs once, the first time you open the dialogue and quest pages. Click here to see it again.",
@@ -2556,6 +2569,8 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_notes_d:"One entry unlocks when the quest is <b>started / completed / failed</b>, shown at the bottom right of the chapter card. Leave blank for none. Only story quests need this.",
   tr_q_items:"Related items: the strip along the bottom of the chapter card",
   tr_q_items_d:"What the chapter page's Related items strip shows: the chapter's own list, the lists of sub-quests in progress, and items attached to diary notes. Items inside objectives <b>do not appear on their own</b> — list them here, like “you'll want this key for the chapter”.",
+  tr_q_invite:"Chat invite: the trader calls you over in the chat",
+  tr_q_invite_d:"When a 1.1 story quest becomes available, the trader posts a letter in the chat's special channel with a Visit or Reply button (plugin 1.3.4). Here you pick <b>who sends it</b>, <b>which button</b>, and <b>which dialogue</b> Reply opens; the letter text is written on the Invite tab of the message area below. Its switch is the Calling trader switch above.",
 
   tr_c_chain:"Chain them in order, in one click",
   tr_c_chain_d:"Adds “prerequisite = the previous one” to every sub-quest, so the player can only advance <b>in order</b>. Sub-quests that already have a prerequisite are left alone, so clicking twice is harmless. Skip it if you want the player to pick freely.",
@@ -2659,7 +2674,7 @@ trigger: raid Sandbox (95.4, 22.84, -3.98) auto accept 65f0e1c2… if 65f0e1c2�
   tr_q_stat:"This tells you what's wrong",
   tr_q_stat_d:"A green tick means nothing's wrong with this library. When something is, it turns orange with a count. The usual ones: <b>an empty completion mail</b> (leaves the quest stuck as complete and mails the player a blank letter) and <b>no objectives at all</b> (they can take it but never finish). These checks come from potholes the framework actually hit — don't wave them off.",
   tr_q_graph:"Which quest comes first",tr_q_graph_d:"One card is one quest. Drag a line from one card to another and it means \"finish this one before you can take that one\".",
-  tr_q_mail:"The trader's mails and the player's lines",tr_q_mail_d:"A mail from the trader when the quest is taken, finished and failed — plus the few lines the player says.",
+  tr_q_mail:"The trader's mails and the player's lines",tr_q_mail_d:"A mail from the trader when the quest is taken, finished and failed — plus the few lines the player says. Invite is the 1.1 chat invite letter, sent as soon as the quest becomes available, with a preview of how it looks in the game's chat.",
   tr_q_save:"Save",tr_q_save_d:"Writes the quest files back. If you changed them outside the editor, it asks you first instead of overwriting your work.",
   new_trader:"New trader",new_npc:"Write the trader's first line here.",new_opt2:"An option",
   no_file:"(no file open)",unsaved:"Unsaved changes",saved_ok:"Saved",
@@ -2983,13 +2998,13 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   tr_c_auto:"Step 4: let the player get it ⚠️",tr_c_auto_d:"Story quests <b>never appear in the trader's task list</b>, so they need a way in and out: switch on “auto-accept” (taken the moment its prerequisites are done) and “auto-complete” (turned in the moment its objectives are met). Or hang accept:／complete: on a dialogue option on the <b>Dialogue</b> page. Neither one = the player can never get it, and you'll get a warning.",
   tr_c_sim:"Those three are a preview, not a setting",tr_c_sim_d:"Unavailable / Active / Complete only change how the card looks (ticks, unlocked journal entries) so you can see what the player sees at each stage. <b>They never touch your data.</b>",
   tr_c_save:"Save when you're done",tr_c_save_d:"The quest database is shared with the Quests page — saving on either side is the same. The top-right shows whether anything failed validation; click WARN at the bottom for the list.",
-  q_look_hint:"Click a plate to pick an image. Files go under the mod’s images/quest/icon/; the icon is the small tile in the left column, the banner is the strip across the top",
+  q_look_hint:"Click a plate to pick an image. In a content pack banners go in images\\banners\\ and icons in images\\icons\\ (legacy layout: images\\quest\\icon\\ and images\\quest\\chapters_icon\\); the icon is the small tile in the left column, the banner is the strip across the top",
   q_sec_subs:"Sub-quests",q_add_sub:"+ Sub-quest",q_m_sub:"Pick a quest as sub-quest",q_m_newsub:"+ New sub-quest",
   q_e_subs:"No sub-quests yet — a chapter needs at least one",q_sub_missing:"quest {0}… not found",q_sub_stat:"{0} objectives · {1} notes",
   q_ch_auto:"auto-accept",q_ch_autoFinish:"auto-complete",q_ch_dlg:"dialog only",q_ch_fin:"finisher",
-  q_ch_after:"starts after {0}",q_ch_manual:"manual start",q_ch_timed:"trader calls after {0} h",q_ch_wait:" (after {0} h)",
+  q_ch_after:"starts after {0}",q_after_any:" (any)",q_ch_manual:"manual start",q_ch_timed:"trader calls after {0} h",q_ch_wait:" (after {0} h)",
   q_a_down:"Move down",q_a_goto:"Open this quest",q_m_chap:"Which chapter",
-  q_chap_chain:"Chain",q_chap_chain_d:"Give every sub-quest a start-after-the-previous-one rule so the player advances in order; existing settings are kept",q_chap_chain_btn:"Chain them",
+  q_chap_chain:"Chain",q_chap_chain_d:"Give every sub-quest that has no start rule yet a start-after-the-previous-one rule (the previous one must succeed), so the player advances in order; existing settings are kept. Auto-accept sub-quests already follow the list order (plugin 1.3.4) and are left alone",q_chap_chain_btn:"Chain them",
   q_chain_done:"{0} prerequisite(s) added",
   q_prev_st0:"Unavailable",q_prev_st1:"Active",q_prev_st2:"Complete",
   q_prev_main:"Main objectives",q_prev_opt:"Optional objectives",q_prev_notes:"Journal",q_prev_items:"Related items",
@@ -3075,14 +3090,14 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_vx_anyOf:"Any one objective",q_vx_anyOf_d:"Completing any single objective makes the quest ready to hand in (stock requires all of them). To make only some of them interchangeable and keep the rest required, use ⋮ → \"Join either-group\" on the objective row",
   q_grp_n:"either-group of {0}",q_a_grp_in:"Join either-group",q_a_grp_out:"Leave either-group",q_tag_grp:"either",q_vis_after_grp:"shown after any of the either-group",
   q_grp_d:"Any one objective in the group counts for the whole group; objectives outside it stay required. A visibility condition pointing at any group member opens once the group is done. Needs the plugin from 2026-09-10 or later",
-  q_vx_unlock:"Unlock trader on success",q_vx_unlock_d:"Unlocks a trader when the quest succeeds (handed in, or auto-completed) — since plugin 1.3.3 this is rewritten into a stock trader-unlock reward; by default the quest's own trader, or pick another one under “1.3.3 story settings” below. The cost: with VisitAPI installed, new characters start with that trader locked until this quest succeeds; existing profiles are unaffected. Only applies to quests kept in VisitAPI-Server's own quest library",
+  q_vx_unlock:"Unlock trader on success",q_vx_unlock_d:"Unlocks a trader when the quest succeeds (handed in, or auto-completed) — since plugin 1.3.3 this is rewritten into a stock trader-unlock reward; by default the quest's own trader, or pick another one under “1.3.4 story settings” below. The cost: with VisitAPI installed, new characters start with that trader locked until this quest succeeds; existing profiles are unaffected. Only applies to quests kept in VisitAPI-Server's own quest library",
   q_vx_chapter:"This is a chapter",q_vx_chapter_d:"A chapter on the STORY tab of the tasks screen; every \"complete quest\" objective is one sub-quest (tick isFinisher on the last one). Best kept a secret quest",
-  q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically as soon as it becomes acceptable — no click needed. It has nothing to do with prerequisites: to order sub-quests inside one chapter use When it starts, auto-accept after another sub-quest; a stock prerequisite never unlocks mid-raid. Put this switch on the chapter itself to make a whole chapter start automatically. Mutually exclusive with Starts after — turning one on clears the other",
-  q_vx_startAfter:"Starts after",q_vx_startAfter_d:"Once that quest succeeds this one is accepted automatically — a prerequisite owned by VisitAPI, so it also works mid-raid; leave the stock prerequisites empty",
+  q_vx_auto:"Auto-accept when available",q_vx_auto_d:"Accepted automatically as soon as it becomes acceptable — no click needed. Chapter sub-quests (with no stock prerequisite and no Starts after) follow the sub-quest list: each one waits until the previous entry has ended (success or failure both count), and the first opens with the chapter (plugin 1.3.4). For only after the previous one succeeds use When it starts, auto-accept after another sub-quest. Put this switch on the chapter itself to make a whole chapter start automatically. Mutually exclusive with Starts after — turning one on clears the other",
+  q_vx_startAfter:"Starts after",q_vx_startAfter_d:"Once that quest succeeds this one is accepted automatically — a prerequisite owned by VisitAPI, so it also works mid-raid; leave the stock prerequisites empty. The file may also list several (plugin 1.3.4: any one done is enough — the Falling Skies opening works this way); the editor shows and checks each of them, and picking again in the menu replaces them with a single one",
   q_vx_timed:"Timed contact",q_vx_timed_d:"Becomes available only some time after its prerequisite is done (stock availableAfter, stored in seconds). For a chapter sub-quest that is not auto-accepted, the trader gets a golden phone badge when the timer runs out and the player accepts it in dialogue; with auto-accept on it is accepted the moment the timer ends. Leave the “Story quest (1.1 field)” switch off — with it on the plugin only trusts 1.1 mailSettings for the badge, and it never lights without them",q_vx_timed_v:"{1} h after “{0}” is done",
   q_vx_autoFinish:"Auto-complete when done",q_vx_autoFinish_d:"Turned in and rewarded the moment its objectives are met (how 1.1 story tasks work). Chapter sub-quests are hidden from the side-quest list, so they need this or a dialog complete:",
   q_vx_dialogOnly:"Accept/complete via dialog only",q_vx_dialogOnly_d:"The Accept/Complete button in the task list turns into \"Visit trader\"; accepting and handing in go through the .dlg dialog. With no matching option in any .dlg the button is hidden",
-  q_vx_icon:"Chapter icon",q_vx_icon_d:"Small icon in the chapter column — a server image path (put the file under the mod's images/quest/icon/; the banner is the quest image above)",q_vx_icon_ph:"/files/quest/icon/…",
+  q_vx_icon:"Chapter icon",q_vx_icon_d:"Small icon in the chapter column — a server image path (a content pack keeps it in images\\icons\\, the legacy layout in images\\quest\\chapters_icon\\; the banner is the quest image above)",q_vx_icon_ph:"/files/quest/chapters_icon/…",
   q_sw_isStoryQuest:"Story quest (1.1 field)",q_sw_isStoryQuest_d:"The 1.1 story flag: kept out of the trader's normal quest list; an empty name falls back to the chapter's name in game; completion mail without item rewards is not sent; the timed-contact phone badge then follows 1.1 mailSettings only. For ported 1.1 data — your own chapter sub-quests don't need it, and on a quest outside any chapter it makes accept / hand-in / completion happen in silence",
   q_sec_unlock:"Unlocks visits when done",q_unlock_note:"Once this quest is completed the Visit button of these traders appears (1.1 unlocks trader dialogue step by step through rewards; plugin 1.3 reads this key). Empty = the button is always there",
   q_add_trader:"+ Trader",q_tag_trader:"trader",q_m_unlock:"Whose visit opens up when this quest is done",q_unlock_none:"Every trader in the table is already listed",
@@ -3092,7 +3107,9 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_a_cnote:"Note unlocked on completion",q_ask_cnote:"A note that appears the moment this objective is ticked (empty = remove)",q_tag_cnote:"note",
   q_a_counter_off:"Hide counter / progress bar",q_a_counter_on:"Show counter / progress bar again",q_nocounter:"no counter",
   q_add_note_item:"+ Attach an item to this note",q_m_nltype:"Attach as",
-  ch_order:"Order",ch_order_d:"The story page sorts chapters by when the player unlocked them; this number only breaks ties (chapters unlocked together, or not started yet), smallest first; the official 1.1 chapters use 1–10. Empty counts as the player's config default 100, not last",
+  ch_order:"Order",ch_order_d:"How the story page orders chapters (plugin 1.3.4): started chapters come before unstarted ones (those only show with the plugin's Show unstarted chapters on); within each group this number decides, smallest first. The official 1.1 chapters have fixed places 1–9 in the plugin, so changing it here does nothing for them; a custom chapter left empty counts as the player's config default 100, after the official ones — a number below 9 slots it in between them",
+  ch_order_fixed:"Official 1.1 chapter: the plugin fixes it at place {0}; the order written in the pack is ignored",
+  ch_hidden_sub:"hidden",ch_hidden_sub_d:"This sub-quest has Hidden quest on: the story page does not list its objectives (same as 1.1, plugin 1.3.4); its journal entries and related items still count",
   q_sec_notes:"Story notes",q_notes_note:"The journal at the bottom right of the chapter page: one entry unlocks when the quest reaches that state, written in the current content language. Empty = no entry",
   q_note_Started:"On start",q_note_Started_d:"Unlocks when this quest is accepted (chapter: when any sub-quest starts)",
   q_note_Success:"On completion",q_note_Success_d:"Unlocks when this quest is completed",
@@ -3157,7 +3174,7 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_a_vis:"Visible after",q_m_vis:"Show this objective only once another one is done. Only works when the objectives are really completed one by one — a quest whose status is pushed by a trigger or a dialog option shows all of them anyway",q_vis_none:"Always visible",
   q_vis_after:"shown after {0}",q_vis_d:"Hidden from the player until the objective it follows is complete (used in 197 places by stock quests). Only works when the objectives are really completed one by one — a quest whose status is pushed by a trigger or a dialog option shows all of them anyway",
   q_a_when:"When it starts",q_m_when:"When does this sub-quest start",
-  q_when_auto:"Auto-accept when the chapter starts",q_when_after:"Auto-accept after another sub-quest",q_when_manual:"Started by a trigger or a dialog option",
+  q_when_auto:"Auto-accept in list order (once the previous one ends)",q_when_after:"Auto-accept after another sub-quest",q_when_manual:"Started by a trigger or a dialog option",
   q_m_after:"Start after which sub-quest",q_after_alone:"This chapter has only one sub-quest, nothing to pick",
   q_when_timed:"Some time after another sub-quest is done, the trader calls",q_when_timed_d:"Writes a stock prerequisite plus a timer: when the prerequisite is done SPT starts the timer and this quest becomes available when it ends. It must be a story quest that is not auto-accepted; the trader then gets a golden phone badge and the player accepts it in dialogue (needs the plugin from 2026-09-13 or later)",
   q_m_timed:"Which sub-quest starts the timer",q_ask_wait:"How many hours after the prerequisite is done can it start? (hours, decimals allowed; 0 = no wait)",q_a_wait:"Wait before it can start",q_c_wait:" (then wait {0} h)",
@@ -3195,7 +3212,7 @@ qe_as_over_capacity:"{0} contains {1}, over the capacity of {2}",
   q_link_nows:"No workspace set, so there are no .dlg files to read. Point at one from the Dialogue page first.",
   q_sec_accept:"Hand-out points",q_hint_accept:"Pressing this option gives the player the quest",
   q_sec_complete:"Hand-in points",q_hint_complete:"Pressing this option completes the quest (hand over = it also takes the items)",
-  q_sec_setstatus:"Status nudges",q_hint_setstatus:"Neither accepts nor completes — just moves the quest one status along. Handy for quiet story progress",
+  q_sec_setstatus:"Status nudges",q_hint_setstatus:"Pushes the quest into a status: in the lobby, Started / Success / Fail really accept / hand in (rewards paid) / fail it and tell the server (plugin 1.3.4); other statuses only change the local copy. Handy for quiet story progress",
   q_sec_trig:"Triggers",q_hint_trig:"The trigger lines at the top of the .dlg: where the player has to stand and what they press. Edit them on the Dialogue page",
   q_add_link:"＋ Attach to an option",q_e_link:"None",
   q_e_trig:"None — this quest doesn't open its dialogue from a spot in the world",
@@ -4768,6 +4785,7 @@ const TOUR={
          ["#qChain","tr_c_chain",'[data-pane="prop"]'],
          ['[data-sec="q_sec_notes"]',"tr_q_notes",'[data-pane="prop"]'],
          ['[data-sec="q_sec_items"]',"tr_q_items",'[data-pane="prop"]'],
+         ['[data-sec="q_invite"]',"tr_q_invite",'[data-pane="prop"]'],
          [".stat","tr_q_stat"],["#qRootSw","tr_q_root"],["#qSave","tr_q_save"]],
   /* 章节页的引导：**只讲让人能跑通一章的那几步**。选择器不在的步会被 tourStart 自动跳过，
      所以空库时它只讲"先建一章"，建完再进来才讲后面的——不用为两种状态写两条线。 */

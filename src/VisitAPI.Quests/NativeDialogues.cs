@@ -3,7 +3,9 @@ using System.Text.Json;
 namespace VisitAPI.Quests;
 
 public sealed record NativeQuestLink(string File, string Element, string Line, string Action, string QuestId);
-public sealed record NativeDialogueReport(List<NativeQuestLink> Links, Dictionary<string, string> Broken, int DroppedLines);
+public sealed record NativeDialogueReport(List<NativeQuestLink> Links, Dictionary<string, string> Broken, int DroppedLines, List<NativeDialogueElement>? Elements = null);
+/// <summary>包里的一段原生对话（1.3.4 聊天邀请「回复时打开哪段」挑它用）：商人 + 第一句的中英文当名字。</summary>
+public sealed record NativeDialogueElement(string Id, string Trader, string File, string Zh, string En);
 
 /// <summary>Read-only index of the lines retained by VisitAPI's DialogueLoader/DialogueSanitizer.</summary>
 public static class NativeDialogues
@@ -26,7 +28,7 @@ public static class NativeDialogues
         var key = ReadOnlyJson.Revision(files.Append(stock).Append(dir));
         if (_cache is { } cache && cache.Key == key) return cache.Report;
         var ids = StockIds(stock);
-        var report = new NativeDialogueReport([], new(StringComparer.OrdinalIgnoreCase), 0);
+        var report = new NativeDialogueReport([], new(StringComparer.OrdinalIgnoreCase), 0, []);
         var dropped = 0;
         foreach (var file in files)
         {
@@ -40,6 +42,7 @@ public static class NativeDialogues
                     var id = Text(element, "Id");
                     if (!QuestValidator.IsMongoId(id) || !ids.Add(id)) continue;
                     dropped += Collect(element, Path.GetFileName(file), report.Links);
+                    report.Elements!.Add(new(id, Text(element, "Trader"), Path.GetFileName(file), FirstLine(element, "ch"), FirstLine(element, "en")));
                 }
             }
             catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException)
@@ -81,6 +84,15 @@ public static class NativeDialogues
         var elements = doc == null ? default : Field(doc.RootElement, "elements");
         return elements.ValueKind == JsonValueKind.Array
             ? elements.EnumerateArray().Select(e => Text(e, "Id")).ToHashSet(StringComparer.Ordinal) : new(StringComparer.Ordinal);
+    }
+
+    /// 对话自带的 localization.&lt;语言&gt; 里第一句（1.1 数据是「文案键 → 句子」），当这段对话的名字；没有就空串
+    static string FirstLine(JsonElement element, string lang)
+    {
+        var table = Field(Field(element, "localization"), lang);
+        if (table.ValueKind != JsonValueKind.Object) return "";
+        foreach (var p in table.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.String && p.Value.GetString() is { Length: > 0 } s) return s;
+        return "";
     }
 
     static JsonElement Field(JsonElement node, string key) => node.ValueKind == JsonValueKind.Object && node.TryGetProperty(key, out var value) ? value : default;

@@ -21,8 +21,14 @@
 
 let ccur=null;        /* 当前章节 id */
 let cSt=1;            /* 卡片上模拟的章节状态：0 未开放 / 1 进行中 / 2 已完成 —— 只影响外观，不写数据 */
-/* 章节顺序 = visitapi.order 小的在前（插件 1.3 G20），没标的按文件原序垫底 —— 图标列和游戏里一个顺序 */
-const chOrd=x=>{const o=dig(QD.quests[x],"visitapi.order");return typeof o==="number"?o:100;};
+/* 章节顺序（插件 1.3.4 QuestFlags.Order，SORA 09-26 定）：1.1 原版章节按这张固定位次（包里的 visitapi.order 对它们不起作用）；
+   自制章节按 visitapi.order，没写 = 玩家配置 CustomChapterOrder 的默认值 100。同位次按文件原序。游戏里另有一条：已开始的章节排在没开始的前面。
+   这张表逐字抄插件 QuestFlags.Official（神秘蓝焰 5.5 是插件暂定），改一边就得改另一边 */
+const CH_OFFICIAL={"68cbd33676fe74b1e80bfd91":1,"68cbcdc4c964ab83cc0c928e":2,"68da33fe00868edcb6025ac4":3,"68da36cf7cff54fc6109874a":4,
+  "6900927ab7d28358f80b9421":5,"68e784b7fa3f1fa3770094ba":5.5,"6903d779fdfc4078740a4bd0":6,"69052e18e680c2d3e3034d3a":7,
+  "68e3a35002661eb2d30ce387":8,"69d38381cea4b428690ea1d9":9};
+const chFixed=x=>CH_OFFICIAL[String(x||"").toLowerCase()];
+const chOrd=x=>{if(chFixed(x)!=null)return chFixed(x);const o=dig(QD.quests[x],"visitapi.order");return typeof o==="number"?o:100;};
 const chapters=()=>QD&&QD.ok?Object.keys(QD.quests).filter(x=>isChap(QD.quests[x])).sort((a,b)=>chOrd(a)-chOrd(b)):[];
 const cq=()=>QD.quests[ccur];
 const cimg=v=>v?`style="background-image:url('/qimg?name=${encodeURIComponent(v)}&t=${encodeURIComponent(TOK)}')"`:"";
@@ -87,7 +93,9 @@ const chEmpty=()=>`<div class="tool"><div class="tnote">${T("ch_empty_note")}</d
 /* ── 章节卡 ── 版式照 1.1 剧情页：图标列 / 横幅 / 主要目标 / 可选目标 / 日记 / 相关物品，最后是子任务顺序 */
 function chCard(ch){
   const subs=subConds(ch).map(c=>QD.quests[c.target]).filter(Boolean);
-  const objs=subs.flatMap(s=>(s.conditions?.AvailableForFinish||[]).map((c,i)=>({s,c,i})));
+  /* 插件 1.3.4（ChapterModel.Conditions）：开了「隐藏任务」的子任务，剧情页不列它的目标（1.1 同样不显示）；日记和相关物品照常算 */
+  const shown=subs.filter(s=>s.notDisplayedQuest!==true);
+  const objs=shown.flatMap(s=>(s.conditions?.AvailableForFinish||[]).map((c,i)=>({s,c,i})));
   /* 和插件剧情页同一个分法（09-15）：挂在别的目标下面的进可选，顶层一律主要——顶层标了 isNecessary=false 的游戏里也在主要，行上挂警告 */
   const isChild=x=>x.c.parentId&&(x.s.conditions?.AvailableForFinish||[]).some(c=>c.id===x.c.parentId);
   const main=objs.filter(x=>!isChild(x)), opt=objs.filter(isChild);
@@ -101,12 +109,12 @@ function chCard(ch){
         <div class="chtitle"><i>${T("ch_label")}</i>
           <h3 contenteditable="plaintext-only" data-cf="name" data-ph="${esc(T("q_name_ph"))}">${esc(qtext(ch,"name"))}</h3></div>
         <em class="chstate">${T("q_prev_st"+cSt)}</em>
-        <label class="chorder" title="${esc(T("ch_order_d"))}"><i>${T("ch_order")}</i><input type="number" step="1" data-corder value="${esc(dig(ch,"visitapi.order")??"")}" placeholder="—"></label>
+        <label class="chorder" title="${esc(chFixed(ch._id)!=null?TF("ch_order_fixed",chFixed(ch._id)):T("ch_order_d"))}"><i>${T("ch_order")}</i><input type="number" step="1" data-corder value="${esc(chFixed(ch._id)??dig(ch,"visitapi.order")??"")}" placeholder="100"${chFixed(ch._id)!=null?" disabled":""}></label>
         <button class="chpick" data-chimg="image" title="${esc(T("q_look_hint"))}">${T(ch.image?"ch_banner_change":"ch_banner_pick")}</button>
       </div>
       <div class="chdesc" contenteditable="plaintext-only" data-cf="description" data-ph="${esc(T("q_desc_ph"))}">${esc(qtext(ch,"description"))}</div>
       ${csec("q_prev_main",main.length)}
-      ${subs.length?subs.map(s=>chObjGroup(s,main,ch)).join(""):`<div class="tempty bad">${T("ch_no_subs")}</div>`}
+      ${subs.length?shown.map(s=>chObjGroup(s,main,ch)).join(""):`<div class="tempty bad">${T("ch_no_subs")}</div>`}
       ${csec("q_prev_opt",opt.length)}
       ${opt.length?opt.map(chObjRow).join(""):`<div class="chhint">${T("ch_opt_hint")}</div>`}
       ${csec("q_prev_notes",null)}${chNotes(ch,subs)}
@@ -177,7 +185,7 @@ function subRow(c,i){
     <span class="tt${s?" goto":""}" ${s?`data-gotoq="${esc(c.target)}" title="${esc(T("q_a_goto"))}"`:""}>${
       s?esc(qname(s)):TF("q_sub_missing",String(c.target||"").slice(0,8))}${
       s?`<small>${TF("q_sub_stat",(s.conditions?.AvailableForFinish||[]).length,Object.keys(s.notes||{}).length)}</small>`:""}</span>
-    <span class="chips">${chips}${failOk(c)?`<i title="${esc(T("ch_failok_on"))}">${T("ch_failok")}</i>`:""}${c.isFinisher?`<b>${T("q_ch_fin")}</b>`:""}</span>
+    <span class="chips">${chips}${s?.notDisplayedQuest===true?`<i title="${esc(T("ch_hidden_sub_d"))}">${T("ch_hidden_sub")}</i>`:""}${failOk(c)?`<i title="${esc(T("ch_failok_on"))}">${T("ch_failok")}</i>`:""}${c.isFinisher?`<b>${T("q_ch_fin")}</b>`:""}</span>
     <button class="dots" data-menu="sub" data-i="${i}">⋮</button></div>`;
 }
 

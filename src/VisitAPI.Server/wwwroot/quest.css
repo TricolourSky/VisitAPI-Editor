@@ -430,3 +430,18 @@
 .trow .tag.vis.optwarn{box-shadow:inset 0 0 0 1px var(--warn,#e0a030)}
 .trow .tag.vis.optwarn s,.chvis.optwarn{color:var(--warn,#e0a030)}
 .chvis.optwarn{box-shadow:inset 0 0 0 1px var(--warn,#e0a030)}
+
+/* 1.3.4 聊天邀请：消息页「邀请」上方照 1.1 聊天窗的邀请标题栏画一条预览（插件 ChatInvites：左黑右金渐变、商人名 / 信文、电话按钮）。
+   它模仿的是游戏画面，所以颜色不跟编辑器主题走；按钮是挂牌类，照铁律斜切 */
+.qinv{flex:0 0 auto;display:flex;align-items:center;gap:.7rem;margin:0 .9rem .3rem;padding:.5rem .75rem;
+  background:linear-gradient(90deg,#000 0%,#1b1a10 55%,#6b5d1c 100%);box-shadow:inset 0 0 0 1px #3a3522}
+.qinv b{flex:0 0 auto;color:#e8e2c8;font-weight:600}
+.qinv .qinvt{flex:1;min-width:0;color:#c9c2a4;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qinv i{flex:0 0 auto;font-style:normal;font-size:11px;font-weight:700;padding:.2rem .7rem;background:#d8b64a;color:#141306;transform:skewX(var(--sk))}
+.qinv i s{display:inline-block;text-decoration:none;transform:skewX(calc(-1*var(--sk)))}
+.qinv i s::before{content:"\260E\FE0E";margin-right:.35em}   /* 单色电话（FE0E = 按文字画，别变成彩色表情） */
+/* 1.3.x 剧情设置里一格放好几个按钮（开关 + 商人、访问 / 回复、多张地图）：包成一格横排，单个的照旧占满这一格 */
+.prow2 .pvgrp{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;min-width:0}
+.prow2 .pvgrp>.pv,.prow2 .pvgrp>.sw{flex:1 1 auto}
+.qinv.off{opacity:.38;filter:grayscale(.6)}
+.qinvnote{color:var(--o);font-weight:400}

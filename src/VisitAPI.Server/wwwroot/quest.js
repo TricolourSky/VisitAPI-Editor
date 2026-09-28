@@ -53,8 +53,12 @@ function questLoad(){
 }
 
 /* ── 文案：任务 json 里存的是 key，界面上只该看见文字 ── */
-const qtext=(q,f)=>(QD.locales[qlang]||{})[q?.[f]]??"";
+/* 聊天邀请的信（插件 1.3.4 InviteRouter）：文案键固定是「任务id whileAvailableMessageText」、不挂在任务顶层字段上，
+   消息页用假字段名 __invite 指它；写正文时顺手把 mailSettings 里记键的那一格补上（1.1 数据就是这么写的），开关不替作者开 */
+const invKey=q=>`${q?._id} whileAvailableMessageText`;
+const qtext=(q,f)=>(QD.locales[qlang]||{})[f==="__invite"?invKey(q):q?.[f]]??"";
 function qsetText(q,f,v){
+  if(f==="__invite"){(QD.locales[qlang] ??= {})[invKey(q)]=v;if(q.mailSettings)q.mailSettings.whileAvailableMessageText??=invKey(q);return;}
   if(!q[f])q[f]=`${q._id} ${f}`;                    /* 原版任务用的同一套 key 惯例 */
   (QD.locales[qlang] ??= {})[q[f]]=v;
 }
@@ -313,7 +317,8 @@ const PANES=[{k:"card",n:"q_pane_card",tip:"q_tip_card"},
 const MSGS=[{f:"successMessageText",n:"q_msg_success",tip:"q_tipm_success",req:true},
             {f:"failMessageText",n:"q_msg_fail",tip:"q_tipm_fail"},
             {f:"startedMessageText",n:"q_msg_started",tip:"q_tipm_started"},
-            {f:"changeQuestMessageText",n:"q_msg_change",tip:"q_tipm_change"}];
+            {f:"changeQuestMessageText",n:"q_msg_change",tip:"q_tipm_change"},
+            {f:"__invite",n:"q_msg_invite",tip:"q_tipm_invite"}];
 const LINES=[{f:"acceptPlayerMessage",n:"q_line_accept"},
              {f:"declinePlayerMessage",n:"q_line_decline"},
              {f:"completePlayerMessage",n:"q_line_complete"}];
@@ -553,10 +558,13 @@ const chapItems=q=>[...new Set(dig(q,"visitapi.items")||[])];
 /* ── 我们自己的前置：visitapi.startAfter ──
    标了它的子任务，会在那条任务变成 Success 的下一帧被自动接下。原生前置只在服务端刷档案时重算，
    没解锁的任务压根不下发到战局的任务书里，所以「A 完成 → B 解锁」在一局之内只能靠这个键。
-   它和 visitapi.autoStart 互斥 —— 全站只有 setWhen 一处写这两个键，三选一由它保证。 */
-const qafter=q=>dig(q,"visitapi.startAfter")||"";
-const qafters=id=>{const t=qafter(QD.quests[id]||{});return t?[t]:[];};
-const qafterName=q=>{const t=qafter(q),s=QD.quests[t];return s?qname(s):t.slice(0,8)+"…";};
+   它和 visitapi.autoStart 互斥 —— 全站只有 setWhen 一处写这两个键，三选一由它保证。
+   插件 1.3.4 起它也可以是一组（任一成功就开，陨落星辰「枪匠对话或踩到坠机」）：qafterL 给全部；qafter 只给第一条，当开关、菜单预选用；
+   显示一律走 qafterName。编辑器自己只写单条（setWhen），作者在菜单里重选 = 明确换成那一条 */
+const qafterL=q=>{const v=dig(q,"visitapi.startAfter");return (Array.isArray(v)?v:[v]).filter(t=>typeof t==="string"&&t);};
+const qafter=q=>qafterL(q)[0]||"";
+const qafters=id=>qafterL(QD.quests[id]||{});
+const qafterName=q=>{const L=qafterL(q).map(t=>QD.quests[t]?qname(QD.quests[t]):t.slice(0,8)+"…");return L.join(" / ")+(L.length>1?T("q_after_any"):"");};
 /* 「谁排在我前面」= 原生前置 ∪ startAfter。两张流程图和上下游高亮共用这一个 */
 const qedgesUp=id=>[...new Set([...qprereq(id),...qafters(id)])];
 /* ── 定时联系（插件 Dev_Note #132，09-14）：**原生**前置 Quest 条件上的 availableAfter（秒）——前置完成时 SPT 自己起定时器，
@@ -681,10 +689,11 @@ function msgPane(q){
         <span class="lv" contenteditable="plaintext-only" data-f="${l.f}"
           data-ph="${esc(T("q_line_ph"))}">${esc(qtext(q,l.f))}</span></div>`).join("")}
       <div style="height:.6rem"></div></div>`;
-  const m=MSGS.find(x=>x.f===qmsg)||MSGS[0];
+  const m=MSGS.find(x=>x.f===qmsg)||MSGS[0], inv=m.f==="__invite";
   return `<div class="tool">
     <div class="tfrom" title="${esc(T(m.tip))}"><span class="tico"></span>
-      <b>${esc(qtrader(q.traderId))}</b> ${T("q_to_player")}<i>${esc(T(m.tip))}</i><em>${T(m.n)}</em></div>
+      <b>${esc(qtrader(inv&&q.mailSettings?.fromTraderId||q.traderId))}</b> ${T("q_to_player")}<i>${esc(T(m.tip))}</i><em>${T(m.n)}</em></div>
+    ${inv?inviteBar(q):""}
     <div class="tbody${m.req?" req":""}" contenteditable="plaintext-only" data-f="${m.f}"
       data-ph="${esc(m.req?T("q_ph_req"):T("q_ph_opt"))}">${esc(qtext(q,m.f))}</div></div>`;
 }
@@ -847,6 +856,7 @@ function wireQuest(){
     const f=el.dataset.f, v=el.textContent;
     if(f==="__name"){qsetText(q,"name",v);q.QuestName=v;}
     else qsetText(q,f,v);
+    if(f==="__invite"){const t=M.querySelector(".qinv .qinvt");if(t)t.textContent=v||T("q_inv_notext");}   /* 聊天窗预览跟着字走，不整页重画 */
     qtouch();});
   /* 目标行的文字：它的 key 是条件自己的 id，不是任务字段 */
   M.querySelectorAll("[data-lockey]").forEach(el=>el.oninput=()=>{
@@ -1048,9 +1058,11 @@ function advMenu(btn,rows){
         }<button class="add" data-add="${f}">＋ ${T("q_adv_add")}</button></div></div>`;
     }
     const zoneType=o.conditionType==="VisitPlace"?"visit":"placeitem";
+    /* 同一个 id 可以有好几个框（插件 1.3.4，迷宫入口 = 1.1 的通道 + 0.16 的转移点）：下拉里并成一条，地图合并 */
+    const zoneOpts=new Map();(QD?.zones||[]).filter(z=>z.type===zoneType).forEach(z=>zoneOpts.set(z.id,[...new Set([...(zoneOpts.get(z.id)||[]),...z.locations])]));
     const ctl=kind==="zone"
       ? `<input data-v="${f}" data-zone="1" list="qzones-${zoneType}" value="${esc(v??"")}" placeholder="${esc(!v&&f==="zoneId"&&effectiveZone(o)?TF("q_zone_inherit",effectiveZone(o)):T("q_zone_input"))}">
-         <datalist id="qzones-${zoneType}">${(QD?.zones||[]).filter(z=>z.type===zoneType).map(z=>`<option value="${esc(z.id)}">${esc(z.locations.join(" / "))}</option>`).join("")}</datalist>`
+         <datalist id="qzones-${zoneType}">${[...zoneOpts].map(([id,locs])=>`<option value="${esc(id)}">${esc(locs.join(" / "))}</option>`).join("")}</datalist>`
       : kind==="bool"
       ? `<button data-b="${f}" aria-pressed="${!!v}">${v?T("q_adv_yes"):T("q_adv_no")}</button>`
       : kind==="cmp"
@@ -1856,8 +1868,9 @@ async function delQuest(){
   let cleaned=0;
   for(const [oid,other] of Object.entries(QD.quests)){
     if(oid===qcur)continue;
-    /* 别人「接在我之后」：留个悬空 id 在那儿，那条任务就再也自动接不上了 */
-    if(qafter(other)===qcur){del(other,"visitapi.startAfter");cleaned++;}
+    /* 别人「接在我之后」：留个悬空 id 在那儿，那条任务就再也自动接不上了。写成一组的（1.3.4）只摘我这一项，摘空了才删键 */
+    if(qafterL(other).includes(qcur)){const rest=qafterL(other).filter(t=>t!==qcur);
+      if(Array.isArray(dig(other,"visitapi.startAfter"))&&rest.length)put(other,"visitapi.startAfter",rest);else del(other,"visitapi.startAfter");cleaned++;}
     let touched=false;
     for(const grp of ["AvailableForStart","AvailableForFinish","Fail"]){
       const L=other.conditions?.[grp]; if(!L)continue;

@@ -9,7 +9,8 @@ namespace VisitAPI.Packs;
 
 /// <summary>
 /// 内容包（2026-09-23 SORA 定「一个包 = 一个文件夹」）：`SPT_Runtime\user\mods\VisitAPI-Server\packs\&lt;包名&gt;\`，
-/// 包里直接放 quests\ locales\ dialogues\ zones\ items\ loot\ variables\ images\ bundles\ + bundles.json + pack.json（+ LICENSE）。
+/// 包里直接放 quests\ locales\ dialogues\ zones\ items\ loot\ variables\ images\ bundles\ + bundles.json + pack.json（+ LICENSE）；
+/// 1.3.4 起还有 traders\&lt;商人id&gt;\（base.json + avatar.png，见 TraderDirs）和 voice\&lt;商人id&gt;\（无房间商人的台词语音，插件服务端 VoiceLoader 读）。
 /// 老布局（DLL 旁边的 db\ + images\ + bundles\）当成一个叫「(db)」的包照读，IsLegacy = true。
 /// 这份源码被插件服务端链源码编进去（VisitAPI-Server.csproj）也被编辑器用（VisitAPI.Quests.csproj）：什么算一个包只有这一处定义。
 /// </summary>
@@ -88,6 +89,13 @@ public static class PackLayout
     }
 
     public static string BundlesDir(PackInfo p) => Path.Combine(p.Folder, "bundles");
+
+    /// <summary>商人（09-23，1.1 的无房间商人）：`traders\&lt;商人id&gt;\base.json` + `avatar.png`，一个文件夹一位；老布局在 db\traders\。按名字排序。</summary>
+    public static string[] TraderDirs(PackInfo p)
+    {
+        var dir = p.IsLegacy ? Path.Combine(p.Folder, LegacyDb, "traders") : Path.Combine(p.Folder, "traders");
+        return Directory.Exists(dir) ? Directory.GetDirectories(dir).OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToArray() : Array.Empty<string>();
+    }
     public static string BundlesManifest(PackInfo p) => p.IsLegacy ? Path.Combine(p.Folder, LegacyDb, "bundles.json") : Path.Combine(p.Folder, "bundles.json");
 
     /// <summary>图片格：(路由段, 目录)。看 `images\*` 和 `images\quest\*` 两层，后者是老名字 / 原样搬进来的包。</summary>

@@ -40,8 +40,8 @@ public static partial class QuestValidator
         // id → 任务。用 GroupBy 建：all 允许重复 id（那是 dup_id 那条规则的活），直接 ToDictionary 会抛。
         var byId = all.GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                       .ToDictionary(g => g.Key, g => g.First().Quest, StringComparer.OrdinalIgnoreCase);
-        // 顺着 startAfter 往前走一步。成环检测唯一的读点。
-        string afterOf(string qid) => byId.TryGetValue(qid, out var x) ? Str(x["visitapi"] as JsonObject, "startAfter") : "";
+        // 顺着 startAfter 往前走一步（1.3.4 起可以是一组，见 Afters）。成环检测唯一的读点。
+        List<string> aftersOf(string qid) => byId.TryGetValue(qid, out var x) ? Afters(x["visitapi"] as JsonObject) : [];
         // 同一章里的兄弟子任务（被多章引用就都算）
         IEnumerable<string> siblingsOf(string subId) => chapters
             .Where(c => QuestRefs(Conds(c.Quest, "AvailableForFinish")).Contains(subId, StringComparer.OrdinalIgnoreCase))
@@ -91,7 +91,7 @@ public static partial class QuestValidator
             // 原生前置在战局内根本不重算（没满足的任务服务端压根不下发，任务书里查不到），
             // 所以"A 完成 → B 解锁"要走 visitapi.startAfter。下面一条阶梯扫完 AvailableForStart，
             // 同一条脏数据只出一个码，优先级：死锁 > 写了 startAfter 却没清原生前置 > 兄弟子任务当前置。
-            var startAfter = Str(vx, "startAfter");
+            var afters = Afters(vx);
             var owners = chapterOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var sibs = siblingsOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             // 同一条任务挂进两个章节：插件只按其中一章算门控和剧情页归属（QuestFlags 一条任务一个章节），另一章里它永远打不上勾
@@ -105,30 +105,31 @@ public static partial class QuestValidator
             foreach (var t in QuestRefs(Conds(q, "AvailableForStart").Where(c =>
                 c["status"] is not JsonArray st || !st.Any(s => s is JsonValue v && v.TryGetValue<int>(out var n) && n is 2 or 3)).ToList()).Distinct(StringComparer.OrdinalIgnoreCase))
                 if (owners.Contains(t)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
-                else if (startAfter.Length > 0) Err("startafter_with_prereq", Cut(t));
+                else if (afters.Count > 0) Err("startafter_with_prereq", Cut(t));
                 else if (sibs.Contains(t) && !timed.Contains(t)) Err("sub_prereq_is_sub", Cut(t));
-            if (startAfter.Length > 0)
+            if (afters.Count > 0)
             {
-                // startAfter 是"每条任务最多一个后继"的函数图，顺着单链走就能判环；
-                // 步数上限拿任务总数兜住，脏数据也不会在这里死循环。
+                // startAfter 1.3.4 起可以是一组（任一成功就开），成环要按图搜：顺着每一项往前走，能走回自己就是环；走过的不再走，脏数据也不会死循环
                 bool Loops(string from)
                 {
-                    var cur = from;
-                    for (var i = 0; cur.Length > 0 && i <= byId.Count; i++)
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var todo = new Stack<string>([from]);
+                    while (todo.TryPop(out var cur))
                     {
                         if (cur.Equals(id, StringComparison.OrdinalIgnoreCase)) return true;
-                        cur = afterOf(cur);
+                        if (seen.Add(cur)) foreach (var next in aftersOf(cur)) todo.Push(next);
                     }
                     return false;
                 }
-                if (startAfter.Equals(id, StringComparison.OrdinalIgnoreCase) || (!ids.Contains(startAfter) && vanillaQuests != null && !vanillaQuests.Contains(startAfter))) Err("startafter_bad", Cut(startAfter));
-                else if (owners.Contains(startAfter)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
-                else if (Loops(startAfter)) Err("startafter_cycle", Cut(startAfter));
+                foreach (var a in afters.Distinct(StringComparer.OrdinalIgnoreCase))
+                    if (!IsMongoId(a) || a.Equals(id, StringComparison.OrdinalIgnoreCase) || (!ids.Contains(a) && vanillaQuests != null && !vanillaQuests.Contains(a))) Err("startafter_bad", Cut(a));
+                    else if (owners.Contains(a)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
+                    else if (Loops(a)) Err("startafter_cycle", Cut(a));
                 if (Bool(vx, "dialogOnly")) Warn("startafter_dialogonly");
             }
             if (subIds.Contains(id) && !Bool(vx, "chapter"))
             {
-                if (dlgAccept != null && !Bool(vx, "autoStart") && startAfter.Length == 0 && !dlgAccept.Contains(id)) Warn("sub_no_entry");
+                if (dlgAccept != null && !Bool(vx, "autoStart") && afters.Count == 0 && !dlgAccept.Contains(id)) Warn("sub_no_entry");
                 if (dlgComplete != null && !Bool(vx, "autoFinish") && !dlgComplete.Contains(id)) Warn("sub_no_exit");
             }
             var noteIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -249,8 +250,8 @@ public static partial class QuestValidator
         if (subs.Count == 0) err("chapter_no_subs", []);
         if (!conds.Any(c => Str(c, "conditionType") == "Quest" && Bool(c, "isFinisher"))) warn("chapter_no_finisher", []);
         // 整章怎么开始：章节自己自动接 / 接在别的任务后面 / 对话（.dlg 或原生对话）接章节或它任一条子任务。一样都没有 = 永远不开始。
-        // 子任务自己的 autoStart / startAfter 不算——两样都要章节先开了才起作用（插件 ChapterChain）
-        if (dlgAccept != null && !Bool(vx, "autoStart") && Str(vx, "startAfter").Length == 0 && !dlgAccept.Contains(id) && !subs.Any(dlgAccept.Contains))
+        // 子任务自己的 autoStart / startAfter 不算——两样都要章节先开了才起作用（插件 ChapterChain；写进章节 startAfter 的「起点」例外，那算章节自己的开头）
+        if (dlgAccept != null && !Bool(vx, "autoStart") && Afters(vx).Count == 0 && !dlgAccept.Contains(id) && !subs.Any(dlgAccept.Contains))
             warn("chapter_no_entry", []);
         if (Str(vx, "icon").Length == 0) warn("chapter_no_icon", []);
         if (Str(q, "image").Length == 0) warn("chapter_no_banner", []);
@@ -267,6 +268,16 @@ public static partial class QuestValidator
 
     /// <summary>取布尔开关：缺失、不是 bool 一律当 false。</summary>
     static bool Bool(JsonObject? o, string k) => o?[k] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
+
+    /// <summary>visitapi.startAfter：一个任务 id，或一组（插件 1.3.4：任一成功就开，陨落星辰「枪匠对话或踩到坠机」就这么写）。
+    /// 不是字符串的项、不是字符串也不是数组的值原样转成文本留着，交给 startafter_bad 点名（插件读不出来，等于没写）。</summary>
+    internal static List<string> Afters(JsonObject? vx) => vx?["startAfter"] switch
+    {
+        null => [],
+        JsonArray a => a.Select(n => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : n?.ToJsonString() ?? "null").Where(s => s.Length > 0).ToList(),
+        JsonValue v when v.TryGetValue<string>(out var s) => s.Length > 0 ? [s] : [],
+        var other => [other.ToJsonString()],
+    };
 
     /// <summary>取字符串字段。对象本身为 null、字段缺失、是数字、是对象——一律当空串，校验不该被脏数据搞崩。</summary>
     static string Str(JsonObject? q, string k) =>

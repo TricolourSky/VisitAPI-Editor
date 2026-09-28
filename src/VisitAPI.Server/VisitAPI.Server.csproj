@@ -458,10 +458,22 @@
                  共享库 DialogLangs（17 种 SPT 语言代码）+ 解析 / 回写（挂不上的拒绝无损回写或原样留住），DlgJson 带 tr / npcTr / trigTr / nameTr，
                  视口头上语言页签（tl，视图状态）切语言原位写译文、页签标已翻 / 总句数，触发点表单每种语言一格；老版写法检测跳过译文行；
                  帮助页「一份 .dlg」卡加多语言一段。插件同日：LocTable 按 Loc.Code 合成字幕表、提示语与「去找 X」同源取字；横幅改排队。测试 1677 → 1693。
+         1.3.4：（09-27）跟上插件 1.3.4（以插件仓库 `.work\plan-134\checklist.md` 和代码为准）。
+                 内容包商人：`CustomTraders.FromPacks` 认 VisitAPI-Server 各包的 traders\<id>\base.json（文件夹名 = _id 才算，名字取包文案「<id> Nickname」），
+                 EFT11 的 22 条 unknown_trader 误报消失。startAfter 可以是一组（任一成功就开）：校验统一走 `Afters`，逐项查 startafter_bad / 死锁 / 成环（按图搜），
+                 界面 qafterL / qafterName 显示「A / B（任一）」，删任务只摘那一项。章节排序照插件 QuestFlags.Official（原版 10 章固定位次，显示顺序格只读；自制不填 = 100）；
+                 章节卡不列隐藏子任务的目标（插件 ChapterModel.Conditions），子任务清单挂「隐藏」；「自动接」的说明改成按清单顺序（插件 ChapterChain.PredecessorDone）。
+                 剧情设置面加只读两行：聊天邀请（mailSettings）、进入状态时设变量（visitapi.setVariables）；新增校验 invite_no_text / invite_bad_entry /
+                 invite_no_dialogue / setvar_bad。区域下拉同名合并（插件放行一个区域多个框）。帮助文字：取坐标改回 F11（SORA 定，插件同日恢复 `Client\Core\CoordKey.cs`）、
+                 去掉插件的 Language 设置、房间包目录 rooms\、章节图标目录、setstatus 在大厅会真的接 / 交 / 判失败（插件 B3）、相关物品不自动推。
+                 测试 1707 → 1740（test-questapi 12b / 13b、test-traders 包商人、probe-chapter 一组 startAfter / 隐藏子任务 / 原版章节位次）。
+                 （09-27 晚，SORA 看过 HTML 原型定「加」、开关和「联系商人」共用）聊天邀请可编辑：发信商人 / 访问或回复 / 回复打开哪段对话
+                 （`NativeDialogues` 顺带列出包里的对话，名字取第一句）/ 消息页第五封「邀请」（键固定「任务id whileAvailableMessageText」）+ 照 1.1 聊天窗画的预览条；
+                 新手引导加一步、使用说明加一行。属性行的值包成一格（`.pvgrp`），1.3.3 起两个按钮的行把说明挤到下一行的毛病一并修掉。测试 1740 → 1746。
 -->
 
 
-    <Version>1.3.3</Version>
+    <Version>1.3.4</Version>
     <!-- 构建时间写进程序集版本号（会拼成 0.1.0+b260808-0030）。
          不能靠读 exe 的文件修改时间——用户从 Release 下载后那个时间会变成下载时间，
          显示的版本就是假的，等于白做。 -->
