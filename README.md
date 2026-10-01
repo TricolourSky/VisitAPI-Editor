@@ -35,7 +35,7 @@ Anywhere else works too; it asks for the folder once, then remembers.
 **Requires the .NET 10 + ASP.NET Core 10 runtime** — if you have SPT, you already have both.
 It binds `127.0.0.1` only and every request needs a per-run token, so nothing is exposed to your network.
 
-Editor 1.3.4 pairs with VisitAPI 1.3.4; older frameworks still open, but their help text and validation rules are the newer ones.
+Editor 1.3.5 pairs with VisitAPI 1.3.5; older frameworks still open, but their help text and validation rules are the newer ones.
 
 ## Where things live
 
@@ -43,7 +43,7 @@ Editor 1.3.4 pairs with VisitAPI 1.3.4; older frameworks still open, but their h
 |---|---|
 | Scripts | `<EFT>\BepInEx\config\VisitAPI\*.dlg` |
 | Backgrounds · audio | `…\VisitAPI\backgrounds\` · `…\VisitAPI\audio\` |
-| Quests | a VisitAPI **content pack**: `<EFT>\SPT_Runtime\user\mods\VisitAPI-Server\packs\<pack>\` with `quests\`, `locales\`, `images\banners\`, `images\icons\` (and `zones\`, read for picking); one pack is one folder, and a new library is created as one. Any other mod's `db\quests\` + `db\locales\` works too — you choose which |
+| Quests | a VisitAPI **quest library** (the release zips call it a content pack — same thing): `<EFT>\SPT_Runtime\user\mods\VisitAPI-Server\packs\<pack>\` with `quests\`, `locales\`, `images\banners\`, `images\icons\` (and `zones\`, read for picking); one pack is one folder, and a new library is created as one. Any other mod's `db\quests\` + `db\locales\` works too — you choose which |
 | Bot outfits · trader stock | any mod's `db\` (the WTT layout) |
 
 One thing worth knowing: **SPT will not load quests from an arbitrary folder on its own.** They have to

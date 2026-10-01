@@ -34,7 +34,7 @@
 **需要 .NET 10 + ASP.NET Core 10 运行时**——装了 SPT 就已经有了。
 只监听 `127.0.0.1`，每个请求都要带本次运行的随机令牌，不对局域网暴露任何东西。
 
-编辑器 1.3.4 和 VisitAPI 1.3.4 配套；老版本框架也能打开，只是帮助文字和校验规则按新版走。
+编辑器 1.3.5 和 VisitAPI 1.3.5 配套；老版本框架也能打开，只是帮助文字和校验规则按新版走。
 
 ## 东西放哪
 
@@ -42,7 +42,7 @@
 |---|---|
 | 剧本 | `<EFT>\BepInEx\config\VisitAPI\*.dlg` |
 | 背景 · 音频 | `…\VisitAPI\backgrounds\` · `…\VisitAPI\audio\` |
-| 任务 | VisitAPI 的**内容包**：`<EFT>\SPT_Runtime\user\mods\VisitAPI-Server\packs\<包名>\`，里面是 `quests\`、`locales\`、`images\banners\`、`images\icons\`（`zones\` 只读、供挑选）；一个包就是一个文件夹，新建任务库就是新建一个包。存到别的模组的 `db\quests\` + `db\locales\` 也行，存哪由你定 |
+| 任务 | VisitAPI 的**任务库**（发布包里叫「内容包」，同一个东西）：`<EFT>\SPT_Runtime\user\mods\VisitAPI-Server\packs\<包名>\`，里面是 `quests\`、`locales\`、`images\banners\`、`images\icons\`（`zones\` 只读、供挑选）；一个库就是一个文件夹，新建任务库就是新建一个文件夹。存到别的模组的 `db\quests\` + `db\locales\` 也行，存哪由你定 |
 | BOT 服装 · 商人货架 | 任意模组的 `db\`（WTT 那套约定） |
 
 有一件事得说清：**SPT 不会自动加载任意目录下的任务**，它们必须存在一个**会去读它**的模组下面。

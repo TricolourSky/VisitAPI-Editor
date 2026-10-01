@@ -109,12 +109,14 @@ function chCard(ch){
         <div class="chtitle"><i>${T("ch_label")}</i>
           <h3 contenteditable="plaintext-only" data-cf="name" data-ph="${esc(T("q_name_ph"))}">${esc(qtext(ch,"name"))}</h3></div>
         <em class="chstate">${T("q_prev_st"+cSt)}</em>
-        <label class="chorder" title="${esc(chFixed(ch._id)!=null?TF("ch_order_fixed",chFixed(ch._id)):T("ch_order_d"))}"><i>${T("ch_order")}</i><input type="number" step="1" data-corder value="${esc(chFixed(ch._id)??dig(ch,"visitapi.order")??"")}" placeholder="100"${chFixed(ch._id)!=null?" disabled":""}></label>
+        <label class="chorder" title="${esc(chFixed(ch._id)!=null?TF("ch_order_fixed",chFixed(ch._id)):TD("ch_order"))}"><i>${T("ch_order")}</i><input type="number" step="1" data-corder value="${esc(chFixed(ch._id)??dig(ch,"visitapi.order")??"")}" placeholder="100"${chFixed(ch._id)!=null?" disabled":""}></label>
         <button class="chpick" data-chimg="image" title="${esc(T("q_look_hint"))}">${T(ch.image?"ch_banner_change":"ch_banner_pick")}</button>
       </div>
       <div class="chdesc" contenteditable="plaintext-only" data-cf="description" data-ph="${esc(T("q_desc_ph"))}">${esc(qtext(ch,"description"))}</div>
+      <div class="chgh"><span class="chips"><button class="chsw" data-csw="${ch._id}|visitapi.mailRewardsOnly" aria-pressed="${dig(ch,"visitapi.mailRewardsOnly")===true}" title="${esc(T("ch_mailq_d"))}">${T("ch_mailq")}</button></span></div>
       ${csec("q_prev_main",main.length)}
       ${subs.length?shown.map(s=>chObjGroup(s,main,ch)).join(""):`<div class="tempty bad">${T("ch_no_subs")}</div>`}
+      <button class="add" data-cstep style="display:block;width:calc(100% - 1.8rem);margin:.5rem .9rem;padding:.55rem;text-align:center;color:var(--y);box-shadow:inset 0 0 0 1px var(--y)">${T("st_btn")}</button>
       ${csec("q_prev_opt",opt.length)}
       ${opt.length?opt.map(chObjRow).join(""):`<div class="chhint">${T("ch_opt_hint")}</div>`}
       ${csec("q_prev_notes",null)}${chNotes(ch,subs)}
@@ -171,7 +173,7 @@ function chItems(ch,subs){
 function chSubs(ch){
   const subs=subConds(ch);
   return (subs.length?subs.map((c,i)=>subRow(c,i)).join(""):`<div class="tempty bad">${T("q_e_subs")}</div>`)
-    +(subs.length>1?`<div class="chsec"><h5>${T("q_chap_chain")}</h5><i class="chhint">${T("q_chap_chain_d")}</i>
+    +(subs.length>1?`<div class="chsec"><h5>${T("q_chap_chain")}</h5><i class="chhint">${TD("q_chap_chain")}</i>
       <button class="add" data-chain>${T("q_chap_chain_btn")}</button></div>`:"");
 }
 /* 子任务行：序号 · 名字（点了跳去任务页）· 开关芯片 · 终章标记 · ⋮ */
@@ -347,7 +349,9 @@ function wireChapter(){
   if(!QD?.ok)return;
   const M=$("main"), ch=ccur?cq():null;
   $("cReload").onclick=async()=>{if(qdirty()&&!await confirm2(T("q_confirm_reload")))return;QD=null;render();};
-  $("cSave").onclick=()=>questSave(false);
+  /* 10-01：「加一步」会顺手改这一章商人的剧本（开场多一条选项、收尾那句挂上完成）。剧本先落盘、再存任务——
+     校验是照盘上的 .dlg 推演的，顺序反了会白报一轮「接不到 / 交不掉」 */
+  $("cSave").onclick=async()=>{if(dirty&&ch&&chDlgOpen(ch))await saveDlg();questSave(false);};
   $("qlangsw").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{qlang=b.dataset.l;render();});
   M.querySelectorAll("[data-cst]").forEach(b=>b.onclick=()=>{cSt=+b.dataset.cst;render();});
   M.querySelectorAll("[data-cgo]").forEach(b=>b.onclick=()=>{ccur=b.dataset.cgo;render();});
@@ -405,6 +409,7 @@ function wireCard(ch,M){
   M.querySelectorAll("[data-cnote]").forEach(el=>el.oninput=()=>{const [id,k]=el.dataset.cnote.split("|");setNoteText(QD.quests[id],k,el.textContent);});
   M.querySelectorAll("[data-cdelitem]").forEach(b=>b.onclick=()=>{ch.visitapi.items.splice(+b.dataset.cdelitem,1);qtouch();render();});
   const cn=M.querySelector("[data-chain]"); if(cn)cn.onclick=()=>chainSubs(ch);
+  const st=M.querySelector("[data-cstep]"); if(st)st.onclick=()=>stepMenu(st,ch);   /* 「＋ 加一步」：step.js */
   if(!QITEMS&&!qiWait&&M.querySelector(".chitem b"))cItemsFetch();   /* 物品要显示名字：表没拉就拉一趟，回来还在这一页才重画 */
 }
 function cItemsFetch(){

@@ -479,7 +479,7 @@ const VX=[["visitapi.anyOf","q_vx_anyOf"],["visitapi.unlockTraderOnReady","q_vx_
    相关物品 = visitapi.items（上交/找到类目标里的物品插件会自动算上，这里只填额外想展示的） */
 const NOTE_KEYS=["Started","Success","Fail"];
 function propPane(q){
-  const row=(k,d,ctrl)=>`<div class="prow2"><k>${T(k)}</k>${ctrl}<s>${T(d)}</s></div>`;
+  const row=(k,d,ctrl)=>`<div class="prow2"><k>${T(k)}</k>${ctrl}<s>${d.endsWith("_d")?TD(d.slice(0,-2)):T(d)}</s></div>`;   /* _d 键走两级说明（短句+「?」详情，0930） */
   return `<div class="tool">
     ${thead(qname(q),T("q_pane_prop"),"meta")}
     <div class="tnote">${T("q_prop_note")}</div>
@@ -504,7 +504,8 @@ function propPane(q){
     ${qtimed(q)?row("q_vx_timed","q_vx_timed_d",`<span class="pv">${esc(TF("q_vx_timed_v",qtimedName(q),hoursOf(qtimed(q).availableAfter)))}</span>`):""}
     ${row("q_vx_icon","q_vx_icon_d",`<span class="pv edit" contenteditable="plaintext-only" data-vf="visitapi.icon"
         data-ph="${esc(T("q_vx_icon_ph"))}">${esc(dig(q,"visitapi.icon")||"")}</span>`)}
-    ${compatibilityRows(q)}${unlockRows(q)}${notesRows(q)}${itemsRows(q)}
+    ${qfold("compat","q_compat","q_compat_e",compatibilityRows(q))}
+    ${qfold("unlock","q_sec_unlock","q_sec_unlock_e",unlockRows(q),(dig(q,"visitapi.unlockDialogue")||[]).length)}${notesRows(q)}${itemsRows(q)}
     <div class="tsec"><h5>${T("q_sec_note")}</h5></div>
     ${row("q_p_note","q_p_note_d",`<span class="pv edit" contenteditable="plaintext-only" data-f="note"
         data-ph="${esc(T("q_p_note_ph"))}">${esc(qtext(q,"note"))}</span>`)}
@@ -512,7 +513,7 @@ function propPane(q){
       <div class="er">▫ ${T("q_ro_id")}<code>${esc(q._id||qcur)}</code></div>
       <div class="er">▫ ${T("q_ro_file")}<code>${esc(QD.owner[qcur]||"—")}</code></div>
       <div class="er">▫ ${T("q_ro_status")}<code>${q.status??0}</code></div>
-      <div class="er">▫ ${T("q_ro_dlgid")}<code>${esc(q.dialogueId||T("q_ro_empty"))}</code>${T("q_ro_dlgid_d")}</div>
+      <div class="er">▫ ${T("q_ro_dlgid")}<code>${esc(q.dialogueId||T("q_ro_empty"))}</code>${TD("q_ro_dlgid")}</div>
     </div>
   </div>`;
 }
@@ -520,7 +521,7 @@ function propPane(q){
 /* 日记三格 + 相关物品：属性面和章节面共用同一块（接线也共用：data-note / data-add=item / data-menu=item） */
 const notesRows=q=>`<div class="tsec" data-sec="q_sec_notes"><h5>${T("q_sec_notes")}</h5></div><div class="tnote">${T("q_notes_note")}</div>`+
   NOTE_KEYS.map(k=>`<div class="prow2"><k>${T("q_note_"+k)}</k><span class="pv edit" contenteditable="plaintext-only" data-note="${k}"
-    data-ph="${esc(T("q_note_ph"))}">${esc(qloc(q.notes?.[k]||""))}</span><s>${T("q_note_"+k+"_d")}</s></div>`+noteLinkRows(q,k)).join("");
+    data-ph="${esc(T("q_note_ph"))}">${esc(qloc(q.notes?.[k]||""))}</span><s>${TD("q_note_"+k)}</s></div>`+noteLinkRows(q,k)).join("");
 /* 日记挂的物品（visitapi.noteLinks[日记id] = [{type,tpl}]，插件 1.3 的 1.1 日记表 links）：只有已经有 id 的日记才能挂 */
 const noteLinkRows=(q,k)=>{const nid=q.notes?.[k]; if(!nid)return "";
   const ls=(dig(q,"visitapi.noteLinks")||{})[nid]||[];
@@ -528,7 +529,14 @@ const noteLinkRows=(q,k)=>{const nid=q.notes?.[k]; if(!nid)return "";
     <span class="tt">${esc(itemLabel(l.tpl))}</span><button class="dots" data-nldel="${k}|${i}">✕</button></div>`).join("")
     +`<div class="trow"><span class="tt"></span><button class="add" data-nladd="${k}">${T("q_add_note_item")}</button></div>`;};
 /* 完成后开放访问（visitapi.unlockDialogue，插件 1.3）：这条任务 Success 之后这些商人的「访问」按钮才出现 */
-const unlockRows=q=>tsec("q_sec_unlock",(dig(q,"visitapi.unlockDialogue")||[]).length,{k:"unlock",t:"q_add_trader"})
+/* 折叠条（0930 B1，SORA 过审原型）：低频块折成一行；开合记进偏好，数字默认数"开着的开关" */
+const qfold=(id,titleK,emK,inner,n)=>{
+  if(n==null)n=(inner.match(/aria-pressed="true"/g)||[]).length;
+  return `<details class="qfold" data-qfold="${id}"${pref("fold.q."+id)==="1"?" open":""}>
+    <summary><b>${T(titleK)}</b><u class="${n?"":"n0"}">${n}</u><em>${T(emK)}</em></summary>
+    <div class="qfbody">${inner}</div></details>`;};
+/* details 的 toggle 不冒泡，捕获段接一次就够 */
+addEventListener("toggle",e=>{const d=e.target;if(d&&d.dataset&&d.dataset.qfold)setPref("fold.q."+d.dataset.qfold,d.open?"1":"");},true);const unlockRows=q=>tsec("q_sec_unlock",(dig(q,"visitapi.unlockDialogue")||[]).length,{k:"unlock",t:"q_add_trader"})
   +`<div class="tnote">${T("q_unlock_note")}</div>`
   +(dig(q,"visitapi.unlockDialogue")||[]).map((id,i)=>`<div class="trow"><span class="tag"><s>${T("q_tag_trader")}</s></span>
     <span class="tt">${esc(qtrader(id)||String(id).slice(0,8)+"…")}</span><button class="dots" data-menu="unlock" data-i="${i}">⋮</button></div>`).join("");
@@ -654,6 +662,9 @@ function addSub(target,q){
   const c={conditionType:"Quest",id:NEWID(),index:0,dynamicLocale:false,visibilityConditions:[],parentId:"",
     globalQuestCounterId:"",target,status:[4],availableAfter:0,isFinisher:false};
   ((q.conditions ??= {}).AvailableForFinish ??= []).push(c); subLoc(c); normFin(q);
+  /* 10-01：挂进「只在有奖励附件时寄信」的章节——新建时落的「（还没写完成邮件）」占位字反正寄不出去，顺手清掉，免得留着碍眼 */
+  if(dig(q,"visitapi.mailRewardsOnly")===true)for(const L of ["ch","en"]){const k=`${target} successMessageText`,v=(QD.locales[L]||{})[k];
+    if(v===I18N.zh.q_new_mail||v===I18N.en.q_new_mail)QD.locales[L][k]="";}
 }
 /* 新建子任务：和章节同一个文件、同一个商人，建完直接挂进章节，人还停在章节面。
    剧情任务的原生弹窗关掉（示例章节也是这么做的，横幅由插件自己出） */
@@ -680,6 +691,11 @@ function joinChapter(btn){
   if(!chs.length)return qtoast(T("q_chap_nojoin"));
   qMenu(btn,"q_m_chap",chs.map(x=>({a:x,n:qname(QD.quests[x])})),null,v=>{hide();addSub(qcur,QD.quests[v]);qtouch();render();});
 }
+/* 10-01：章节开了「只在有奖励附件时寄信」（visitapi.mailRewardsOnly，插件同日）——章节和子任务没附件的信寄不出去，
+   就别摆一张红字「必填」的空信纸逼人写了。三封信各看自己那一桶奖励里有没有物品 */
+const MAILB={successMessageText:"Success",startedMessageText:"Started",failMessageText:"Fail"};
+const mailQuiet=(q,f)=>!!MAILB[f]&&[q._id,...chaptersOf(q._id)].some(c=>dig(QD.quests[c],"visitapi.mailRewardsOnly")===true)
+  &&!(q.rewards?.[MAILB[f]]||[]).some(r=>r.type==="Item");
 /* ── 消息面 ── 四封信 + 三句玩家台词 */
 function msgPane(q){
   if(qmsg==="lines")
@@ -692,10 +708,11 @@ function msgPane(q){
   const m=MSGS.find(x=>x.f===qmsg)||MSGS[0], inv=m.f==="__invite";
   return `<div class="tool">
     <div class="tfrom" title="${esc(T(m.tip))}"><span class="tico"></span>
-      <b>${esc(qtrader(inv&&q.mailSettings?.fromTraderId||q.traderId))}</b> ${T("q_to_player")}<i>${esc(T(m.tip))}</i><em>${T(m.n)}</em></div>
+      <b>${esc(qtrader(inv&&q.mailSettings?.fromTraderId||q.traderId))}</b> ${T("q_to_player")}<i>${mailQuiet(q,m.f)?"":esc(T(m.tip))}</i><em>${T(m.n)}</em></div>
     ${inv?inviteBar(q):""}
+    ${mailQuiet(q,m.f)?`<div class="tempty">${T("q_mail_quiet")}</div></div>`:`
     <div class="tbody${m.req?" req":""}" contenteditable="plaintext-only" data-f="${m.f}"
-      data-ph="${esc(m.req?T("q_ph_req"):T("q_ph_opt"))}">${esc(qtext(q,m.f))}</div></div>`;
+      data-ph="${esc(m.req?T("q_ph_req"):T("q_ph_opt"))}">${esc(qtext(q,m.f))}</div></div>`}`;
 }
 
 /* ══════════════ 任务链图 ══════════════
@@ -922,7 +939,7 @@ let qRestartSaid=false;
 function qRestartHint(){
   if(qRestartSaid)return; qRestartSaid=true;
   const e=$("qsaved"); if(!e)return;
-  e.textContent=T("q_saved_restart"); e.title=T("q_saved_restart_d");
+  e.textContent=T("q_saved_restart"); e.title=TD("q_saved_restart");
 }
 /* 改完只刷"脏"标记和统计，不整页重渲染 —— 否则每敲一个字光标就跳走 */
 function qtouch(){
@@ -1578,7 +1595,7 @@ function imgCustomPane(){
   return `<div class="impane">
     <div class="imwarn">${T("q_img_ownwarn")}</div>
     <h4>${T("q_img_custom")}</h4>
-    <p>${T("q_img_custom_d")}</p>
+    <p>${TD("q_img_custom")}</p>
     <input id="gpCustom" value="${esc(dig(qq()||{},gpField)||"")}" placeholder="/files/quest/icon/myquest.png">
     <div class="kindmenu" style="margin-top:.7rem"><button data-use="1">${T("q_img_use")}</button></div>
   </div>`;
@@ -1675,7 +1692,7 @@ function linkPane(q){
 function nativeLinksPane(id){
   const rows=(QL?.native?.links||[]).filter(l=>l.questId===id);
   if(!rows.length)return "";   /* 只读参考：没有原生对话接/交它的就不摆这一组，别给每条任务都挂个空区 */
-  return tsec("q_native_links",rows.length,null)+`<div class="thint">${T("q_native_links_d")}</div>`+
+  return tsec("q_native_links",rows.length,null)+`<div class="thint">${TD("q_native_links")}</div>`+
     (rows.length?rows.map(l=>`<div class="trow"><span class="tag"><s>${T(l.action==="AcceptQuest"?"q_act_accept":"q_act_complete")}</s></span><span class="tt">${esc(l.file)}<i>${esc(l.element)} / ${esc(l.line)}</i></span></div>`).join(""):tempty("q_e_link"));
 }
 
@@ -1924,7 +1941,7 @@ function rootPane(){
     </div>
     ${qRootBack?`<div class="trow">
       <span class="tag"><s>esc</s></span>
-      <span class="tt">${T("q_root_cancel_d")}</span>
+      <span class="tt">${TD("q_root_cancel")}</span>
       <button class="add" id="qRootCancel">${T("q_root_cancel")}</button>
     </div>`:""}
   </div>`;

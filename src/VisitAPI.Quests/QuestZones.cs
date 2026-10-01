@@ -5,7 +5,7 @@ namespace VisitAPI.Quests;
 public sealed record QuestZone(string Id, string Type, string[] Locations, string File, JsonElement Definition);
 public sealed record QuestZoneCatalog(List<QuestZone> Zones, Dictionary<string, string> Broken);
 
-/// <summary>Zone definitions are read-only. Authors edit references, not scene coordinates, in this editor.</summary>
+/// <summary>Zone definitions are read as they are; the only write path is <see cref="Add"/>, which appends one visit box (chapter page "add a step").</summary>
 public static class QuestZones
 {
     static (string Key, QuestZoneCatalog Data)? _cache;
@@ -38,6 +38,38 @@ public static class QuestZones
         }
         _cache = (key, data);
         return data;
+    }
+
+    /// <summary>10-01 章节「加一步：去某地踩点」：往任务库的 zones 文件追加一个到达区域。<b>只在文末 <c>]</c> 前插一段文字</b>，
+    /// 作者写的别的区域、备注、排版一个字节不动；zones 里已有文件就续在第一份后面，没有就新建 <c>zones\&lt;库文件夹名&gt;.json</c>。
+    /// 写之前把拼好的全文再解析一遍，数目对不上（文件里有注释之类拼坏了）就不落盘。成了回 null，否则回错误码。</summary>
+    public static string? Add(string questDb, string id, string map, double[] pos, double[] size)
+    {
+        if (!QuestImages.Registers(questDb)) return "not_visitapi_db";
+        static bool Word(string s) => s.Length > 0 && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
+        if (!Word(id) || !Word(map) || pos.Concat(size).Any(v => !double.IsFinite(v)) || size.Any(v => v <= 0)) return "bad_zone";
+        if (Scan(questDb).Zones.Any(z => z.Id.Equals(id, StringComparison.OrdinalIgnoreCase))) return "zone_exists";
+        var dir = Path.Combine(questDb, "zones");
+        var path = (Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase).FirstOrDefault() : null)
+                   ?? Path.Combine(dir, Path.GetFileName(questDb.TrimEnd('\\', '/')) + ".json");
+        var text = File.Exists(path) ? File.ReadAllText(path) : "[\n]";
+        static int Count(string json)
+        {
+            try { using var d = JsonDocument.Parse(json, new() { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip }); return d.RootElement.ValueKind == JsonValueKind.Array ? d.RootElement.GetArrayLength() : -1; }
+            catch (JsonException) { return -1; }
+        }
+        var n = Count(text); var at = text.LastIndexOf(']');
+        if (n < 0 || at < 0) return "zone_file_broken";
+        static string N(double v) => Math.Round(v, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var head = text[..at].TrimEnd();
+        var entry = $"  {{\n    \"id\": \"{id}\",\n    \"type\": \"visit\",\n    \"locations\": [\"{map}\"],\n"
+            + $"    \"position\": {{ \"x\": {N(pos[0])}, \"y\": {N(pos[1])}, \"z\": {N(pos[2])} }},\n    \"rotation\": {{ \"x\": 0, \"y\": 0, \"z\": 0, \"w\": 1 }},\n"
+            + $"    \"size\": {{ \"x\": {N(size[0])}, \"y\": {N(size[1])}, \"z\": {N(size[2])} }}\n  }}";
+        var next = head + (n > 0 && !head.EndsWith(',') ? "," : "") + "\n" + entry + "\n]" + text[(at + 1)..];
+        if (Count(next) != n + 1) return "zone_file_broken";
+        TextFile.Write(path, next);
+        _cache = null;
+        return null;
     }
 
     public static IReadOnlySet<string>? StockReferences(string sptData)

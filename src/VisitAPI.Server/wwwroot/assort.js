@@ -123,7 +123,7 @@ function asPage() {
 
   return ashell(`<div class="aswork">
     <section class="asshelf">
-      <div class="asbh"><b>${T("a_shelf")}</b> SHELF · ${T("a_shelf_d")}
+      <div class="asbh"><b>${T("a_shelf")}</b> SHELF · ${TD("a_shelf")}
         <span class="sp"></span><span class="asfilter" id="aFilter"></span>
         <em>${TF("a_onsale", aRoots(sc).length)}</em></div>
       <div class="astabs"><b>▣ ${T("a_tab_trade")}</b>
@@ -149,7 +149,7 @@ function asPage() {
          墙底下那条横着占满整个预览区，等于从下面切掉一条格子（Tech Leader："挡住格子了"）。
          放在这儿是跟着参数一起滚的，参数长了它自然沉到底，永远不占预览区。 -->
     <section class="aspar"><div class="asbh"><b>${T("a_par")}</b> PARAMS
-        <span class="sp"></span><em>${esc(asel ? aName(aItemOf(asel)?._tpl) : T("a_none"))}</em></div>
+        <span class="sp"></span><em>${esc(asel ? aName(aItemOf(asel)?._tpl) : T("as_none"))}</em></div>
       <div class="aspbody" id="aParams"></div>
       <div class="asfoot">${T("a_foot")}</div></section>
   </div>`);
@@ -270,7 +270,7 @@ function aDraw() {
   $("aFilter").innerHTML = [["", T("a_all")], [1, "LL1"], [2, "LL2"], [3, "LL3"], [4, "LL4"]]
     .map(([v, t]) => `<button class="${String(aOnly) === String(v) ? "on" : ""}" data-lv2="${v}">${t}</button>`).join("");
   $("aParams").innerHTML = asel && aItemOf(asel) ? aPanel(sc, asel) : `<div class="aspempty">
-    <b>${T("a_pickone")}</b>${T("a_pickone_d")}
+    <b>${T("a_pickone")}</b>${TD("a_pickone")}
     <div style="margin-top:1rem"><button class="btn pri" id="aAdd2"><span>＋ ${T("a_add")}</span></button></div></div>`;
 }
 
@@ -340,7 +340,7 @@ function aPanel(sc, id) {
   return `<div class="asblk">
     <div class="asblkh"><b>${esc(aName(it._tpl))}</b><span class="sp"></span>${esc(it._tpl.slice(0, 8))}</div>
     <div class="asblkb">
-      <div class="asfld"><label>${T("a_f_item")}<i>${TF("a_f_item_d", w, h)}</i></label>
+      <div class="asfld"><label>${T("a_f_item")}<i>${TDF("a_f_item", w, h)}</i></label>
         <button class="btn ghost sm" id="aSwap"><span>${T("a_swap")}</span></button></div>
       ${aFlat(sc, id) ? `<div class="asfld"><label>${T("a_f_price")}</label>
         <input class="asin" type="number" min="0" value="${p.count ?? 0}" data-price="${esc(id)}"></div>
@@ -348,12 +348,12 @@ function aPanel(sc, id) {
         <div class="asseg">${CURS.map(([c, s, k]) =>
           `<button class="${(p._tpl || RUB) === c ? "on" : ""}" data-acur="${esc(id)}|${c}">${s} ${T(k)}</button>`).join("")}</div></div>`
       : `<div class="asfld"><label>${T("a_f_price")}</label></div>
-        <div class="ashint"><em>${T("a_barter")}</em> ${T("a_barter_d")}
+        <div class="ashint"><em>${T("a_barter")}</em> ${TD("a_barter")}
           <div style="margin-top:.4rem">${aBarter(sc, id)}</div></div>`}
     </div></div>
 
   <div class="asblk"><div class="asblkh"><b>${T("a_g_cond")}</b></div><div class="asblkb">
-    <div class="asfld"><label>${T("a_f_ll")}<i>${T("a_f_ll_d")}</i></label></div>
+    <div class="asfld"><label>${T("a_f_ll")}<i>${TD("a_f_ll")}</i></label></div>
     <div class="asllpick">${[1, 2, 3, 4].map(n =>
       `<button class="${aLl(sc, id) === n ? "on" : ""}" data-lv="${esc(id)}|${n}">LL ${n}</button>`).join("")}</div>
     <div class="asfld" style="margin-top:.5rem"><label>${T("a_f_stock")}</label>
@@ -361,7 +361,7 @@ function aPanel(sc, id) {
         <button class="${inf ? "" : "on"}" data-inf="${esc(id)}|0">${T("a_fin")}</button></div></div>
     ${inf ? "" : `<div class="asfld"><label>${T("a_f_left")}</label>
       <input class="asin w" type="number" min="0" value="${it.upd?.StackObjectsCount ?? 0}" data-stock="${esc(id)}"></div>`}
-    <div class="asfld"><label>${T("a_f_lim")}<i>${T("a_f_lim_d")}</i></label>
+    <div class="asfld"><label>${T("a_f_lim")}<i>${TD("a_f_lim")}</i></label>
       <input class="asin w" type="number" min="0" value="${it.upd?.BuyRestrictionMax ?? 0}" data-lim="${esc(id)}"></div>
   </div></div>
 
@@ -370,7 +370,7 @@ function aPanel(sc, id) {
     ${ks.length ? ks.map(k => `<div class="asfld"><label>${esc(aName(k._tpl))}</label>
         <input class="asin w" type="number" min="1" value="${k.upd?.StackObjectsCount ?? 1}"
           data-kid="${esc(k._id)}"></div>`).join("")
-      : `<div class="ashint"><em>${T("a_emptybox2")}</em> ${T("a_emptybox_d")}</div>
+      : `<div class="ashint"><em>${T("a_emptybox2")}</em> ${TD("a_emptybox")}</div>
          <div style="margin-top:.5rem"><button class="btn ghost sm" data-fill="${esc(id)}">
            <span>${T("a_fill")}</span></button></div>`}
   </div></div>` : ""}

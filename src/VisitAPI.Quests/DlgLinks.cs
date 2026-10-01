@@ -76,6 +76,27 @@ public static class DlgLinks
         return (links, trigs, broken, badIds);
     }
 
+    /// <summary>一扇门：某个选项（Opt ≥ 0）或触发点（Opt = -1）只在某任务处于某些状态时才出现。</summary>
+    public sealed record DlgGate(string File, string Node, int Opt, string Text, string QuestId, int[] Statuses);
+
+    /// <summary>扫出所有「仅当某任务处于某状态」的选项和触发点（10-01：推演这扇门是不是永远过不了，见 QuestValidator 的 gate_never_*）。读不动的文件跳过——那是 Scan 的 Broken 去报的事。</summary>
+    public static List<DlgGate> Gates(string dlgDir)
+    {
+        var gates = new List<DlgGate>();
+        foreach (var path in Files(dlgDir))
+        {
+            DialogTree t;
+            try { t = DialogParser.Parse(File.ReadAllText(path), null); } catch { continue; }
+            var name = Path.GetFileName(path);
+            foreach (var n in t.Nodes.Values)
+                for (var i = 0; i < n.Options.Count; i++)
+                    if (n.Options[i].IfQuestId is { Length: > 0 } q) gates.Add(new DlgGate(name, n.Name, i, n.Options[i].Text ?? "", q, [.. n.Options[i].IfStatuses]));
+            foreach (var g in t.Triggers)
+                if (!string.IsNullOrEmpty(g.IfQuestId)) gates.Add(new DlgGate(name, g.Node ?? "", -1, g.Prompt ?? "", g.IfQuestId, [.. g.IfStatuses]));
+        }
+        return gates;
+    }
+
     static IEnumerable<(string Act, string Id)> Acts(DialogOption o)
     {
         foreach (var id in o.AcceptIds) yield return ("accept", id);

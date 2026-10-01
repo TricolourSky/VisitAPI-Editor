@@ -167,7 +167,7 @@ public sealed class Workspace
                 var pj = Path.Combine(full, PackLayout.PackJson);
                 if (!File.Exists(pj))
                 {
-                    var ver = typeof(Workspace).Assembly.GetName().Version?.ToString(3) ?? "1.3.4";
+                    var ver = typeof(Workspace).Assembly.GetName().Version?.ToString(3) ?? "1.3.5";
                     var name = JsonSerializer.Serialize(Path.GetFileName(Path.TrimEndingDirectorySeparator(full)));
                     File.WriteAllText(pj, "{\n  \"name\": " + name + ",\n  \"version\": \"1.0.0\",\n  \"requires\": \"~" + ver + "\",\n  \"author\": \"\",\n  \"description\": { \"ch\": \"\", \"en\": \"\" }\n}\n", new UTF8Encoding(false));
                 }

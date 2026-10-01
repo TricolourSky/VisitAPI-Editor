@@ -205,6 +205,12 @@ public static class QuestApi
 
         app.MapPost("/api/quests", (SaveReq r) => Save(ws, r));
 
+        // 10-01 章节「加一步：去某地踩点」：往任务库的 zones 文件追加一个到达区域（QuestZones.Add：只在文末插一段，别的原样），回最新的区域表
+        app.MapPost("/api/quests/zone", (ZoneReq r) =>
+            !ws.HasQuestDb ? Results.BadRequest(new { error = "no_quest_db" })
+            : QuestZones.Add(ws.QuestDb, r.Id ?? "", r.Map ?? "", [r.X, r.Y, r.Z], [r.Sx, r.Sy, r.Sz]) is { } err ? Results.BadRequest(new { error = err })
+            : Results.Json(new { ok = true, zones = QuestZones.Scan(ws.QuestDb).Zones }));
+
         // ── 任务 ↔ 对话 ──
         // .dlg 住在工作区（ws.Root），任务住在 QuestDb，是两个根，别搞混
         app.MapGet("/api/quests/links", () =>
@@ -385,10 +391,12 @@ public static class QuestApi
     {
         IReadOnlySet<string>? acc = null, com = null;
         List<DlgLinks.DlgBadId> dlgBad = [];
+        List<DlgLinks.DlgGate>? gates = null;
         if (ws.HasRoot || QuestImages.Registers(ws.QuestDb))
             try
             {
                 var (links, trigs, _, bad) = DlgLinks.Scan(ws.Root);
+                gates = DlgLinks.Gates(ws.Root);
                 // .dlg 里写错的任务 id：游戏里查不到任何任务，而自动门控会顺手把那个选项藏起来，
                 // 现象是"选项莫名其妙不出现"。这里报出来，别让人进游戏才发现。
                 dlgBad = bad;
@@ -416,7 +424,7 @@ public static class QuestApi
         var vanilla = spt.Ok ? spt.QuestIds() : null;
         var knownIds = vanilla == null || siblings.Count == 0 ? vanilla : new HashSet<string>(vanilla.Concat(siblings.Keys), StringComparer.OrdinalIgnoreCase);
         var issues = QuestValidator.Run(quests, loc, known, acc, com, dlgBad.Select(b => (b.File, b.Id)), knownIds, areas.Count > 0 ? areas : null, maps.Count > 0 ? maps : null, ours,
-            ours ? zoneData.Zones : null, ours ? QuestZones.StockReferences(ws.SptData) : null, dlgTraders, siblings.Count > 0 ? siblings : null);
+            ours ? zoneData.Zones : null, ours ? QuestZones.StockReferences(ws.SptData) : null, dlgTraders, siblings.Count > 0 ? siblings : null, gates);
         // db\locales 里 SPT 不认识的语言文件（zh.json / in.json…）：插件加载每条任务都报错，章节子任务借章节名那一步也断。
         // 只拿这台 SPT 真有的语言表比，没有 SPT 数据就不查（扫不到 ≠ 不存在）
         var langs = spt.Ok ? spt.GlobalLangs() : null;
@@ -428,6 +436,8 @@ public static class QuestApi
         issues.AddRange(NativeDialogues.Scan(ws.QuestDb, ws.SptData).Broken.Select(b => new Issue("warn", "", "native_dialogue_broken", [b.Key, b.Value])));
         return issues;
     }
+
+    public sealed record ZoneReq(string? Id, string? Map, double X, double Y, double Z, double Sx, double Sy, double Sz);
 
     public sealed record SaveReq(
         string? Stamp,

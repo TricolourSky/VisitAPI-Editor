@@ -295,7 +295,7 @@ function bGroup(k) {
           : `<div class="bttile def">${bArt("default_" + k, k)}<b>${TF("b_def_badge", n)}</b></div>`}
       <div class="btwhat">${c
         ? `<b>${esc(bwname(c.w))}</b><i>${esc(c.id)}</i>`
-        : `<b>${T("b_def")}</b><i>${TF("b_def_d", n)}</i>`}</div>
+        : `<b>${T("b_def")}</b><i>${TDF("b_def", n)}</i>`}</div>
     </div>
     <div class="btacts"><em class="${bad ? "btbad" : ""}">${
       bad ? TF("b_mismatch_with", T("b_s_" + other)) : c ? T("b_iscus") : T("b_keep")}</em>
@@ -321,7 +321,7 @@ function bRows(k) {
 function bCards() {
   const rows = bRows();
   if (!rows.length) return `<div class="btnone"><b>${T("b_empty")}</b>${
-    bq ? T("b_nohit") : TF("b_empty_d", T("b_s_" + bTab), BDIR[bTab])}</div>`;
+    bq ? T("b_nohit") : TDF("b_empty", T("b_s_" + bTab), BDIR[bTab])}</div>`;
   /* 配图说明挂在**还缺图的时候**：全配齐了它自己就消失，不会变成一条永远杵在那儿的废话。
      （原来这条挂在「选 BOT」弹窗里 —— BOT 不再配图之后，那儿就不是它该待的地方了） */
   const gap = rows.filter(w => !bpic(w.parts[bTab], w)).length;

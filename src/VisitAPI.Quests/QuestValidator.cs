@@ -26,7 +26,8 @@ public static partial class QuestValidator
                                   IEnumerable<(string File, string Id)>? dlgBadIds = null, IReadOnlySet<string>? vanillaQuests = null,
                                   IReadOnlyList<AreaRow>? areas = null, IReadOnlyCollection<string>? transitMaps = null,
                                   bool visitApiDb = false, IReadOnlyList<QuestZone>? zones = null, IReadOnlySet<string>? stockZones = null,
-                                  IReadOnlySet<string>? dlgTraders = null, IReadOnlyDictionary<string, string>? siblingQuests = null)
+                                  IReadOnlySet<string>? dlgTraders = null, IReadOnlyDictionary<string, string>? siblingQuests = null,
+                                  IReadOnlyList<DlgLinks.DlgGate>? dlgGates = null)
     {
         var all = quests.All().ToList();
         var ids = all.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -47,6 +48,10 @@ public static partial class QuestValidator
             .Where(c => QuestRefs(Conds(c.Quest, "AvailableForFinish")).Contains(subId, StringComparer.OrdinalIgnoreCase))
             .SelectMany(c => QuestRefs(Conds(c.Quest, "AvailableForFinish")))
             .Where(t => !t.Equals(subId, StringComparison.OrdinalIgnoreCase));
+        // 章节开了 mailRewardsOnly（10-01，插件同日）：章节和它的子任务只在信里有物品附件时才寄——没附件的完成信寄不出去，上面的占位字没人看得到
+        var quietMail = chapters.Where(c => Bool(c.Quest["visitapi"] as JsonObject, "mailRewardsOnly"))
+            .SelectMany(c => QuestRefs(Conds(c.Quest, "AvailableForFinish")).Append(c.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        static bool ItemReward(JsonObject q) => ((q["rewards"] as JsonObject)?["Success"] as JsonArray)?.OfType<JsonObject>().Any(r => Str(r, "type") == "Item") == true;
 
         foreach (var (id, file, q) in all)
         {
@@ -85,7 +90,8 @@ public static partial class QuestValidator
             if (Bool(q, "isStoryQuest") && !Bool(vx, "chapter") && !subIds.Contains(id) && !Bool(q, "notDisplayedQuest")) Warn("story_outside_chapter");
             // 新建任务落的占位文案（q_new_* / ch_new_name，中英各一份）：是「还没写」，不是写好了——按空白处理并点名（1.3.3）
             foreach (var field in new[] { "name", "description", "successMessageText" })
-                if (Str(q, field) is { Length: > 0 } pk && LocaleStore.Known.Any(l => Placeholders.Contains(loc.Get(l, pk) ?? ""))) Warn("placeholder_text", field);
+                if (field == "successMessageText" && quietMail.Contains(id) && !ItemReward(q)) continue;   // 这封信不寄，占位字没人看得到
+                else if (Str(q, field) is { Length: > 0 } pk && LocaleStore.Known.Any(l => Placeholders.Contains(loc.Get(l, pk) ?? ""))) Warn("placeholder_text", field);
             // 死锁：子任务把"自己所在的章节"当成前置。章节要等所有子任务成功才算成功，
             // 子任务又要等章节成功才接得到 —— 两边互相等，永远开不了（实机踩过）。
             // 原生前置在战局内根本不重算（没满足的任务服务端压根不下发，任务书里查不到），
@@ -125,7 +131,8 @@ public static partial class QuestValidator
                     if (!IsMongoId(a) || a.Equals(id, StringComparison.OrdinalIgnoreCase) || (!ids.Contains(a) && vanillaQuests != null && !vanillaQuests.Contains(a))) Err("startafter_bad", Cut(a));
                     else if (owners.Contains(a)) { if (!deadlockSaid) Err("sub_prereq_is_chapter"); deadlockSaid = true; }
                     else if (Loops(a)) Err("startafter_cycle", Cut(a));
-                if (Bool(vx, "dialogOnly")) Warn("startafter_dialogonly");
+                // 10-01：原来这里报 startafter_dialogonly（「自动接 + 只走对话」二选一）。那条是按「去找 X」按钮写的，按钮退役后
+                // dialogOnly 管的是金色电话指引和藏掉任务页的交付按钮，和 startAfter 一起用正是胶水任务的标准写法——规则已删
             }
             if (subIds.Contains(id) && !Bool(vx, "chapter"))
             {
@@ -219,6 +226,24 @@ public static partial class QuestValidator
         // 现象是"这个选项莫名其妙不出现"，不看文件根本查不出来。
         foreach (var (file, id) in (dlgBadIds ?? []).Distinct())
             out_.Add(new Issue("err", "", "dlg_bad_qid", [file, id]));
+
+        // 对话里「仅当某任务处于某状态」的选项 / 触发点（10-01）：推演这扇门是不是永远过不了。只认两种确凿的情况——
+        // 任务是自动接下的（不会停在「可接取」）；任务一接下目标就已达成（目标全是「前置任务已完成」，直接跳「可提交」，不会停在「进行中」）。
+        // 实机踩过：收尾选项只写「进行中」，章节永远收不了口，校验一声不吭
+        foreach (var g in dlgGates ?? [])
+        {
+            if (!byId.TryGetValue(g.QuestId, out var gq)) continue;
+            var gvx = gq["visitapi"] as JsonObject; var sa = Afters(gvx);
+            var auto = sa.Count > 0 || Bool(gvx, "autoStart");
+            var pre = sa.Concat(QuestRefs(Conds(gq, "AvailableForStart"))).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var fin = Conds(gq, "AvailableForFinish");
+            var inst = fin.Count > 0 && fin.All(c => Str(c, "conditionType") == "Quest" && pre.Contains(Str(c, "target"))
+                && c["status"] is JsonArray st && st.Any(s => s is JsonValue v && v.TryGetValue<int>(out var n) && n == 4));
+            if (g.Statuses.Length == 0 || !g.Statuses.All(s => s == 1 && auto || s == 2 && inst)) continue;
+            // 两个码各写一句字面量：test-i18n 靠扫 `new Issue(…, "码"` 认活文案，拼出来的码它看不见
+            if (g.Statuses.Contains(2) && inst) out_.Add(new Issue("err", g.QuestId, "gate_never_inst", [g.File, g.Node, g.Text]));
+            else out_.Add(new Issue("err", g.QuestId, "gate_never_auto", [g.File, g.Node, g.Text]));
+        }
 
         // 读不动的文件：这条必须显出来，否则用户只会看到"我的任务不见了"
         foreach (var (file, why) in quests.Broken) out_.Add(new Issue("err", "", "broken_file", [file, why]));
